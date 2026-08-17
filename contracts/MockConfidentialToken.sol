@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 // Test-only confidential token used to verify VEIL custody flows.
 // solhint-disable use-natspec, gas-custom-errors, gas-indexed-events, immutable-vars-naming, named-parameters-mapping
+// solhint-disable gas-strict-inequalities
 
 import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
