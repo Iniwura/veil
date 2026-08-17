@@ -67,9 +67,10 @@ describe("VeilPool", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, encryptedWeight, veilPoolContractAddress, signer);
   }
 
-  it("starts with zero players", async function () {
+  it("starts with zero players and assigns the deployer as owner", async function () {
     expect(await veilPoolContract.playerCount()).to.equal(0);
     expect(await veilPoolContract.nextRoundId()).to.equal(1);
+    expect(await veilPoolContract.owner()).to.equal(signers.deployer.address);
   });
 
   it("registers Alice on her first encrypted deposit", async function () {
@@ -164,6 +165,10 @@ describe("VeilPool", function () {
       await expect(fresh.veilPoolContract.snapshotRound()).to.be.revertedWith("Need 2 players");
     });
 
+    it("restricts snapshot creation to the owner", async function () {
+      await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith("Only owner");
+    });
+
     it("creates round metadata and preserves participant order", async function () {
       const tx = await veilPoolContract.snapshotRound();
       await tx.wait();
@@ -238,6 +243,51 @@ describe("VeilPool", function () {
 
       await expect(veilPoolContract.getSnapshotPlayer(1, 2)).to.be.revertedWith("Invalid index");
       await expect(veilPoolContract.getSnapshotPlayer(99, 0)).to.be.revertedWith("Unknown round");
+    });
+  });
+
+  describe("BlindDraw", function () {
+    beforeEach(async function () {
+      await deposit(signers.alice, 10);
+      await deposit(signers.bob, 30);
+      const tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+    });
+
+    it("restricts BlindDraw execution to the owner", async function () {
+      await expect(veilPoolContract.connect(signers.alice).blindDraw(1)).to.be.revertedWith("Only owner");
+    });
+
+    it("executes exactly once and advances the round to DRAWN", async function () {
+      const tx = await veilPoolContract.blindDraw(1);
+      await tx.wait();
+
+      const draw = await veilPoolContract.getDrawInfo(1);
+      expect(draw.state).to.equal(2);
+
+      await expect(veilPoolContract.getEncryptedWinner(1)).not.to.be.reverted;
+      await expect(veilPoolContract.blindDraw(1)).to.be.revertedWith("Round not ready");
+    });
+
+    it("does not allow a draw before a snapshot or for an unknown round", async function () {
+      await expect(veilPoolContract.blindDraw(99)).to.be.revertedWith("Round not ready");
+      await expect(veilPoolContract.getEncryptedWinner(99)).to.be.revertedWith("Winner unavailable");
+    });
+
+    it("keeps the snapshot fixed if live balances change before BlindDraw", async function () {
+      await deposit(signers.alice, 100);
+
+      expect(await decryptOwnBalance(signers.alice)).to.equal(110);
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+
+      const tx = await veilPoolContract.blindDraw(1);
+      await tx.wait();
+
+      const draw = await veilPoolContract.getDrawInfo(1);
+      expect(draw.participantCount).to.equal(2);
+      expect(draw.state).to.equal(2);
+      expect(await veilPoolContract.getSnapshotPlayer(1, 0)).to.equal(signers.alice.address);
+      expect(await veilPoolContract.getSnapshotPlayer(1, 1)).to.equal(signers.bob.address);
     });
   });
 });
