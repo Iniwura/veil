@@ -42,10 +42,8 @@ jobs:
         with:
           version: stable
       - run: npm ci
-      - run: npm run prettier:write
-      - run: git diff -- contracts/VeilPool.sol test/VeilPool.ts
-      - run: npm run lint:sol
-      - run: npm run lint:ts
+      - run: npm run prettier:check
+      - run: npm run lint
       - run: npm run compile
       - run: npm run build:ts
       - run: npm test
