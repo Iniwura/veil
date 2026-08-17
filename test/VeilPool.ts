@@ -4,12 +4,7 @@ import { expect } from "chai";
 import { ContractTransactionResponse, HDNodeWallet, Wallet } from "ethers";
 import { ethers, fhevm } from "hardhat";
 
-import {
-  MockConfidentialToken,
-  MockConfidentialToken__factory,
-  VeilPool,
-  VeilPool__factory,
-} from "../types";
+import { MockConfidentialToken, MockConfidentialToken__factory, VeilPool, VeilPool__factory } from "../types";
 
 type Signers = {
   deployer: HardhatEthersSigner;
