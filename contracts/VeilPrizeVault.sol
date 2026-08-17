@@ -5,12 +5,10 @@ pragma solidity ^0.8.24;
 // solhint-disable use-natspec, gas-custom-errors, gas-indexed-events, immutable-vars-naming
 // solhint-disable named-parameters-mapping, gas-struct-packing
 
-import {FHE, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 interface IERC7984PrizeAsset {
-    function isOperator(address holder, address spender) external view returns (bool);
-    function confidentialTransferFrom(address from, address to, euint64 amount) external returns (euint64 transferred);
     function confidentialTransfer(address to, euint64 amount) external returns (euint64 transferred);
 }
 
@@ -20,8 +18,7 @@ interface IVeilWinnerSource {
 
 /// @title VeilPrizeVault
 /// @notice Holds confidential prize assets separately from VEIL principal and exposes each prize only to its winner.
-/// @dev V0.1 uses owner-backed funding as test plumbing.
-/// A dedicated yield adapter replaces the funder in the next milestone.
+/// @dev Prize accounting can only be credited by the configured yield source after it transfers actual assets here.
 contract VeilPrizeVault is ZamaEthereumConfig {
     struct Prize {
         euint64 amount;
@@ -31,9 +28,9 @@ contract VeilPrizeVault is ZamaEthereumConfig {
         bool claimed;
     }
 
-    address public immutable owner;
     IVeilWinnerSource public immutable pool;
     IERC7984PrizeAsset public immutable asset;
+    address public immutable yieldSource;
 
     mapping(uint256 => Prize) private prizes;
 
@@ -41,38 +38,34 @@ contract VeilPrizeVault is ZamaEthereumConfig {
     event WinnerAuthorized(uint256 indexed roundId, address indexed winner);
     event PrizeClaimed(uint256 indexed roundId, address indexed winner);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
+    modifier onlyYieldSource() {
+        require(msg.sender == yieldSource, "Only yield source");
         _;
     }
 
-    constructor(address pool_, address asset_) {
+    constructor(address pool_, address asset_, address yieldSource_) {
         require(pool_ != address(0), "Invalid pool");
         require(asset_ != address(0), "Invalid asset");
+        require(yieldSource_ != address(0), "Invalid yield source");
 
-        owner = msg.sender;
         pool = IVeilWinnerSource(pool_);
         asset = IERC7984PrizeAsset(asset_);
+        yieldSource = yieldSource_;
     }
 
-    /// @notice Funds a round with confidential assets without affecting VEIL principal or draw weight.
-    /// @dev The funder must authorize this vault as an operator on the ERC-7984 asset first.
-    function fundPrize(uint256 roundId, externalEuint64 encryptedAmount, bytes calldata inputProof) external onlyOwner {
-        require(!prizes[roundId].claimed, "Prize already claimed");
-        require(asset.isOperator(msg.sender, address(this)), "Vault not operator");
-
-        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        FHE.allowTransient(requested, address(asset));
-
-        euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
-
+    /// @notice Records a confidential prize amount already transferred here by the configured yield source.
+    /// @dev The yield source grants this contract transient access to `amount` before this call.
+    function recordPrize(uint256 roundId, euint64 amount) external onlyYieldSource {
         Prize storage prize = prizes[roundId];
+        require(!prize.claimed, "Prize already claimed");
+        require(!prize.winnerAuthorized, "Winner already authorized");
+
         if (!prize.funded) {
             prize.amount = FHE.asEuint64(0);
             prize.funded = true;
         }
 
-        prize.amount = FHE.add(prize.amount, transferred);
+        prize.amount = FHE.add(prize.amount, amount);
         FHE.allowThis(prize.amount);
 
         emit PrizeFunded(roundId);
