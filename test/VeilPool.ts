@@ -62,8 +62,14 @@ describe("VeilPool", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, encryptedBalance, veilPoolContractAddress, signer);
   }
 
+  async function decryptSnapshotWeight(signer: HardhatEthersSigner, roundId: bigint | number) {
+    const encryptedWeight = await veilPoolContract.connect(signer).encryptedSnapshotWeightOf(roundId);
+    return fhevm.userDecryptEuint(FhevmType.euint64, encryptedWeight, veilPoolContractAddress, signer);
+  }
+
   it("starts with zero players", async function () {
     expect(await veilPoolContract.playerCount()).to.equal(0);
+    expect(await veilPoolContract.nextRoundId()).to.equal(1);
   });
 
   it("registers Alice on her first encrypted deposit", async function () {
@@ -145,5 +151,93 @@ describe("VeilPool", function () {
     await deposit(signers.alice, 9);
 
     await expect(veilPoolContract.connect(signers.outsider).encryptedBalanceOf()).to.be.revertedWith("Not joined");
+  });
+
+  describe("encrypted draw snapshots", function () {
+    beforeEach(async function () {
+      await deposit(signers.alice, 10);
+      await deposit(signers.bob, 30);
+    });
+
+    it("requires at least two participants before snapshotting", async function () {
+      const fresh = await deployFixture();
+      await expect(fresh.veilPoolContract.snapshotRound()).to.be.revertedWith("Need 2 players");
+    });
+
+    it("creates round metadata and preserves participant order", async function () {
+      const tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      expect(await veilPoolContract.nextRoundId()).to.equal(2);
+
+      const draw = await veilPoolContract.getDrawInfo(1);
+      expect(draw.participantCount).to.equal(2);
+      expect(draw.state).to.equal(1);
+      expect(draw.snapshotBlock).to.be.greaterThan(0);
+
+      expect(await veilPoolContract.getSnapshotPlayer(1, 0)).to.equal(signers.alice.address);
+      expect(await veilPoolContract.getSnapshotPlayer(1, 1)).to.equal(signers.bob.address);
+    });
+
+    it("lets each participant decrypt only their own snapshot weight", async function () {
+      const tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+
+      const bobWeight = await veilPoolContract.connect(signers.bob).encryptedSnapshotWeightOf(1);
+      await expect(
+        fhevm.userDecryptEuint(FhevmType.euint64, bobWeight, veilPoolContractAddress, signers.alice),
+      ).to.be.rejected;
+    });
+
+    it("keeps a round snapshot immutable while the live position continues changing", async function () {
+      let tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      await deposit(signers.alice, 15);
+
+      expect(await decryptOwnBalance(signers.alice)).to.equal(25);
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+
+      tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 2)).to.equal(25);
+      expect(await decryptSnapshotWeight(signers.bob, 2)).to.equal(30);
+    });
+
+    it("does not retroactively add a new live participant to an older round", async function () {
+      let tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      await deposit(signers.outsider, 50);
+
+      await expect(veilPoolContract.connect(signers.outsider).encryptedSnapshotWeightOf(1)).to.be.revertedWith(
+        "Not in round",
+      );
+
+      const firstDraw = await veilPoolContract.getDrawInfo(1);
+      expect(firstDraw.participantCount).to.equal(2);
+
+      tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      const secondDraw = await veilPoolContract.getDrawInfo(2);
+      expect(secondDraw.participantCount).to.equal(3);
+      expect(await decryptSnapshotWeight(signers.outsider, 2)).to.equal(50);
+      expect(await veilPoolContract.getSnapshotPlayer(2, 2)).to.equal(signers.outsider.address);
+    });
+
+    it("rejects unknown rounds and invalid snapshot indexes", async function () {
+      await expect(veilPoolContract.getDrawInfo(1)).to.be.revertedWith("Unknown round");
+
+      const tx = await veilPoolContract.snapshotRound();
+      await tx.wait();
+
+      await expect(veilPoolContract.getSnapshotPlayer(1, 2)).to.be.revertedWith("Invalid index");
+      await expect(veilPoolContract.getSnapshotPlayer(99, 0)).to.be.revertedWith("Unknown round");
+    });
   });
 });
