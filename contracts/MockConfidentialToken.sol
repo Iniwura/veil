@@ -33,11 +33,7 @@ contract MockConfidentialToken is ZamaEthereumConfig {
         return balances[account];
     }
 
-    function confidentialTransferFrom(
-        address from,
-        address to,
-        euint64 amount
-    ) external returns (euint64 transferred) {
+    function confidentialTransferFrom(address from, address to, euint64 amount) external returns (euint64 transferred) {
         require(msg.sender == from || operatorUntil[from][msg.sender] >= block.timestamp, "Not operator");
         transferred = _transfer(from, to, amount);
         FHE.allowTransient(transferred, msg.sender);
