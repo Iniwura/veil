@@ -173,8 +173,9 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
   });
 
   it("rejects direct prize credits from accounts other than the yield source", async function () {
-    const fakeAmount = 1n;
-    await expect(prizeVault.connect(signers.outsider).recordPrize(1, fakeAmount)).to.be.revertedWith("Only yield source");
+    await expect(prizeVault.connect(signers.outsider).recordPrize(1, ethers.ZeroHash)).to.be.revertedWith(
+      "Only yield source",
+    );
   });
 
   it("does not expose the prize before the pool has a finalized winner", async function () {
