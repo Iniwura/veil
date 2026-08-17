@@ -247,6 +247,47 @@ describe("VeilPool", function () {
       await expect(veilPoolContract.blindDraw(1)).to.be.revertedWith("Round not ready");
     });
 
+    it("permissionlessly finalizes only the KMS-proven public winner", async function () {
+      await (await veilPoolContract.snapshotRound()).wait();
+      await (await veilPoolContract.blindDraw(1)).wait();
+
+      const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
+      const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
+
+      await (
+        await veilPoolContract
+          .connect(signers.outsider)
+          .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof)
+      ).wait();
+
+      const winner = await veilPoolContract.getWinner(1);
+      expect([signers.alice.address, signers.bob.address]).to.include(winner);
+
+      const draw = await veilPoolContract.getDrawInfo(1);
+      expect(draw.state).to.equal(3);
+      await expect(
+        veilPoolContract
+          .connect(signers.alice)
+          .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof),
+      ).to.be.revertedWith("Round not awaiting finalization");
+    });
+
+    it("rejects an invalid winner decryption proof", async function () {
+      await (await veilPoolContract.snapshotRound()).wait();
+      await (await veilPoolContract.blindDraw(1)).wait();
+
+      const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
+      const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
+
+      await expect(
+        veilPoolContract
+          .connect(signers.outsider)
+          .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, `${publicDecryptResults.decryptionProof}dead`),
+      ).to.be.reverted;
+
+      expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(2);
+    });
+
     it("retains owner controls and round validation", async function () {
       await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith("Only owner");
       await expect(veilPoolContract.blindDraw(99)).to.be.revertedWith("Round not ready");
@@ -256,6 +297,7 @@ describe("VeilPool", function () {
       expect(await veilPoolContract.getSnapshotPlayer(1, 0)).to.equal(signers.alice.address);
       expect(await veilPoolContract.getSnapshotPlayer(1, 1)).to.equal(signers.bob.address);
       await expect(veilPoolContract.getSnapshotPlayer(1, 2)).to.be.revertedWith("Invalid index");
+      await expect(veilPoolContract.getWinner(1)).to.be.revertedWith("Winner not finalized");
     });
   });
 });

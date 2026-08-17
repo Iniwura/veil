@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// Prototype-specific lint suppressions keep V0.3 readable while the economic model is still changing.
+// Prototype-specific lint suppressions keep V0.4 readable while the economic model is still changing.
 // Revisit these before production hardening.
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
-// solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping
+// solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping, gas-struct-packing
 
 import {FHE, ebool, eaddress, euint64, euint128, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
@@ -17,8 +17,8 @@ interface IERC7984Asset {
 
 /// @title VeilPool
 /// @notice Privacy-first prize-pool foundation for Zama Developer Program Season 4.
-/// @dev V0.3 adds ERC-7984-backed confidential deposits and withdrawals on top of encrypted
-///      snapshots and weighted BlindDraw. Yield, public winner finalization, and prize settlement
+/// @dev V0.4 adds permissionless, KMS-proof-verified winner finalization on top of ERC-7984-backed
+///      deposits, withdrawals, encrypted snapshots, and weighted BlindDraw. Yield and prize settlement
 ///      remain separate milestones.
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
@@ -26,7 +26,8 @@ contract VeilPool is ZamaEthereumConfig {
     enum DrawState {
         NONE,
         SNAPSHOTTED,
-        DRAWN
+        DRAWN,
+        FINALIZED
     }
 
     struct Position {
@@ -39,6 +40,7 @@ contract VeilPool is ZamaEthereumConfig {
         uint8 participantCount;
         euint64 encryptedTotalWeight;
         eaddress encryptedWinner;
+        address winner;
         DrawState state;
     }
 
@@ -66,7 +68,8 @@ contract VeilPool is ZamaEthereumConfig {
     event DepositRecorded(address indexed player);
     event WithdrawalRecorded(address indexed player);
     event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
-    event BlindDrawCompleted(uint256 indexed roundId);
+    event BlindDrawCompleted(uint256 indexed roundId, eaddress encryptedWinner);
+    event WinnerFinalized(uint256 indexed roundId, address indexed winner);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -216,9 +219,33 @@ contract VeilPool is ZamaEthereumConfig {
         draw.state = DrawState.DRAWN;
 
         FHE.allowThis(draw.encryptedWinner);
-        FHE.allow(draw.encryptedWinner, owner);
+        FHE.makePubliclyDecryptable(draw.encryptedWinner);
 
-        emit BlindDrawCompleted(roundId);
+        emit BlindDrawCompleted(roundId, draw.encryptedWinner);
+    }
+
+    /// @notice Permissionlessly finalizes the public winner after relayer/KMS decryption.
+    /// @dev The proof is cryptographically bound to this round's encrypted-winner handle and clear address.
+    function finalizeWinner(
+        uint256 roundId,
+        bytes calldata abiEncodedClearWinner,
+        bytes calldata decryptionProof
+    ) external {
+        Draw storage draw = draws[roundId];
+        require(draw.state == DrawState.DRAWN, "Round not awaiting finalization");
+
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = FHE.toBytes32(draw.encryptedWinner);
+
+        FHE.checkSignatures(handles, abiEncodedClearWinner, decryptionProof);
+
+        address clearWinner = abi.decode(abiEncodedClearWinner, (address));
+        require(clearWinner != address(0), "No eligible winner");
+
+        draw.winner = clearWinner;
+        draw.state = DrawState.FINALIZED;
+
+        emit WinnerFinalized(roundId, clearWinner);
     }
 
     function getDrawInfo(
@@ -236,8 +263,14 @@ contract VeilPool is ZamaEthereumConfig {
 
     function getEncryptedWinner(uint256 roundId) external view returns (eaddress) {
         Draw storage draw = draws[roundId];
-        require(draw.state == DrawState.DRAWN, "Winner unavailable");
+        require(draw.state == DrawState.DRAWN || draw.state == DrawState.FINALIZED, "Winner unavailable");
         return draw.encryptedWinner;
+    }
+
+    function getWinner(uint256 roundId) external view returns (address) {
+        Draw storage draw = draws[roundId];
+        require(draw.state == DrawState.FINALIZED, "Winner not finalized");
+        return draw.winner;
     }
 
     function getSnapshotPlayer(uint256 roundId, uint8 index) external view returns (address) {
