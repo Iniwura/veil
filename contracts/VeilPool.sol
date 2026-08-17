@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// Prototype-specific lint suppressions keep V0.2 readable while the economic model is still changing.
+// Prototype-specific lint suppressions keep V0.3 readable while the economic model is still changing.
 // Revisit these before production hardening.
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
 // solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping
@@ -9,10 +9,17 @@ pragma solidity ^0.8.24;
 import {FHE, ebool, eaddress, euint64, euint128, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
+interface IERC7984Asset {
+    function isOperator(address holder, address spender) external view returns (bool);
+    function confidentialTransferFrom(address from, address to, euint64 amount) external returns (euint64 transferred);
+    function confidentialTransfer(address to, euint64 amount) external returns (euint64 transferred);
+}
+
 /// @title VeilPool
 /// @notice Privacy-first prize-pool foundation for Zama Developer Program Season 4.
-/// @dev V0.2 tracks confidential weights, immutable encrypted snapshots, and an encrypted weighted BlindDraw.
-///      Asset backing, withdrawals, yield, public winner finalization, and production settlement remain out of scope.
+/// @dev V0.3 adds ERC-7984-backed confidential deposits and withdrawals on top of encrypted
+///      snapshots and weighted BlindDraw. Yield, public winner finalization, and prize settlement
+///      remain separate milestones.
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
 
@@ -36,6 +43,7 @@ contract VeilPool is ZamaEthereumConfig {
     }
 
     address public immutable owner;
+    IERC7984Asset public immutable asset;
 
     mapping(address => Position) private positions;
 
@@ -46,7 +54,6 @@ contract VeilPool is ZamaEthereumConfig {
     uint8 public playerCount;
     euint64 private encryptedTotalWeight;
 
-    /// @notice ID that will be assigned to the next snapshot.
     uint256 public nextRoundId = 1;
 
     mapping(uint256 => Draw) private draws;
@@ -57,6 +64,7 @@ contract VeilPool is ZamaEthereumConfig {
 
     event PlayerJoined(address indexed player);
     event DepositRecorded(address indexed player);
+    event WithdrawalRecorded(address indexed player);
     event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
     event BlindDrawCompleted(uint256 indexed roundId);
 
@@ -65,17 +73,24 @@ contract VeilPool is ZamaEthereumConfig {
         _;
     }
 
-    constructor() {
+    constructor(address asset_) {
+        require(asset_ != address(0), "Invalid asset");
         owner = msg.sender;
+        asset = IERC7984Asset(asset_);
+
         encryptedTotalWeight = FHE.asEuint64(0);
         FHE.allowThis(encryptedTotalWeight);
     }
 
-    /// @notice Adds a confidential weight to the caller's live position.
-    /// @dev V0.2 weights are still not asset-backed. This method must not be treated as a
-    ///      production deposit function until confidential token custody is integrated.
+    /// @notice Deposits confidential ERC-7984 assets and credits only the amount actually transferred.
+    /// @dev The user must first authorize this pool as an operator on the confidential asset.
     function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
-        euint64 amount = FHE.fromExternal(encryptedAmount, inputProof);
+        require(asset.isOperator(msg.sender, address(this)), "Pool not operator");
+
+        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        FHE.allowTransient(requested, address(asset));
+
+        euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
 
         if (!joined[msg.sender]) {
             require(playerCount < MAX_PLAYERS, "Pool full");
@@ -85,7 +100,6 @@ contract VeilPool is ZamaEthereumConfig {
 
             positions[msg.sender].balance = FHE.asEuint64(0);
             positions[msg.sender].active = true;
-
             joined[msg.sender] = true;
 
             unchecked {
@@ -95,27 +109,46 @@ contract VeilPool is ZamaEthereumConfig {
             emit PlayerJoined(msg.sender);
         }
 
-        positions[msg.sender].balance = FHE.add(positions[msg.sender].balance, amount);
-        encryptedTotalWeight = FHE.add(encryptedTotalWeight, amount);
+        positions[msg.sender].balance = FHE.add(positions[msg.sender].balance, transferred);
+        encryptedTotalWeight = FHE.add(encryptedTotalWeight, transferred);
 
-        // The contract needs continuing access for later snapshots and BlindDraw.
         FHE.allowThis(positions[msg.sender].balance);
         FHE.allowThis(encryptedTotalWeight);
-
-        // Only the position owner receives user-decryption permission.
         FHE.allow(positions[msg.sender].balance, msg.sender);
 
         emit DepositRecorded(msg.sender);
     }
 
-    /// @notice Returns the caller's current encrypted live balance.
+    /// @notice Withdraws up to the caller's live confidential principal.
+    /// @dev The live position changes, but historical draw snapshots remain immutable.
+    function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
+        require(joined[msg.sender], "Not joined");
+
+        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        euint64 available = FHE.select(
+            FHE.le(requested, positions[msg.sender].balance),
+            requested,
+            positions[msg.sender].balance
+        );
+
+        FHE.allowTransient(available, address(asset));
+        euint64 transferred = asset.confidentialTransfer(msg.sender, available);
+
+        positions[msg.sender].balance = FHE.sub(positions[msg.sender].balance, transferred);
+        encryptedTotalWeight = FHE.sub(encryptedTotalWeight, transferred);
+
+        FHE.allowThis(positions[msg.sender].balance);
+        FHE.allowThis(encryptedTotalWeight);
+        FHE.allow(positions[msg.sender].balance, msg.sender);
+
+        emit WithdrawalRecorded(msg.sender);
+    }
+
     function encryptedBalanceOf() external view returns (euint64) {
         require(joined[msg.sender], "Not joined");
         return positions[msg.sender].balance;
     }
 
-    /// @notice Returns the live encrypted aggregate handle.
-    /// @dev The handle is not made publicly decryptable.
     function getEncryptedTotalWeight() external view returns (euint64) {
         return encryptedTotalWeight;
     }
@@ -125,9 +158,6 @@ contract VeilPool is ZamaEthereumConfig {
         return players[index];
     }
 
-    /// @notice Creates an immutable encrypted snapshot for a future BlindDraw.
-    /// @dev Snapshot timing is owner-controlled in V0.2 to prevent permissionless round spam and timing manipulation.
-    ///      Later deposits create new ciphertext handles and therefore do not mutate weights referenced by this round.
     function snapshotRound() external onlyOwner returns (uint256 roundId) {
         require(playerCount >= 2, "Need 2 players");
 
@@ -153,22 +183,13 @@ contract VeilPool is ZamaEthereumConfig {
             drawPlayerIndex[roundId][account] = i;
             drawParticipantIncluded[roundId][account] = true;
 
-            // Preserve contract access for future encrypted draw computation.
             FHE.allowThis(drawWeights[roundId][i]);
-            // The participant may inspect/decrypt only their own snapshotted weight.
             FHE.allow(drawWeights[roundId][i], account);
         }
 
         emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
     }
 
-    /// @notice Executes one weighted BlindDraw against an immutable snapshot.
-    /// @dev Randomness, cumulative weights, target, and winner selection all remain encrypted.
-    ///      To map a uniform encrypted uint64 into [0,totalWeight), the calculation uses
-    ///      floor(random * totalWeight / 2^64) in euint128 space. The owner is granted
-    ///      decryption permission only for the finalized winner ciphertext; participant weights
-    ///      and aggregate odds remain undisclosed. A production version should replace this
-    ///      owner-only winner reveal with a public/auditable finalization flow.
     function blindDraw(uint256 roundId) external onlyOwner {
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.SNAPSHOTTED, "Round not ready");
@@ -200,7 +221,6 @@ contract VeilPool is ZamaEthereumConfig {
         emit BlindDrawCompleted(roundId);
     }
 
-    /// @notice Public, non-sensitive metadata for an existing draw.
     function getDrawInfo(
         uint256 roundId
     ) external view returns (uint64 snapshotBlock, uint8 participantCount, DrawState state) {
@@ -209,21 +229,17 @@ contract VeilPool is ZamaEthereumConfig {
         return (draw.snapshotBlock, draw.participantCount, draw.state);
     }
 
-    /// @notice Returns the caller's encrypted weight exactly as it existed at the snapshot.
     function encryptedSnapshotWeightOf(uint256 roundId) external view returns (euint64) {
         require(drawParticipantIncluded[roundId][msg.sender], "Not in round");
         return drawWeights[roundId][drawPlayerIndex[roundId][msg.sender]];
     }
 
-    /// @notice Returns the finalized encrypted winner handle after BlindDraw.
-    /// @dev The handle itself is public, but only the contract and owner receive ACL permission to decrypt it.
     function getEncryptedWinner(uint256 roundId) external view returns (eaddress) {
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.DRAWN, "Winner unavailable");
         return draw.encryptedWinner;
     }
 
-    /// @notice Returns a participant address from a historical round in snapshot order.
     function getSnapshotPlayer(uint256 roundId, uint8 index) external view returns (address) {
         Draw storage draw = draws[roundId];
         require(draw.state != DrawState.NONE, "Unknown round");
