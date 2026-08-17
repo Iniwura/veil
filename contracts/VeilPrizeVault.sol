@@ -20,7 +20,8 @@ interface IVeilWinnerSource {
 
 /// @title VeilPrizeVault
 /// @notice Holds confidential prize assets separately from VEIL principal and exposes each prize only to its winner.
-/// @dev V0.1 uses owner-backed funding as test plumbing. A dedicated yield adapter replaces the funder in the next milestone.
+/// @dev V0.1 uses owner-backed funding as test plumbing.
+/// A dedicated yield adapter replaces the funder in the next milestone.
 contract VeilPrizeVault is ZamaEthereumConfig {
     struct Prize {
         euint64 amount;
