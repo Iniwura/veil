@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 // Prototype-specific lint suppressions keep V0.4 readable while the economic model is still changing.
 // Revisit these before production hardening.
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
-// solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping
+// solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping, gas-struct-packing
 
 import {FHE, ebool, eaddress, euint64, euint128, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
