@@ -192,9 +192,8 @@ describe("VeilPool", function () {
       expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
 
       const bobWeight = await veilPoolContract.connect(signers.bob).encryptedSnapshotWeightOf(1);
-      await expect(
-        fhevm.userDecryptEuint(FhevmType.euint64, bobWeight, veilPoolContractAddress, signers.alice),
-      ).to.be.rejected;
+      await expect(fhevm.userDecryptEuint(FhevmType.euint64, bobWeight, veilPoolContractAddress, signers.alice)).to.be
+        .rejected;
     });
 
     it("keeps a round snapshot immutable while the live position continues changing", async function () {
