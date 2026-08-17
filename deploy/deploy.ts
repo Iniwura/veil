@@ -48,16 +48,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const configuredPrizeVault = await yieldSourceContract.prizeVault();
 
   if (configuredPrizeVault === hre.ethers.ZeroAddress) {
-    await execute(
-      "VeilYieldSource",
-      { from: deployer, log: true },
-      "configurePrizeVault",
-      prizeVault.address,
-    );
+    await execute("VeilYieldSource", { from: deployer, log: true }, "configurePrizeVault", prizeVault.address);
   } else if (configuredPrizeVault.toLowerCase() !== prizeVault.address.toLowerCase()) {
-    throw new Error(
-      `VeilYieldSource already points to a different prize vault: ${configuredPrizeVault}`,
-    );
+    throw new Error(`VeilYieldSource already points to a different prize vault: ${configuredPrizeVault}`);
   }
 
   console.log("VEIL deployment");

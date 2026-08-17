@@ -1,7 +1,7 @@
 # VEIL Sepolia deployment
 
-VEIL uses Hardhat Deploy and Zama's fhEVM Hardhat integration. The deployment script creates and wires the pool,
-yield source, and prize vault in one reviewable flow.
+VEIL uses Hardhat Deploy and Zama's fhEVM Hardhat integration. The deployment script creates and wires the pool, yield
+source, and prize vault in one reviewable flow.
 
 ## 1. Configure Hardhat secrets
 
@@ -63,9 +63,8 @@ npm test
 npm run lint
 ```
 
-After a successful Sepolia deployment, verify each contract with the exact constructor arguments used by the
-deployment. Do not claim a deployment is successful until the network transaction receipts and deployed bytecode are
-confirmed.
+After a successful Sepolia deployment, verify each contract with the exact constructor arguments used by the deployment.
+Do not claim a deployment is successful until the network transaction receipts and deployed bytecode are confirmed.
 
 ## Privacy boundary
 
