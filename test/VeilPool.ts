@@ -282,11 +282,7 @@ describe("VeilPool", function () {
       await expect(
         veilPoolContract
           .connect(signers.outsider)
-          .finalizeWinner(
-            1,
-            publicDecryptResults.abiEncodedClearValues,
-            `${publicDecryptResults.decryptionProof}dead`,
-          ),
+          .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, `${publicDecryptResults.decryptionProof}dead`),
       ).to.be.reverted;
 
       expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(2);
