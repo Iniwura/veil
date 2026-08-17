@@ -264,7 +264,8 @@ describe("VeilPool", function () {
       const draw = await veilPoolContract.getDrawInfo(1);
       expect(draw.state).to.equal(2);
 
-      await expect(veilPoolContract.getEncryptedWinner(1)).not.to.be.reverted;
+      const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
+      expect(encryptedWinner).to.not.equal(ethers.ZeroHash);
       await expect(veilPoolContract.blindDraw(1)).to.be.revertedWith("Round not ready");
     });
 
