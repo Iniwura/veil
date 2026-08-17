@@ -139,12 +139,10 @@ describe("VeilPool", function () {
     const bobEncryptedBalance = await veilPoolContract.connect(signers.bob).encryptedBalanceOf();
     const aliceEncryptedBalance = await veilPoolContract.connect(signers.alice).encryptedBalanceOf();
 
-    await expect(
-      fhevm.userDecryptEuint(FhevmType.euint64, bobEncryptedBalance, veilPoolContractAddress, signers.alice),
-    ).to.be.rejected;
-    await expect(
-      fhevm.userDecryptEuint(FhevmType.euint64, aliceEncryptedBalance, veilPoolContractAddress, signers.bob),
-    ).to.be.rejected;
+    await expect(fhevm.userDecryptEuint(FhevmType.euint64, bobEncryptedBalance, veilPoolContractAddress, signers.alice))
+      .to.be.rejected;
+    await expect(fhevm.userDecryptEuint(FhevmType.euint64, aliceEncryptedBalance, veilPoolContractAddress, signers.bob))
+      .to.be.rejected;
   });
 
   it("withdraws principal confidentially without changing old snapshots", async function () {
@@ -229,9 +227,8 @@ describe("VeilPool", function () {
       expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
 
       const bobWeight = await veilPoolContract.connect(signers.bob).encryptedSnapshotWeightOf(1);
-      await expect(
-        fhevm.userDecryptEuint(FhevmType.euint64, bobWeight, veilPoolContractAddress, signers.alice),
-      ).to.be.rejected;
+      await expect(fhevm.userDecryptEuint(FhevmType.euint64, bobWeight, veilPoolContractAddress, signers.alice)).to.be
+        .rejected;
     });
 
     it("runs BlindDraw once against the frozen asset-backed snapshot", async function () {
