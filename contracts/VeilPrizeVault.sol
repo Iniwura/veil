@@ -56,11 +56,7 @@ contract VeilPrizeVault is ZamaEthereumConfig {
 
     /// @notice Funds a round with confidential assets without affecting VEIL principal or draw weight.
     /// @dev The funder must authorize this vault as an operator on the ERC-7984 asset first.
-    function fundPrize(
-        uint256 roundId,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
-    ) external onlyOwner {
+    function fundPrize(uint256 roundId, externalEuint64 encryptedAmount, bytes calldata inputProof) external onlyOwner {
         require(!prizes[roundId].claimed, "Prize already claimed");
         require(asset.isOperator(msg.sender, address(this)), "Vault not operator");
 
