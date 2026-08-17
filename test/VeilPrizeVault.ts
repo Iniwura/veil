@@ -161,17 +161,10 @@ describe("VeilPrizeVault", function () {
     await (await prizeVault.connect(signers.outsider).authorizeWinner(1)).wait();
 
     const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(1);
-    const clearPrize = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      encryptedPrize,
-      prizeVaultAddress,
-      winner,
-    );
+    const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
 
     expect(clearPrize).to.equal(150);
-    await expect(
-      fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, loser),
-    ).to.be.rejected;
+    await expect(fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, loser)).to.be.rejected;
     await expect(prizeVault.connect(loser).encryptedPrizeOf(1)).to.be.revertedWith("Not winner");
   });
 
