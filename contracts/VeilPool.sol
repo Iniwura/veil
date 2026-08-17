@@ -1,23 +1,49 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {
-    FHE,
-    euint64,
-    externalEuint64
-} from "@fhevm/solidity/lib/FHE.sol";
+// Prototype-specific lint suppressions keep V0.3 readable while the economic model is still changing.
+// Revisit these before production hardening.
+// solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
+// solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping
 
-import {
-    ZamaEthereumConfig
-} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {FHE, ebool, eaddress, euint64, euint128, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
+import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
+interface IERC7984Asset {
+    function isOperator(address holder, address spender) external view returns (bool);
+    function confidentialTransferFrom(address from, address to, euint64 amount) external returns (euint64 transferred);
+    function confidentialTransfer(address to, euint64 amount) external returns (euint64 transferred);
+}
+
+/// @title VeilPool
+/// @notice Privacy-first prize-pool foundation for Zama Developer Program Season 4.
+/// @dev V0.3 adds ERC-7984-backed confidential deposits and withdrawals on top of encrypted
+///      snapshots and weighted BlindDraw. Yield, public winner finalization, and prize settlement
+///      remain separate milestones.
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
+
+    enum DrawState {
+        NONE,
+        SNAPSHOTTED,
+        DRAWN
+    }
 
     struct Position {
         euint64 balance;
         bool active;
     }
+
+    struct Draw {
+        uint64 snapshotBlock;
+        uint8 participantCount;
+        euint64 encryptedTotalWeight;
+        eaddress encryptedWinner;
+        DrawState state;
+    }
+
+    address public immutable owner;
+    IERC7984Asset public immutable asset;
 
     mapping(address => Position) private positions;
 
@@ -26,25 +52,45 @@ contract VeilPool is ZamaEthereumConfig {
     mapping(address => bool) public joined;
 
     uint8 public playerCount;
-
     euint64 private encryptedTotalWeight;
+
+    uint256 public nextRoundId = 1;
+
+    mapping(uint256 => Draw) private draws;
+    mapping(uint256 => mapping(uint8 => address)) private drawPlayers;
+    mapping(uint256 => mapping(uint8 => euint64)) private drawWeights;
+    mapping(uint256 => mapping(address => uint8)) private drawPlayerIndex;
+    mapping(uint256 => mapping(address => bool)) private drawParticipantIncluded;
 
     event PlayerJoined(address indexed player);
     event DepositRecorded(address indexed player);
+    event WithdrawalRecorded(address indexed player);
+    event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
+    event BlindDrawCompleted(uint256 indexed roundId);
 
-    constructor() {
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
+
+    constructor(address asset_) {
+        require(asset_ != address(0), "Invalid asset");
+        owner = msg.sender;
+        asset = IERC7984Asset(asset_);
+
         encryptedTotalWeight = FHE.asEuint64(0);
         FHE.allowThis(encryptedTotalWeight);
     }
 
-    function deposit(
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
-    ) external {
-        euint64 amount = FHE.fromExternal(
-            encryptedAmount,
-            inputProof
-        );
+    /// @notice Deposits confidential ERC-7984 assets and credits only the amount actually transferred.
+    /// @dev The user must first authorize this pool as an operator on the confidential asset.
+    function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
+        require(asset.isOperator(msg.sender, address(this)), "Pool not operator");
+
+        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        FHE.allowTransient(requested, address(asset));
+
+        euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
 
         if (!joined[msg.sender]) {
             require(playerCount < MAX_PLAYERS, "Pool full");
@@ -54,7 +100,6 @@ contract VeilPool is ZamaEthereumConfig {
 
             positions[msg.sender].balance = FHE.asEuint64(0);
             positions[msg.sender].active = true;
-
             joined[msg.sender] = true;
 
             unchecked {
@@ -64,52 +109,141 @@ contract VeilPool is ZamaEthereumConfig {
             emit PlayerJoined(msg.sender);
         }
 
-        positions[msg.sender].balance = FHE.add(
-            positions[msg.sender].balance,
-            amount
-        );
+        positions[msg.sender].balance = FHE.add(positions[msg.sender].balance, transferred);
+        encryptedTotalWeight = FHE.add(encryptedTotalWeight, transferred);
 
-        encryptedTotalWeight = FHE.add(
-            encryptedTotalWeight,
-            amount
-        );
-
-        // Contract must retain permission to use ciphertexts later.
         FHE.allowThis(positions[msg.sender].balance);
         FHE.allowThis(encryptedTotalWeight);
-
-        // Only this user receives permission to decrypt their balance.
-        FHE.allow(
-            positions[msg.sender].balance,
-            msg.sender
-        );
+        FHE.allow(positions[msg.sender].balance, msg.sender);
 
         emit DepositRecorded(msg.sender);
     }
 
-    function encryptedBalanceOf()
-        external
-        view
-        returns (euint64)
-    {
+    /// @notice Withdraws up to the caller's live confidential principal.
+    /// @dev The live position changes, but historical draw snapshots remain immutable.
+    function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(joined[msg.sender], "Not joined");
 
+        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        euint64 available = FHE.select(
+            FHE.le(requested, positions[msg.sender].balance),
+            requested,
+            positions[msg.sender].balance
+        );
+
+        FHE.allowTransient(available, address(asset));
+        euint64 transferred = asset.confidentialTransfer(msg.sender, available);
+
+        positions[msg.sender].balance = FHE.sub(positions[msg.sender].balance, transferred);
+        encryptedTotalWeight = FHE.sub(encryptedTotalWeight, transferred);
+
+        FHE.allowThis(positions[msg.sender].balance);
+        FHE.allowThis(encryptedTotalWeight);
+        FHE.allow(positions[msg.sender].balance, msg.sender);
+
+        emit WithdrawalRecorded(msg.sender);
+    }
+
+    function encryptedBalanceOf() external view returns (euint64) {
+        require(joined[msg.sender], "Not joined");
         return positions[msg.sender].balance;
     }
 
-    function getEncryptedTotalWeight()
-        external
-        view
-        returns (euint64)
-    {
+    function getEncryptedTotalWeight() external view returns (euint64) {
         return encryptedTotalWeight;
     }
 
-    function getPlayer(
-        uint8 index
-    ) external view returns (address) {
+    function getPlayer(uint8 index) external view returns (address) {
         require(index < playerCount, "Invalid index");
-
         return players[index];
+    }
+
+    function snapshotRound() external onlyOwner returns (uint256 roundId) {
+        require(playerCount >= 2, "Need 2 players");
+
+        roundId = nextRoundId;
+        unchecked {
+            nextRoundId++;
+        }
+
+        Draw storage draw = draws[roundId];
+        draw.snapshotBlock = uint64(block.number);
+        draw.participantCount = playerCount;
+        draw.encryptedTotalWeight = encryptedTotalWeight;
+        draw.state = DrawState.SNAPSHOTTED;
+
+        FHE.allowThis(draw.encryptedTotalWeight);
+
+        for (uint8 i = 0; i < playerCount; i++) {
+            address account = players[i];
+            euint64 weight = positions[account].balance;
+
+            drawPlayers[roundId][i] = account;
+            drawWeights[roundId][i] = weight;
+            drawPlayerIndex[roundId][account] = i;
+            drawParticipantIncluded[roundId][account] = true;
+
+            FHE.allowThis(drawWeights[roundId][i]);
+            FHE.allow(drawWeights[roundId][i], account);
+        }
+
+        emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
+    }
+
+    function blindDraw(uint256 roundId) external onlyOwner {
+        Draw storage draw = draws[roundId];
+        require(draw.state == DrawState.SNAPSHOTTED, "Round not ready");
+
+        euint64 randomValue = FHE.randEuint64();
+        euint128 product = FHE.mul(FHE.asEuint128(randomValue), FHE.asEuint128(draw.encryptedTotalWeight));
+        euint64 target = FHE.asEuint64(FHE.shr(product, 64));
+
+        euint64 cumulative = FHE.asEuint64(0);
+        eaddress winner = FHE.asEaddress(address(0));
+        ebool selected = FHE.asEbool(false);
+
+        for (uint8 i = 0; i < draw.participantCount; i++) {
+            cumulative = FHE.add(cumulative, drawWeights[roundId][i]);
+
+            ebool crossesTarget = FHE.lt(target, cumulative);
+            ebool chooseThisPlayer = FHE.and(crossesTarget, FHE.not(selected));
+
+            winner = FHE.select(chooseThisPlayer, FHE.asEaddress(drawPlayers[roundId][i]), winner);
+            selected = FHE.or(selected, crossesTarget);
+        }
+
+        draw.encryptedWinner = winner;
+        draw.state = DrawState.DRAWN;
+
+        FHE.allowThis(draw.encryptedWinner);
+        FHE.allow(draw.encryptedWinner, owner);
+
+        emit BlindDrawCompleted(roundId);
+    }
+
+    function getDrawInfo(
+        uint256 roundId
+    ) external view returns (uint64 snapshotBlock, uint8 participantCount, DrawState state) {
+        Draw storage draw = draws[roundId];
+        require(draw.state != DrawState.NONE, "Unknown round");
+        return (draw.snapshotBlock, draw.participantCount, draw.state);
+    }
+
+    function encryptedSnapshotWeightOf(uint256 roundId) external view returns (euint64) {
+        require(drawParticipantIncluded[roundId][msg.sender], "Not in round");
+        return drawWeights[roundId][drawPlayerIndex[roundId][msg.sender]];
+    }
+
+    function getEncryptedWinner(uint256 roundId) external view returns (eaddress) {
+        Draw storage draw = draws[roundId];
+        require(draw.state == DrawState.DRAWN, "Winner unavailable");
+        return draw.encryptedWinner;
+    }
+
+    function getSnapshotPlayer(uint256 roundId, uint8 index) external view returns (address) {
+        Draw storage draw = draws[roundId];
+        require(draw.state != DrawState.NONE, "Unknown round");
+        require(index < draw.participantCount, "Invalid index");
+        return drawPlayers[roundId][index];
     }
 }
