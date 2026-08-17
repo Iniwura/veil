@@ -1,6 +1,7 @@
 # VEIL Sepolia deployment
 
-VEIL uses Hardhat Deploy and Zama's fhEVM Hardhat integration. The deployment script creates and wires the pool, yield source, and prize vault in one reviewable flow.
+VEIL uses Hardhat Deploy and Zama's fhEVM Hardhat integration. The deployment script creates and wires the pool,
+yield source, and prize vault in one reviewable flow.
 
 ## 1. Configure Hardhat secrets
 
@@ -29,7 +30,8 @@ npm run deploy:sepolia
 
 ### Test-only Sepolia asset
 
-`MockConfidentialToken` has unrestricted minting and exists only for protocol integration tests and controlled demos. It must never be presented as a production asset.
+`MockConfidentialToken` has unrestricted minting and exists only for protocol integration tests and controlled demos. It
+must never be presented as a production asset.
 
 A Sepolia deployment will refuse to deploy it unless the choice is explicit:
 
@@ -61,8 +63,12 @@ npm test
 npm run lint
 ```
 
-After a successful Sepolia deployment, verify each contract with the exact constructor arguments used by the deployment. Do not claim a deployment is successful until the network transaction receipts and deployed bytecode are confirmed.
+After a successful Sepolia deployment, verify each contract with the exact constructor arguments used by the
+deployment. Do not claim a deployment is successful until the network transaction receipts and deployed bytecode are
+confirmed.
 
 ## Privacy boundary
 
-Deployment does not change VEIL's FHE access policy. Individual principal, snapshot weights, withdrawals, unallocated yield, and prize amounts remain encrypted. The finalized winner address is public because settlement requires it. The prize ciphertext is authorized only to the finalized winner.
+Deployment does not change VEIL's FHE access policy. Individual principal, snapshot weights, withdrawals, unallocated
+yield, and prize amounts remain encrypted. The finalized winner address is public because settlement requires it. The
+prize ciphertext is authorized only to the finalized winner.
