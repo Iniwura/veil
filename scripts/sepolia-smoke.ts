@@ -130,9 +130,7 @@ async function main() {
   console.log("6/10 Publicly decrypting and proving the winner...");
   const encryptedWinner = await pool.getEncryptedWinner(roundId);
   const publicResult = await fhevm.publicDecrypt([encryptedWinner]);
-  await (
-    await pool.finalizeWinner(roundId, publicResult.abiEncodedClearValues, publicResult.decryptionProof)
-  ).wait();
+  await (await pool.finalizeWinner(roundId, publicResult.abiEncodedClearValues, publicResult.decryptionProof)).wait();
 
   const winnerAddress = await pool.getWinner(roundId);
   const winner = [alice, bob].find((signer) => signer.address.toLowerCase() === winnerAddress.toLowerCase());
@@ -145,9 +143,7 @@ async function main() {
 
   console.log("8/10 Allocating encrypted yield to the round prize...");
   const allocatedYield = await encrypted64(yieldSourceAddress, deployer, 15);
-  await (
-    await yieldSource.allocateToRound(roundId, allocatedYield.handles[0], allocatedYield.inputProof)
-  ).wait();
+  await (await yieldSource.allocateToRound(roundId, allocatedYield.handles[0], allocatedYield.inputProof)).wait();
 
   console.log("9/10 Authorizing only the finalized winner to decrypt the prize...");
   await (await prizeVault.authorizeWinner(roundId)).wait();
