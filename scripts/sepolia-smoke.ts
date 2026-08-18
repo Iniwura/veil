@@ -80,8 +80,10 @@ async function main() {
   if ((await yieldSource.prizeVault()).toLowerCase() !== prizeVaultAddress.toLowerCase()) {
     throw new Error("Yield source prize vault wiring mismatch");
   }
-  if ((await prizeVault.pool()).toLowerCase() !== poolAddress.toLowerCase()) throw new Error("Prize vault pool mismatch");
-  if ((await prizeVault.asset()).toLowerCase() !== assetAddress.toLowerCase()) throw new Error("Prize vault asset mismatch");
+  if ((await prizeVault.pool()).toLowerCase() !== poolAddress.toLowerCase())
+    throw new Error("Prize vault pool mismatch");
+  if ((await prizeVault.asset()).toLowerCase() !== assetAddress.toLowerCase())
+    throw new Error("Prize vault asset mismatch");
   if ((await prizeVault.yieldSource()).toLowerCase() !== yieldSourceAddress.toLowerCase()) {
     throw new Error("Prize vault yield source mismatch");
   }
