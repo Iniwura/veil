@@ -124,8 +124,7 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
   const startTimestamp = Math.floor(Date.now() / 1000);
   const durationDays = 1;
   const contractAddresses = [contractAddress];
-  const extraData = await fhe.getExtraData();
-  const eip712 = fhe.createEIP712(keypair.publicKey, contractAddresses, startTimestamp, durationDays, extraData);
+  const eip712 = fhe.createEIP712(keypair.publicKey, contractAddresses, startTimestamp, durationDays);
   const signature = await signer.signTypedData(
     eip712.domain,
     { UserDecryptRequestVerification: [...eip712.types.UserDecryptRequestVerification] },
@@ -140,7 +139,6 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
     address,
     startTimestamp,
     durationDays,
-    extraData,
   );
   const handleKey = handle as `0x${string}`;
   return BigInt(result[handleKey] as bigint);
