@@ -55,15 +55,22 @@ async function relayer() {
 }
 
 function injectedProvider() {
-  if (!window.ethereum) throw new Error("No injected wallet found. Install MetaMask or Rabby.");
+  if (!window.ethereum) {
+    throw new Error("No injected wallet found. Install MetaMask or Rabby to use the live Sepolia demo.");
+  }
   return window.ethereum;
+}
+
+function rpcErrorCode(error: unknown) {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+  return Number((error as { code?: unknown }).code);
 }
 
 export async function connectWallet() {
   const ethereum = injectedProvider();
   await ethereum.request({ method: "eth_requestAccounts" });
-  const provider: EthersBrowserProvider = new BrowserProvider(ethereum);
   await ensureSepolia(ethereum);
+  const provider: EthersBrowserProvider = new BrowserProvider(ethereum);
   const signer = await provider.getSigner();
   return { provider, signer, address: await signer.getAddress() };
 }
@@ -72,10 +79,36 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
   const chainIdHex = `0x${VEIL_NETWORK.chainId.toString(16)}`;
   const current = await ethereum.request({ method: "eth_chainId" });
   if (current === chainIdHex) return;
-  await ethereum.request({
-    method: "wallet_switchEthereumChain",
-    params: [{ chainId: chainIdHex }],
-  });
+
+  try {
+    await ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: chainIdHex }],
+    });
+  } catch (error) {
+    if (rpcErrorCode(error) !== 4902) throw error;
+
+    await ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: chainIdHex,
+          chainName: "Sepolia",
+          nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+          blockExplorerUrls: ["https://sepolia.etherscan.io"],
+        },
+      ],
+    });
+  }
+
+  const switched = await ethereum.request({ method: "eth_chainId" });
+  if (switched !== chainIdHex) {
+    throw new Error("VEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
+  }
+
+  // Recreate the relayer against the wallet's new network context.
+  relayerPromise = null;
 }
 
 export function contracts(signer: JsonRpcSigner) {
