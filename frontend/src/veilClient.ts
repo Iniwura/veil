@@ -5,7 +5,7 @@ import {
   type Eip1193Provider,
   type JsonRpcSigner,
 } from "ethers";
-import { createInstance, initSDK, SepoliaConfig } from "@zama-fhe/relayer-sdk/bundle";
+import { createInstance, initSDK, SepoliaConfig } from "@zama-fhe/relayer-sdk/web";
 import { VEIL_CONTRACTS, VEIL_NETWORK } from "./contracts";
 
 type EthereumProvider = Eip1193Provider & {
