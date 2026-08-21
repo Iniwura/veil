@@ -1,6 +1,6 @@
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { ethers, fhevm } from "hardhat";
+import { ethers, fhevm, network } from "hardhat";
 
 import { MockConfidentialToken, VeilPool, VeilPrizeVault, VeilYieldSource } from "../types";
 
@@ -37,7 +37,7 @@ async function encrypted64(contractAddress: string, signer: HardhatEthersSigner,
 }
 
 async function main() {
-  if (fhevm.isMock) {
+  if (network.name !== "sepolia") {
     throw new Error("Run this script on Sepolia: npx hardhat run scripts/sepolia-smoke.ts --network sepolia");
   }
 
