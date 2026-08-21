@@ -55,7 +55,9 @@ async function relayer() {
 }
 
 function injectedProvider() {
-  if (!window.ethereum) throw new Error("No injected wallet found. Install MetaMask or Rabby to use the live Sepolia demo.");
+  if (!window.ethereum) {
+    throw new Error("No injected wallet found. Install MetaMask or Rabby to use the live Sepolia demo.");
+  }
   return window.ethereum;
 }
 
@@ -101,7 +103,9 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
   }
 
   const switched = await ethereum.request({ method: "eth_chainId" });
-  if (switched !== chainIdHex) throw new Error("VEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
+  if (switched !== chainIdHex) {
+    throw new Error("VEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
+  }
 
   // Recreate the relayer against the wallet's new network context.
   relayerPromise = null;
