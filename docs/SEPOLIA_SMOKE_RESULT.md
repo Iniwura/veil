@@ -1,8 +1,8 @@
 # VEIL Sepolia end-to-end smoke result
 
-Date: 2026-08-21
-Network: Sepolia
-Result: PASS
+- Date: 2026-08-21
+- Network: Sepolia
+- Result: PASS
 
 ## Deployed demo stack
 
