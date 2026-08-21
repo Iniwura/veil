@@ -41,6 +41,8 @@ async function main() {
     throw new Error("Run this script on Sepolia: npx hardhat run scripts/sepolia-smoke.ts --network sepolia");
   }
 
+  await fhevm.initializeCLIApi();
+
   const [deployer, alice, bob] = (await ethers.getSigners()) as HardhatEthersSigner[];
   if (!deployer || !alice || !bob) throw new Error("Expected at least three configured Sepolia signers");
 
