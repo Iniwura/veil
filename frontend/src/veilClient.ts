@@ -1,9 +1,14 @@
-import { BrowserProvider, Contract, type BrowserProvider as EthersBrowserProvider, type JsonRpcSigner } from "ethers";
+import {
+  BrowserProvider,
+  Contract,
+  type BrowserProvider as EthersBrowserProvider,
+  type Eip1193Provider,
+  type JsonRpcSigner,
+} from "ethers";
 import { createInstance, initSDK, SepoliaConfig } from "@zama-fhe/relayer-sdk/bundle";
 import { VEIL_CONTRACTS, VEIL_NETWORK } from "./contracts";
 
-type EthereumProvider = {
-  request(args: { method: string; params?: unknown[] | Record<string, unknown> }): Promise<unknown>;
+type EthereumProvider = Eip1193Provider & {
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
 };
@@ -44,7 +49,7 @@ let relayerPromise: ReturnType<typeof createInstance> | null = null;
 async function relayer() {
   if (!relayerPromise) {
     await initSDK();
-    relayerPromise = createInstance(SepoliaConfig);
+    relayerPromise = createInstance({ ...SepoliaConfig, network: injectedProvider() });
   }
   return relayerPromise;
 }
@@ -57,7 +62,7 @@ function injectedProvider() {
 export async function connectWallet() {
   const ethereum = injectedProvider();
   await ethereum.request({ method: "eth_requestAccounts" });
-  const provider: EthersBrowserProvider = new BrowserProvider(ethereum as never);
+  const provider: EthersBrowserProvider = new BrowserProvider(ethereum);
   await ensureSepolia(ethereum);
   const signer = await provider.getSigner();
   return { provider, signer, address: await signer.getAddress() };
@@ -116,13 +121,14 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
   const fhe = await relayer();
   const address = await signer.getAddress();
   const keypair = fhe.generateKeypair();
-  const startTimeStamp = Math.floor(Date.now() / 1000).toString();
-  const durationDays = "1";
+  const startTimestamp = Math.floor(Date.now() / 1000);
+  const durationDays = 1;
   const contractAddresses = [contractAddress];
-  const eip712 = fhe.createEIP712(keypair.publicKey, contractAddresses, startTimeStamp, durationDays);
+  const extraData = await fhe.getExtraData();
+  const eip712 = fhe.createEIP712(keypair.publicKey, contractAddresses, startTimestamp, durationDays, extraData);
   const signature = await signer.signTypedData(
     eip712.domain,
-    { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
+    { UserDecryptRequestVerification: [...eip712.types.UserDecryptRequestVerification] },
     eip712.message,
   );
   const result = await fhe.userDecrypt(
@@ -132,10 +138,12 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
     signature.replace("0x", ""),
     contractAddresses,
     address,
-    startTimeStamp,
+    startTimestamp,
     durationDays,
+    extraData,
   );
-  return BigInt(result[handle]);
+  const handleKey = handle as `0x${string}`;
+  return BigInt(result[handleKey] as bigint);
 }
 
 export async function revealPrivateBalance(signer: JsonRpcSigner) {
