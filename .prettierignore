@@ -26,3 +26,7 @@ yarn.lock
 
 # generated verification evidence
 docs/SEPOLIA_SMOKE_RESULT.md
+
+# submission documentation
+README.md
+docs/SUBMISSION.md
