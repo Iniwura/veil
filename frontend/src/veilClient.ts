@@ -23,6 +23,8 @@ declare global {
 }
 
 const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+const TFHE_WASM_URL = "/tfhe_bg.wasm";
+const KMS_WASM_URL = "/kms_lib_bg.wasm";
 const readProvider = new JsonRpcProvider(SEPOLIA_RPC_URL, VEIL_NETWORK.chainId, { staticNetwork: true });
 
 const POOL_ABI = [
@@ -51,6 +53,7 @@ const PRIZE_ABI = [
 ] as const;
 
 let relayerPromise: ReturnType<typeof createInstance> | null = null;
+let sdkPromise: Promise<boolean> | null = null;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -68,11 +71,26 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
+async function initializeSdk() {
+  if (!sdkPromise) {
+    sdkPromise = initSDK({
+      tfheParams: TFHE_WASM_URL,
+      kmsParams: KMS_WASM_URL,
+    }).catch((error) => {
+      sdkPromise = null;
+      throw error;
+    });
+  }
+  return sdkPromise;
+}
+
 async function relayer() {
   if (!relayerPromise) {
-    await initSDK();
-    // FHE networking does not need to depend on whichever browser wallet owns window.ethereum.
-    relayerPromise = createInstance({ ...SepoliaConfig, network: SEPOLIA_RPC_URL });
+    await initializeSdk();
+    relayerPromise = createInstance({ ...SepoliaConfig, network: SEPOLIA_RPC_URL }).catch((error) => {
+      relayerPromise = null;
+      throw error;
+    });
   }
   return relayerPromise;
 }
