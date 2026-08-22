@@ -122,20 +122,16 @@ contract VeilPool is ZamaEthereumConfig {
         emit DepositRecorded(msg.sender);
     }
 
-    /// @notice Withdraws up to the caller's live confidential principal.
-    /// @dev The live position changes, but historical draw snapshots remain immutable.
+    /// @notice Requests a confidential ERC-7984 withdrawal from the caller's live principal.
+    /// @dev ERC-7984 silent-zero semantics apply: the full requested amount transfers when the
+    ///      encrypted balance is sufficient; otherwise zero transfers. Historical snapshots remain immutable.
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(joined[msg.sender], "Not joined");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        euint64 available = FHE.select(
-            FHE.le(requested, positions[msg.sender].balance),
-            requested,
-            positions[msg.sender].balance
-        );
+        FHE.allowTransient(requested, address(asset));
 
-        FHE.allowTransient(available, address(asset));
-        euint64 transferred = asset.confidentialTransfer(msg.sender, available);
+        euint64 transferred = asset.confidentialTransfer(msg.sender, requested);
 
         positions[msg.sender].balance = FHE.sub(positions[msg.sender].balance, transferred);
         encryptedTotalWeight = FHE.sub(encryptedTotalWeight, transferred);
