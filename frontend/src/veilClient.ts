@@ -10,6 +10,8 @@ import { createInstance, initSDK, SepoliaConfig } from "@zama-fhe/relayer-sdk/we
 import { VEIL_CONTRACTS, VEIL_NETWORK } from "./contracts";
 
 type EthereumProvider = Eip1193Provider & {
+  isMetaMask?: boolean;
+  providers?: EthereumProvider[];
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
 };
@@ -50,6 +52,15 @@ const PRIZE_ABI = [
 
 let relayerPromise: ReturnType<typeof createInstance> | null = null;
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 async function relayer() {
   if (!relayerPromise) {
     await initSDK();
@@ -59,10 +70,13 @@ async function relayer() {
 }
 
 function injectedProvider() {
-  if (!window.ethereum) {
-    throw new Error("No injected wallet found. Install MetaMask or Rabby to use the live Sepolia demo.");
+  const root = window.ethereum;
+  if (!root) {
+    throw new Error("No injected wallet found. Install MetaMask to use the live Sepolia demo.");
   }
-  return window.ethereum;
+
+  const providers = root.providers?.length ? root.providers : [root];
+  return providers.find((provider) => provider.isMetaMask) ?? root;
 }
 
 function rpcErrorCode(error: unknown) {
@@ -143,8 +157,16 @@ export async function fundDemoWallet(signer: JsonRpcSigner, amount = 100n) {
   const address = await signer.getAddress();
   const { asset } = contracts(signer);
   try {
-    const tx = await asset.mint(address, amount);
-    return await tx.wait();
+    const tx = await withTimeout(
+      asset.mint(address, amount),
+      30_000,
+      "Wallet did not respond to the demo funding request. Open MetaMask and check for a pending confirmation.",
+    );
+    return await withTimeout(
+      tx.wait(),
+      120_000,
+      "Demo funding transaction is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.",
+    );
   } catch (error) {
     actionError("VEIL_DEMO_FUNDING_FAILED:", error);
   }
