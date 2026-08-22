@@ -1,6 +1,7 @@
 import {
   BrowserProvider,
   Contract,
+  JsonRpcProvider,
   type BrowserProvider as EthersBrowserProvider,
   type Eip1193Provider,
   type JsonRpcSigner,
@@ -18,6 +19,9 @@ declare global {
     ethereum?: EthereumProvider;
   }
 }
+
+const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+const readProvider = new JsonRpcProvider(SEPOLIA_RPC_URL, VEIL_NETWORK.chainId, { staticNetwork: true });
 
 const POOL_ABI = [
   "function joined(address) view returns (bool)",
@@ -95,7 +99,7 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
           chainId: chainIdHex,
           chainName: "Sepolia",
           nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
-          rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+          rpcUrls: [SEPOLIA_RPC_URL],
           blockExplorerUrls: ["https://sepolia.etherscan.io"],
         },
       ],
@@ -107,7 +111,6 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
     throw new Error("VEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
   }
 
-  // Recreate the relayer against the wallet's new network context.
   relayerPromise = null;
 }
 
@@ -116,6 +119,13 @@ export function contracts(signer: JsonRpcSigner) {
     pool: new Contract(VEIL_CONTRACTS.pool, POOL_ABI, signer),
     asset: new Contract(VEIL_CONTRACTS.asset, ASSET_ABI, signer),
     prizeVault: new Contract(VEIL_CONTRACTS.prizeVault, PRIZE_ABI, signer),
+  };
+}
+
+function readContracts() {
+  return {
+    pool: new Contract(VEIL_CONTRACTS.pool, POOL_ABI, readProvider),
+    prizeVault: new Contract(VEIL_CONTRACTS.prizeVault, PRIZE_ABI, readProvider),
   };
 }
 
@@ -191,7 +201,7 @@ export async function revealPrize(signer: JsonRpcSigner, roundId: bigint) {
 
 export async function readDashboard(signer: JsonRpcSigner) {
   const address = await signer.getAddress();
-  const { pool, prizeVault } = contracts(signer);
+  const { pool, prizeVault } = readContracts();
   const [joined, playerCount, nextRoundId] = await Promise.all([
     pool.joined(address),
     pool.playerCount(),
