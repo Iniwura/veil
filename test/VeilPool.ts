@@ -205,7 +205,7 @@ describe("VeilPool", function () {
     expect(await veilPoolContract.playerCount()).to.equal(1);
   });
 
-  it("enforces the maximum of 32 registered players", async function () {
+  it("enforces the maximum of 32 active draw seats", async function () {
     const wallets = Array.from({ length: 33 }, () => Wallet.createRandom().connect(ethers.provider));
 
     for (const wallet of wallets) {
@@ -219,7 +219,7 @@ describe("VeilPool", function () {
     }
 
     expect(await veilPoolContract.playerCount()).to.equal(32);
-    await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Pool full");
+    await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Draw roster full");
   });
 
   describe("encrypted snapshots and BlindDraw", function () {
