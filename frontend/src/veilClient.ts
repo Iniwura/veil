@@ -70,6 +70,13 @@ function rpcErrorCode(error: unknown) {
   return Number((error as { code?: unknown }).code);
 }
 
+function actionError(prefix: string, error: unknown): never {
+  if (rpcErrorCode(error) === 4001) throw error;
+  const message = error instanceof Error ? error.message : "";
+  if (message.toLowerCase().includes("user rejected")) throw error;
+  throw new Error(`${prefix}${message ? ` ${message}` : ""}`);
+}
+
 export async function connectWallet() {
   const ethereum = injectedProvider();
   await ethereum.request({ method: "eth_requestAccounts" });
@@ -129,13 +136,31 @@ function readContracts() {
   };
 }
 
+export async function fundDemoWallet(signer: JsonRpcSigner, amount = 100n) {
+  if (amount <= 0n || amount > 18_446_744_073_709_551_615n) {
+    throw new Error("Invalid demo funding amount.");
+  }
+  const address = await signer.getAddress();
+  const { asset } = contracts(signer);
+  try {
+    const tx = await asset.mint(address, amount);
+    return await tx.wait();
+  } catch (error) {
+    actionError("VEIL_DEMO_FUNDING_FAILED:", error);
+  }
+}
+
 export async function ensurePoolOperator(signer: JsonRpcSigner) {
   const address = await signer.getAddress();
   const { asset } = contracts(signer);
   if (await asset.isOperator(address, VEIL_CONTRACTS.pool)) return false;
   const until = BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7);
-  const tx = await asset.setOperator(VEIL_CONTRACTS.pool, until);
-  await tx.wait();
+  try {
+    const tx = await asset.setOperator(VEIL_CONTRACTS.pool, until);
+    await tx.wait();
+  } catch (error) {
+    actionError("VEIL_OPERATOR_AUTH_FAILED:", error);
+  }
   return true;
 }
 
@@ -143,11 +168,22 @@ export async function sealDeposit(signer: JsonRpcSigner, amount: bigint) {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
   await ensurePoolOperator(signer);
   const address = await signer.getAddress();
-  const fhe = await relayer();
-  const encrypted = await fhe.createEncryptedInput(VEIL_CONTRACTS.pool, address).add64(amount).encrypt();
+
+  let encrypted;
+  try {
+    const fhe = await relayer();
+    encrypted = await fhe.createEncryptedInput(VEIL_CONTRACTS.pool, address).add64(amount).encrypt();
+  } catch (error) {
+    actionError("VEIL_ENCRYPTION_FAILED:", error);
+  }
+
   const { pool } = contracts(signer);
-  const tx = await pool.deposit(encrypted.handles[0], encrypted.inputProof);
-  return tx.wait();
+  try {
+    const tx = await pool.deposit(encrypted.handles[0], encrypted.inputProof);
+    return await tx.wait();
+  } catch (error) {
+    actionError("VEIL_DEPOSIT_FAILED:", error);
+  }
 }
 
 export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
