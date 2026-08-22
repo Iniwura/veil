@@ -76,12 +76,12 @@ describe("VeilPool withdrawal semantics", function () {
     expect(await walletBalance()).to.equal(997);
   });
 
-  it("caps an excessive request at the full private balance", async function () {
+  it("silently transfers zero when the request exceeds the private balance", async function () {
     await deposit(5);
 
     await withdraw(6);
 
-    expect(await principal()).to.equal(0);
-    expect(await walletBalance()).to.equal(1_000);
+    expect(await principal()).to.equal(5);
+    expect(await walletBalance()).to.equal(995);
   });
 });
