@@ -50,12 +50,8 @@ contract VeilPool is ZamaEthereumConfig {
     IERC7984Asset public immutable asset;
 
     mapping(address => Position) private positions;
-
-    // `joined` means the account owns a persistent private VEIL position. It is deliberately
-    // independent from draw-seat membership so seat expiry can never lock principal.
     mapping(address => bool) public joined;
 
-    // Bounded, reusable BlindDraw roster.
     address[MAX_PLAYERS] private players;
     mapping(address => uint8) private playerIndex;
     mapping(address => bool) public seated;
@@ -95,16 +91,11 @@ contract VeilPool is ZamaEthereumConfig {
         FHE.allowThis(encryptedTotalWeight);
     }
 
-    /// @notice Deposits confidential assets and credits only the amount actually transferred.
-    /// @dev ERC-7984-style assets may silently transfer zero when the encrypted balance is insufficient.
-    ///      A successful deposit request also acquires/renews a temporary draw seat. Zero-value requests
-    ///      can therefore consume a seat only for the bounded lease period, never permanently.
     function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(asset.isOperator(msg.sender, address(this)), "Pool not operator");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
         FHE.allowTransient(requested, address(asset));
-
         euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
 
         if (!joined[msg.sender]) {
@@ -126,27 +117,20 @@ contract VeilPool is ZamaEthereumConfig {
         emit DepositRecorded(msg.sender);
     }
 
-    /// @notice Rejoins or renews the bounded BlindDraw roster without changing confidential principal.
-    /// @dev Useful after a seat lease expires. Position ownership and withdrawal rights are unaffected.
     function renewDrawSeat() external {
         require(joined[msg.sender], "Not joined");
         _acquireOrRenewSeat(msg.sender);
     }
 
-    /// @notice Voluntarily releases a draw seat while preserving the private position and all funds.
     function leaveDrawSeat() external {
         require(seated[msg.sender], "Not seated");
         _removeSeat(msg.sender);
     }
 
-    /// @notice Permissionlessly removes expired seats. Anyone can keep the bounded roster healthy.
     function pruneExpiredSeats() external {
         _pruneExpiredSeats();
     }
 
-    /// @notice Submits a confidential withdrawal request.
-    /// @dev The ERC-7984-style asset returns the encrypted amount actually transferred. Insufficient
-    ///      private balance therefore produces a silent-zero transfer without revealing why publicly.
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(joined[msg.sender], "Not joined");
 
@@ -190,10 +174,9 @@ contract VeilPool is ZamaEthereumConfig {
         Draw storage draw = draws[roundId];
         draw.snapshotBlock = uint64(block.number);
         draw.participantCount = playerCount;
-        draw.encryptedTotalWeight = encryptedTotalWeight;
         draw.state = DrawState.SNAPSHOTTED;
 
-        FHE.allowThis(draw.encryptedTotalWeight);
+        euint64 snapshotTotalWeight = FHE.asEuint64(0);
 
         for (uint8 i = 0; i < playerCount; i++) {
             address account = players[i];
@@ -203,10 +186,14 @@ contract VeilPool is ZamaEthereumConfig {
             drawWeights[roundId][i] = weight;
             drawPlayerIndex[roundId][account] = i;
             drawParticipantIncluded[roundId][account] = true;
+            snapshotTotalWeight = FHE.add(snapshotTotalWeight, weight);
 
             FHE.allowThis(drawWeights[roundId][i]);
             FHE.allow(drawWeights[roundId][i], account);
         }
+
+        draw.encryptedTotalWeight = snapshotTotalWeight;
+        FHE.allowThis(draw.encryptedTotalWeight);
 
         emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
     }
@@ -242,9 +229,6 @@ contract VeilPool is ZamaEthereumConfig {
         emit BlindDrawCompleted(roundId, draw.encryptedWinner);
     }
 
-    /// @notice Permissionlessly finalizes the KMS-proven result.
-    /// @dev A proven zero address means the encrypted snapshot had no eligible weighted winner. The round
-    ///      is marked CANCELLED instead of becoming permanently stuck in DRAWN.
     function finalizeWinner(
         uint256 roundId,
         bytes calldata abiEncodedClearWinner,
@@ -255,7 +239,6 @@ contract VeilPool is ZamaEthereumConfig {
 
         bytes32[] memory handles = new bytes32[](1);
         handles[0] = FHE.toBytes32(draw.encryptedWinner);
-
         FHE.checkSignatures(handles, abiEncodedClearWinner, decryptionProof);
 
         address clearWinner = abi.decode(abiEncodedClearWinner, (address));
@@ -285,7 +268,10 @@ contract VeilPool is ZamaEthereumConfig {
 
     function getEncryptedWinner(uint256 roundId) external view returns (eaddress) {
         Draw storage draw = draws[roundId];
-        require(draw.state == DrawState.DRAWN || draw.state == DrawState.FINALIZED || draw.state == DrawState.CANCELLED, "Winner unavailable");
+        require(
+            draw.state == DrawState.DRAWN || draw.state == DrawState.FINALIZED || draw.state == DrawState.CANCELLED,
+            "Winner unavailable"
+        );
         return draw.encryptedWinner;
     }
 
