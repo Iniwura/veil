@@ -24,25 +24,36 @@ const VERIFIED_ROUND = {
 function shortAddress(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
+
 function errorMessage(error: unknown) {
   const code =
     typeof error === "object" && error !== null && "code" in error
       ? Number((error as { code?: unknown }).code)
       : undefined;
   const message = error instanceof Error ? error.message : "";
+
   if (code === 4001 || message.toLowerCase().includes("user rejected")) return "Request cancelled in your wallet.";
   if (message.includes("INSUFFICIENT_FUNDS") || message.toLowerCase().includes("insufficient funds"))
     return "Not enough Sepolia ETH to pay gas for this action.";
-  if (message.startsWith("VEIL_DEMO_FUNDING_FAILED:")) return "Demo cUSD funding failed. Check Sepolia gas and try again.";
-  if (message.startsWith("VEIL_OPERATOR_AUTH_FAILED:")) return "Pool authorization failed. Approve the operator transaction in your wallet and retry.";
-  if (message.startsWith("VEIL_ENCRYPTION_FAILED:")) return "VEIL could not encrypt this deposit. Refresh the page and reconnect your wallet.";
-  if (message.startsWith("VEIL_DEPOSIT_FAILED:")) return "The encrypted deposit was rejected by the live pool. Please retry after the previous transaction confirms.";
+  if (message.startsWith("VEIL_DEMO_FUNDING_FAILED:"))
+    return "Optional demo funding failed. You can still deposit if this wallet already has demo cUSD.";
+  if (message.startsWith("VEIL_OPERATOR_AUTH_FAILED:"))
+    return "Pool authorization failed. Approve the operator transaction in your wallet and retry.";
+  if (message.startsWith("VEIL_ENCRYPTION_FAILED:"))
+    return "VEIL could not encrypt this request. Check your connection, reconnect the wallet, and retry.";
+  if (message.startsWith("VEIL_DEPOSIT_FAILED:"))
+    return "The encrypted deposit was rejected. Check the VEIL console entry for the exact contract or wallet reason.";
+  if (message.startsWith("VEIL_WITHDRAW_FAILED:"))
+    return "The private withdrawal was rejected. Check the VEIL console entry for the exact reason.";
+  if (message.toLowerCase().includes("timed out") || message.toLowerCase().includes("did not respond"))
+    return "The wallet or Sepolia request timed out. Check MetaMask activity before retrying.";
   if (message.includes("CALL_EXCEPTION") || message.includes("missing revert data"))
     return "That action is not available for this wallet right now.";
   if (message.toLowerCase().includes("network") || message.toLowerCase().includes("sepolia"))
     return "VEIL could not reach Sepolia. Check your wallet network and try again.";
   return "The action could not be completed. Please try again.";
 }
+
 function explorerAddress(address: string) {
   return `https://sepolia.etherscan.io/address/${address}`;
 }
@@ -58,17 +69,24 @@ function VeilField({ compact = false }: { compact?: boolean }) {
       })),
     [compact],
   );
+
   return (
     <div className={`veil-field ${compact ? "compact" : ""}`} aria-hidden="true">
       <div className="veil-glow" />
       <div className="veil-wave veil-wave-a" />
       <div className="veil-wave veil-wave-b" />
       <div className="veil-cut" />
-      {particles.map((p, i) => (
+      {particles.map((particle, index) => (
         <span
-          className={`particle ${i % 11 === 0 ? "hot" : ""}`}
-          key={i}
-          style={{ left: p.left, top: p.top, animationDelay: p.delay, width: p.size, height: p.size }}
+          className={`particle ${index % 11 === 0 ? "hot" : ""}`}
+          key={index}
+          style={{
+            left: particle.left,
+            top: particle.top,
+            animationDelay: particle.delay,
+            width: particle.size,
+            height: particle.size,
+          }}
         />
       ))}
     </div>
@@ -102,9 +120,9 @@ function Header({
         <span className="network">
           <i /> Sepolia
         </span>
-        <button className="icon-button" aria-label="Notifications">
+        <span className="icon-button" aria-hidden="true">
           ⌁
-        </button>
+        </span>
         <button className="wallet" disabled={busy} onClick={onConnect}>
           {busy ? "CONNECTING…" : address ? shortAddress(address) : "Connect wallet"}
         </button>
@@ -113,7 +131,7 @@ function Header({
   );
 }
 
-function Landing({ enter }: { enter: () => void }) {
+function Landing({ enter, showProtocol }: { enter: () => void; showProtocol: () => void }) {
   return (
     <main className="landing">
       <Header onHome={() => undefined} />
@@ -132,9 +150,9 @@ function Landing({ enter }: { enter: () => void }) {
             <button className="primary" onClick={enter}>
               ENTER VEIL <b>↗</b>
             </button>
-            <a className="text-button" href="#protocol">
+            <button className="text-button" onClick={showProtocol}>
               How it works <span>→</span>
-            </a>
+            </button>
           </div>
           <div className="privacy-note">
             BALANCES · WEIGHTS · PRIZES <strong>STAY ENCRYPTED</strong>
@@ -230,7 +248,7 @@ function Dashboard({ home }: { home: () => void }) {
   const [panel, setPanel] = useState<Panel>("deposit");
   const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState<bigint>();
-  const [demoFunded, setDemoFunded] = useState(false);
+  const [faucetUsed, setFaucetUsed] = useState(false);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("Connect your wallet to read your encrypted position.");
   const [failure, setFailure] = useState("");
@@ -249,14 +267,13 @@ function Dashboard({ home }: { home: () => void }) {
       setAddress(wallet.address);
       const dashboard = await readDashboard(wallet.signer);
       setData(dashboard);
-      setDemoFunded(dashboard.joined);
       setNotice(
         dashboard.joined
           ? "Wallet connected. Your private position is sealed until you request decryption."
-          : "Wallet connected. Get demo cUSD, then seal your first private deposit.",
+          : "Wallet connected. Deposit directly if this wallet already has demo cUSD; the faucet below is optional.",
       );
-    } catch (e) {
-      setFailure(errorMessage(e));
+    } catch (error) {
+      setFailure(errorMessage(error));
     } finally {
       setBusy("");
     }
@@ -267,12 +284,12 @@ function Dashboard({ home }: { home: () => void }) {
     try {
       setFailure("");
       setBusy("fund");
-      setNotice("Minting 100 test-only cUSD to this Sepolia wallet…");
+      setNotice("Requesting 100 test-only cUSD for this Sepolia wallet…");
       await fundDemoWallet(signer, 100n);
-      setDemoFunded(true);
+      setFaucetUsed(true);
       setNotice("100 demo cUSD funded. You can now seal a private deposit.");
-    } catch (e) {
-      setFailure(errorMessage(e));
+    } catch (error) {
+      setFailure(errorMessage(error));
     } finally {
       setBusy("");
     }
@@ -286,14 +303,15 @@ function Dashboard({ home }: { home: () => void }) {
       setNotice("Deposit into VEIL first to create a private position, then you can reveal it privately.");
       return;
     }
+
     try {
       setFailure("");
       setBusy("reveal");
       setNotice("Requesting private decryption signature…");
       setBalance(await revealPrivateBalance(signer));
       setNotice("Balance decrypted locally for this wallet session.");
-    } catch (e) {
-      setFailure(errorMessage(e));
+    } catch (error) {
+      setFailure(errorMessage(error));
     } finally {
       setBusy("");
     }
@@ -307,11 +325,7 @@ function Dashboard({ home }: { home: () => void }) {
       setNotice("Create a private position with a deposit before withdrawing.");
       return;
     }
-    if (panel === "deposit" && !data?.joined && !demoFunded) {
-      setFailure("");
-      setNotice("Fund this Sepolia demo wallet with test cUSD before sealing your first deposit.");
-      return;
-    }
+
     let value: bigint;
     try {
       value = BigInt(amount);
@@ -319,6 +333,12 @@ function Dashboard({ home }: { home: () => void }) {
       setFailure("Enter a whole-number demo amount.");
       return;
     }
+
+    if (value <= 0n) {
+      setFailure("Enter an amount greater than zero.");
+      return;
+    }
+
     try {
       setFailure("");
       setBusy(panel);
@@ -328,9 +348,11 @@ function Dashboard({ home }: { home: () => void }) {
       setAmount("");
       setBalance(undefined);
       await refresh(signer);
-      setNotice(panel === "deposit" ? "Deposit sealed and confirmed on Sepolia." : "Private withdrawal confirmed on Sepolia.");
-    } catch (e) {
-      setFailure(errorMessage(e));
+      setNotice(
+        panel === "deposit" ? "Deposit sealed and confirmed on Sepolia." : "Private withdrawal confirmed on Sepolia.",
+      );
+    } catch (error) {
+      setFailure(errorMessage(error));
     } finally {
       setBusy("");
     }
@@ -350,7 +372,7 @@ function Dashboard({ home }: { home: () => void }) {
             ? "JOIN TO REVEAL"
             : "REVEAL TO ME";
   const revealAction = balance !== undefined ? () => setBalance(undefined) : reveal;
-  const needsFunding = Boolean(address) && !joined && !demoFunded;
+  const showFaucet = Boolean(address) && !joined && !faucetUsed;
 
   return (
     <main className="dashboard">
@@ -383,12 +405,20 @@ function Dashboard({ home }: { home: () => void }) {
             </p>
           </div>
           <div className="action-tabs">
-            <button className={panel === "deposit" ? "active" : ""} onClick={() => setPanel("deposit")}>Deposit</button>
-            <button className={panel === "withdraw" ? "active" : ""} disabled={!!address && !joined} onClick={() => setPanel("withdraw")}>Withdraw</button>
+            <button className={panel === "deposit" ? "active" : ""} onClick={() => setPanel("deposit")}>
+              Deposit
+            </button>
+            <button
+              className={panel === "withdraw" ? "active" : ""}
+              disabled={!!address && !joined}
+              onClick={() => setPanel("withdraw")}
+            >
+              Withdraw
+            </button>
           </div>
-          {needsFunding && (
-            <button className="outline" disabled={!!busy} onClick={fund}>
-              {busy === "fund" ? "FUNDING…" : "GET 100 DEMO cUSD"}
+          {showFaucet && (
+            <button className="outline faucet-button" disabled={!!busy} onClick={fund}>
+              {busy === "fund" ? "FUNDING…" : "OPTIONAL: GET 100 DEMO cUSD"}
             </button>
           )}
           <div className="amount-box">
@@ -399,12 +429,12 @@ function Dashboard({ home }: { home: () => void }) {
                 inputMode="numeric"
                 placeholder="0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
               />
               <b>cUSD</b>
             </div>
           </div>
-          <button className="primary full" disabled={!!busy || !amount || (panel === "deposit" && needsFunding)} onClick={transact}>
+          <button className="primary full" disabled={!!busy || !amount} onClick={transact}>
             {busy === panel
               ? panel === "deposit"
                 ? "SEALING…"
@@ -416,54 +446,127 @@ function Dashboard({ home }: { home: () => void }) {
           <small className="microcopy">
             {joined
               ? "Amounts never appear in VEIL events."
-              : needsFunding
-                ? "Test-only faucet. Fund first, then seal your position."
-                : "Your first sealed deposit creates a private position."}
+              : "Already funded? Deposit directly. The test-only faucet is optional."}
           </small>
         </aside>
+
         <section className="draw-stage" id="draw">
           <div className="round-head">
             <div>
               <span>NEXT ROUND</span>
               <strong>{round.toString().padStart(2, "0")}</strong>
             </div>
-            <div className="round-state"><i /> LIVE</div>
-            <div className="countdown"><span>NETWORK</span><strong>SEPOLIA</strong></div>
+            <div className="round-state">
+              <i /> LIVE
+            </div>
+            <div className="countdown">
+              <span>NETWORK</span>
+              <strong>SEPOLIA</strong>
+            </div>
           </div>
           <div className="draw-visual">
             <VeilField compact />
             <div className="draw-copy">
               <span>ENCRYPTED POOL</span>
-              <h2>{participants} POSITION{participants === 1 ? "" : "S"}.<br />ZERO BALANCES EXPOSED.</h2>
-              <p>BlindDraw operates on encrypted participant weights. The public chain never receives plaintext deposit amounts.</p>
+              <h2>
+                {participants} POSITION{participants === 1 ? "" : "S"}.
+                <br />
+                ZERO BALANCES EXPOSED.
+              </h2>
+              <p>
+                BlindDraw operates on encrypted participant weights. The public chain never receives plaintext deposit amounts.
+              </p>
             </div>
           </div>
           <div className="draw-stats">
-            <div><span>Participants</span><strong>{participants}</strong></div>
-            <div><span>Your position</span><strong>{joined ? "SEALED" : "—"}</strong></div>
-            <div><span>Latest round</span><strong>{data?.latestRound?.toString() ?? "0"}</strong></div>
-            <div><span>Proof</span><strong>ONCHAIN</strong></div>
+            <div>
+              <span>Participants</span>
+              <strong>{participants}</strong>
+            </div>
+            <div>
+              <span>Your position</span>
+              <strong>{joined ? "SEALED" : "—"}</strong>
+            </div>
+            <div>
+              <span>Latest round</span>
+              <strong>{data?.latestRound?.toString() ?? "0"}</strong>
+            </div>
+            <div>
+              <span>Proof</span>
+              <strong>ONCHAIN</strong>
+            </div>
           </div>
           <div className="lifecycle">
-            {["OPEN", "SNAPSHOT", "BLIND DRAW", "REVEAL", "SETTLE"].map((step, i) => (
-              <div className={i === 0 ? "current" : ""} key={step}><b>{String(i + 1).padStart(2, "0")}</b><span>{step}</span></div>
+            {["OPEN", "SNAPSHOT", "BLIND DRAW", "REVEAL", "SETTLE"].map((step, index) => (
+              <div className={index === 0 ? "current" : ""} key={step}>
+                <b>{String(index + 1).padStart(2, "0")}</b>
+                <span>{step}</span>
+              </div>
             ))}
           </div>
         </section>
+
         <aside className="right-rail">
-          <div className="notifications-head"><span>ACTIVITY</span><button>⌁</button></div>
-          <div className="activity"><span>●</span><div><strong>{failure ? "Action needs attention" : "VEIL session"}</strong><p>{failure || notice}</p><small>NOW</small></div></div>
-          <div className="prize-card"><span>PRIZE STATUS</span><h3>{data?.prize?.claimed ? "PRIZE CLAIMED" : data?.prize?.funded ? "ENCRYPTED PRIZE FUNDED" : "NO UNCLAIMED PRIZE"}</h3><p>Prize values stay encrypted until an authorized winner chooses to decrypt them.</p></div>
-          <div className="proof-card"><span>LIVE CONTRACT</span><code>{VEIL_CONTRACTS.pool.slice(0, 10)}…{VEIL_CONTRACTS.pool.slice(-6)}</code><small>Sepolia · demo deployment</small></div>
+          <div className="notifications-head">
+            <span>ACTIVITY</span>
+          </div>
+          <div className="activity">
+            <span>●</span>
+            <div>
+              <strong>{failure ? "Action needs attention" : "VEIL session"}</strong>
+              <p>{failure || notice}</p>
+              <small>NOW</small>
+            </div>
+          </div>
+          <div className="prize-card">
+            <span>PRIZE STATUS</span>
+            <h3>
+              {data?.prize?.claimed
+                ? "PRIZE CLAIMED"
+                : data?.prize?.funded
+                  ? "ENCRYPTED PRIZE FUNDED"
+                  : "NO UNCLAIMED PRIZE"}
+            </h3>
+            <p>Prize values stay encrypted until an authorized winner chooses to decrypt them.</p>
+          </div>
+          <div className="proof-card">
+            <span>LIVE CONTRACT</span>
+            <code>
+              {VEIL_CONTRACTS.pool.slice(0, 10)}…{VEIL_CONTRACTS.pool.slice(-6)}
+            </code>
+            <small>Sepolia · demo deployment</small>
+          </div>
         </aside>
       </section>
+
       <VerifiedHistory />
+
       <section className="protocol-strip" id="protocol">
-        <div><span>01</span><strong>DEPOSIT</strong><p>Input is encrypted before it reaches VEIL.</p></div>
-        <div><span>02</span><strong>SNAPSHOT</strong><p>Encrypted weights freeze without revealing balances.</p></div>
-        <div><span>03</span><strong>BLIND DRAW</strong><p>Winner selection executes over ciphertexts.</p></div>
-        <div><span>04</span><strong>VERIFY</strong><p>The final winner becomes publicly provable.</p></div>
-        <div><span>05</span><strong>CLAIM</strong><p>Prize stays private until the winner decrypts it.</p></div>
+        <div>
+          <span>01</span>
+          <strong>DEPOSIT</strong>
+          <p>Input is encrypted before it reaches VEIL.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>SNAPSHOT</strong>
+          <p>Encrypted weights freeze without revealing balances.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>BLIND DRAW</strong>
+          <p>Winner selection executes over ciphertexts.</p>
+        </div>
+        <div>
+          <span>04</span>
+          <strong>VERIFY</strong>
+          <p>The final winner becomes publicly provable.</p>
+        </div>
+        <div>
+          <span>05</span>
+          <strong>CLAIM</strong>
+          <p>Prize stays private until the winner decrypts it.</p>
+        </div>
       </section>
     </main>
   );
@@ -471,5 +574,17 @@ function Dashboard({ home }: { home: () => void }) {
 
 export default function App() {
   const [view, setView] = useState<View>("landing");
-  return view === "landing" ? <Landing enter={() => setView("app")} /> : <Dashboard home={() => setView("landing")} />;
+
+  function showProtocol() {
+    setView("app");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => document.getElementById("protocol")?.scrollIntoView());
+    });
+  }
+
+  return view === "landing" ? (
+    <Landing enter={() => setView("app")} showProtocol={showProtocol} />
+  ) : (
+    <Dashboard home={() => setView("landing")} />
+  );
 }
