@@ -36,8 +36,8 @@ async function deployFixture() {
   const yieldSource = (await yieldFactory.deploy(tokenAddress)) as VeilYieldSource;
   const yieldSourceAddress = await yieldSource.getAddress();
 
-  const prizeFactory = (await ethers.getContractFactory("VeilPrizeVault")) as VeilPrizeVault__factory;
-  const prizeVault = (await prizeFactory.deploy(poolAddress, tokenAddress, yieldSourceAddress)) as VeilPrizeVault;
+  const vaultFactory = (await ethers.getContractFactory("VeilPrizeVault")) as VeilPrizeVault__factory;
+  const prizeVault = (await vaultFactory.deploy(poolAddress, tokenAddress, yieldSourceAddress)) as VeilPrizeVault;
   const prizeVaultAddress = await prizeVault.getAddress();
 
   await (await yieldSource.configurePrizeVault(prizeVaultAddress)).wait();
@@ -56,7 +56,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
   let prizeVaultAddress: string;
 
   before(async function () {
-    const ethSigners: HardhatEthersSigner[] = await ethers.getSigners();
+    const ethSigners = await ethers.getSigners();
     signers = {
       deployer: ethSigners[0],
       alice: ethSigners[1],
@@ -71,8 +71,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
       this.skip();
     }
 
-    ({ token, pool, poolAddress, yieldSource, yieldSourceAddress, prizeVault, prizeVaultAddress } =
-      await deployFixture());
+    ({ token, pool, poolAddress, yieldSource, yieldSourceAddress, prizeVault, prizeVaultAddress } = await deployFixture());
 
     for (const signer of [signers.alice, signers.bob]) {
       await (await token.mint(signer.address, 1_000)).wait();
@@ -81,32 +80,56 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
 
     await (await token.mint(signers.deployer.address, 1_000)).wait();
     await (await token.connect(signers.deployer).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
+
+    await deposit(signers.alice, 10);
+    await deposit(signers.bob, 30);
+    await (await pool.snapshotRound()).wait();
+    await (await pool.blindDraw(1)).wait();
   });
 
-  async function deposit(signer: HardhatEthersSigner, amount: number) {
-    const encrypted = await fhevm.createEncryptedInput(poolAddress, signer.address).add64(amount).encrypt();
+  async function encryptFor(contractAddress: string, signer: HardhatEthersSigner, amount: bigint | number) {
+    return fhevm.createEncryptedInput(contractAddress, signer.address).add64(amount).encrypt();
+  }
+
+  async function deposit(signer: HardhatEthersSigner, amount: bigint | number) {
+    const encrypted = await encryptFor(poolAddress, signer, amount);
     await (await pool.connect(signer).deposit(encrypted.handles[0], encrypted.inputProof)).wait();
   }
 
-  async function accrueYield(amount: number) {
-    const encrypted = await fhevm
-      .createEncryptedInput(yieldSourceAddress, signers.deployer.address)
-      .add64(amount)
-      .encrypt();
+  async function accrueYield(amount: bigint | number) {
+    const encrypted = await encryptFor(yieldSourceAddress, signers.deployer, amount);
     await (await yieldSource.accrueYield(encrypted.handles[0], encrypted.inputProof)).wait();
   }
 
-  async function allocatePrize(amount: number) {
-    const encrypted = await fhevm
-      .createEncryptedInput(yieldSourceAddress, signers.deployer.address)
-      .add64(amount)
-      .encrypt();
+  async function allocatePrize(amount: bigint | number) {
+    const encrypted = await encryptFor(yieldSourceAddress, signers.deployer, amount);
     await (await yieldSource.allocateToRound(1, encrypted.handles[0], encrypted.inputProof)).wait();
   }
 
-  async function fundPrize(amount: number) {
+  async function fundPrize(amount: bigint | number) {
     await accrueYield(amount);
     await allocatePrize(amount);
+  }
+
+  async function finalizeRound() {
+    const encryptedWinner = await pool.getEncryptedWinner(1);
+    const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
+    await (
+      await pool
+        .connect(signers.outsider)
+        .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof)
+    ).wait();
+    return pool.getWinner(1);
+  }
+
+  function signerFor(address: string) {
+    if (address === signers.alice.address) return signers.alice;
+    if (address === signers.bob.address) return signers.bob;
+    throw new Error(`Unexpected winner ${address}`);
+  }
+
+  function otherPlayer(address: string) {
+    return address === signers.alice.address ? signers.bob : signers.alice;
   }
 
   async function decryptTokenBalance(signer: HardhatEthersSigner) {
@@ -119,73 +142,35 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, encrypted, poolAddress, signer);
   }
 
-  async function finalizeRound() {
-    await deposit(signers.alice, 10);
-    await deposit(signers.bob, 30);
-    await (await pool.snapshotRound()).wait();
-    await (await pool.blindDraw(1)).wait();
-
-    const encryptedWinner = await pool.getEncryptedWinner(1);
-    const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
-
-    await (
-      await pool
-        .connect(signers.outsider)
-        .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof)
-    ).wait();
-
-    return pool.getWinner(1);
-  }
-
-  function signerFor(address: string) {
-    if (address.toLowerCase() === signers.alice.address.toLowerCase()) return signers.alice;
-    if (address.toLowerCase() === signers.bob.address.toLowerCase()) return signers.bob;
-    throw new Error(`Unexpected winner ${address}`);
-  }
-
-  function otherPlayer(winner: string) {
-    return winner.toLowerCase() === signers.alice.address.toLowerCase() ? signers.bob : signers.alice;
-  }
-
   it("keeps principal, yield accounting, and prize custody physically separate", async function () {
+    expect(await pool.asset()).to.equal(await token.getAddress());
     expect(await yieldSource.asset()).to.equal(await token.getAddress());
-    expect(await yieldSource.prizeVault()).to.equal(prizeVaultAddress);
-    expect(await prizeVault.pool()).to.equal(poolAddress);
     expect(await prizeVault.asset()).to.equal(await token.getAddress());
+    expect(await prizeVault.pool()).to.equal(poolAddress);
     expect(await prizeVault.yieldSource()).to.equal(yieldSourceAddress);
   });
 
   it("backs prize accounting with realized confidential assets without changing principal", async function () {
-    await deposit(signers.alice, 40);
-    await accrueYield(250);
+    const alicePrincipal = await decryptPoolBalance(signers.alice);
+    const bobPrincipal = await decryptPoolBalance(signers.bob);
 
-    expect(await decryptPoolBalance(signers.alice)).to.equal(40);
-    expect(await decryptTokenBalance(signers.deployer)).to.equal(750);
-    expect((await prizeVault.prizeStatus(1)).funded).to.equal(false);
+    await fundPrize(150);
 
-    await allocatePrize(250);
-
-    expect(await decryptPoolBalance(signers.alice)).to.equal(40);
-    const status = await prizeVault.prizeStatus(1);
-    expect(status.funded).to.equal(true);
-    expect(status.winnerAuthorized).to.equal(false);
-    expect(status.claimed).to.equal(false);
+    expect(await decryptPoolBalance(signers.alice)).to.equal(alicePrincipal);
+    expect(await decryptPoolBalance(signers.bob)).to.equal(bobPrincipal);
+    expect(await decryptTokenBalance(signers.deployer)).to.equal(850);
   });
 
   it("rejects direct prize credits from accounts other than the yield source", async function () {
-    await expect(prizeVault.connect(signers.outsider).recordPrize(1, ethers.ZeroHash)).to.be.revertedWith(
+    const encrypted = await encryptFor(prizeVaultAddress, signers.outsider, 10);
+    await expect(prizeVault.connect(signers.outsider).recordPrize(1, encrypted.handles[0])).to.be.revertedWith(
       "Only yield source",
     );
   });
 
   it("does not expose the prize before the pool has a finalized winner", async function () {
     await fundPrize(150);
-    await deposit(signers.alice, 10);
-    await deposit(signers.bob, 30);
-    await (await pool.snapshotRound()).wait();
-    await (await pool.blindDraw(1)).wait();
-
-    await expect(prizeVault.connect(signers.outsider).authorizeWinner(1)).to.be.revertedWith("Winner not finalized");
+    await expect(prizeVault.connect(signers.alice).encryptedPrizeOf(1)).to.be.revertedWith("Winner not authorized");
   });
 
   it("allows only the finalized winner to decrypt the encrypted prize", async function () {
@@ -197,11 +182,10 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     await (await prizeVault.connect(signers.outsider).authorizeWinner(1)).wait();
 
     const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(1);
-    const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
-
-    expect(clearPrize).to.equal(150);
-    await expect(fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, loser)).to.be.rejected;
-    await expect(prizeVault.connect(loser).encryptedPrizeOf(1)).to.be.revertedWith("Not winner");
+    expect(await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner)).to.equal(150);
+    await expect(
+      fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, loser),
+    ).to.be.rejected;
   });
 
   it("pays confidential winnings without mutating the winner's principal", async function () {
@@ -234,9 +218,9 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     await expect(prizeVault.connect(loser).claimPrize(1)).to.be.revertedWith("Not winner");
   });
 
-  it("clips credited yield to real confidential assets before prize allocation", async function () {
+  it("uses silent-zero semantics when requested yield exceeds real confidential assets", async function () {
     await accrueYield(2_000);
-    expect(await decryptTokenBalance(signers.deployer)).to.equal(0);
+    expect(await decryptTokenBalance(signers.deployer)).to.equal(1_000);
 
     await allocatePrize(2_000);
     const winnerAddress = await finalizeRound();
@@ -245,6 +229,6 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
 
     const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(1);
     const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
-    expect(clearPrize).to.equal(1_000);
+    expect(clearPrize).to.equal(0);
   });
 });

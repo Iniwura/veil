@@ -5,10 +5,10 @@ export const VEIL_NETWORK = {
 } as const;
 
 export const VEIL_CONTRACTS = {
-  asset: "0x2a267e64bb8B460EEFF9bA25e51b8D9431A00125",
-  pool: "0x523b515A6e3fCB19737dF45243616c36564fD62f",
-  yieldSource: "0x752c132D7E6d45F7dA71D7Fe00F4afde22eAc7b3",
-  prizeVault: "0x217a64703DfBfC92A52a81cBfF0d86078dc84aF8",
+  asset: "0xBAa442fFC1C8EEF0FE53E181aF0c3caD3c87e575",
+  pool: "0xbFFb9dA6e363D72B2f86B511ecefad3DF49d19e9",
+  yieldSource: "0xA083930Fcccc43d73a5DB5f7340188f734Bf5505",
+  prizeVault: "0xE9c1779d58a1b3e31C3C5417e927B09c18Cd1B76",
 } as const;
 
 export const DEMO_ONLY = true;

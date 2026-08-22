@@ -116,7 +116,7 @@ describe("VeilPool", function () {
     ).to.be.revertedWith("Pool not operator");
   });
 
-  it("backs draw weight with the amount actually transferred by the asset", async function () {
+  it("uses ERC-7984 silent-zero semantics when a deposit exceeds the confidential token balance", async function () {
     await deposit(signers.alice, 250);
 
     expect(await decryptOwnBalance(signers.alice)).to.equal(250);
@@ -124,8 +124,8 @@ describe("VeilPool", function () {
 
     await deposit(signers.alice, 2_000);
 
-    expect(await decryptOwnBalance(signers.alice)).to.equal(1_000);
-    expect(await decryptTokenBalance(signers.alice)).to.equal(0);
+    expect(await decryptOwnBalance(signers.alice)).to.equal(250);
+    expect(await decryptTokenBalance(signers.alice)).to.equal(750);
     expect(await veilPoolContract.playerCount()).to.equal(1);
   });
 
@@ -157,12 +157,32 @@ describe("VeilPool", function () {
     expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(100);
   });
 
-  it("caps an over-withdrawal at the user's confidential live principal", async function () {
+  it("silently transfers zero when a withdrawal request exceeds the confidential live principal", async function () {
     await deposit(signers.alice, 75);
     await withdraw(signers.alice, 500);
 
+    expect(await decryptOwnBalance(signers.alice)).to.equal(75);
+    expect(await decryptTokenBalance(signers.alice)).to.equal(925);
+  });
+
+  it("keeps a zero position at zero when a positive withdrawal is requested", async function () {
+    await deposit(signers.alice, 1);
+    await withdraw(signers.alice, 1);
+    expect(await decryptOwnBalance(signers.alice)).to.equal(0);
+
+    await withdraw(signers.alice, 1);
     expect(await decryptOwnBalance(signers.alice)).to.equal(0);
     expect(await decryptTokenBalance(signers.alice)).to.equal(1_000);
+  });
+
+  it("preserves ACLs across deposit, withdraw, deposit, and reveal cycles", async function () {
+    await deposit(signers.alice, 20);
+    await withdraw(signers.alice, 5);
+    await deposit(signers.alice, 7);
+    await withdraw(signers.alice, 3);
+
+    expect(await decryptOwnBalance(signers.alice)).to.equal(19);
+    expect(await decryptTokenBalance(signers.alice)).to.equal(981);
   });
 
   it("rejects withdrawals from non-participants", async function () {
@@ -185,7 +205,7 @@ describe("VeilPool", function () {
     expect(await veilPoolContract.playerCount()).to.equal(1);
   });
 
-  it("enforces the maximum of 32 registered players", async function () {
+  it("enforces the maximum of 32 active draw seats", async function () {
     const wallets = Array.from({ length: 33 }, () => Wallet.createRandom().connect(ethers.provider));
 
     for (const wallet of wallets) {
@@ -199,7 +219,7 @@ describe("VeilPool", function () {
     }
 
     expect(await veilPoolContract.playerCount()).to.equal(32);
-    await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Pool full");
+    await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Draw roster full");
   });
 
   describe("encrypted snapshots and BlindDraw", function () {

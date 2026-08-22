@@ -9,15 +9,15 @@ function replaceOnce(label, from, to) {
 }
 
 replaceOnce(
-  "withdrawal success notice",
-  `        panel === "deposit" ? "Deposit sealed and confirmed on Sepolia." : "Private withdrawal confirmed on Sepolia.",`,
-  `        panel === "deposit"\n          ? "Deposit sealed and confirmed on Sepolia."\n          : "Private withdrawal request processed on Sepolia. VEIL withdraws up to your encrypted available balance; reveal locally to verify the resulting position.",`,
+  "confidential transfer success notice",
+  `      setNotice(\n        panel === "deposit" ? "Deposit sealed and confirmed on Sepolia." : "Private withdrawal confirmed on Sepolia.",\n      );`,
+  `      setNotice(\n        panel === "deposit"\n          ? "Private deposit request processed on Sepolia. ERC-7984 transfers the full encrypted request or silently transfers zero; reveal locally to verify your resulting position."\n          : "Private withdrawal request processed on Sepolia. ERC-7984 transfers the full encrypted request or silently transfers zero; reveal locally to verify your resulting position.",\n      );`,
 );
 
 replaceOnce(
-  "withdraw microcopy",
-  `              ? "Amounts never appear in VEIL events."\n              : "Already funded? Deposit directly. The test-only faucet is optional."}`,
-  `              ? panel === "withdraw"\n                ? "Requested withdrawals are privately capped at your encrypted available balance."\n                : "Amounts never appear in VEIL events."\n              : "Already funded? Deposit directly. The test-only faucet is optional."}`,
+  "confidential transfer microcopy",
+  `            {joined\n              ? "Amounts never appear in VEIL events."\n              : "Already funded? Deposit directly. The test-only faucet is optional."}`,
+  `            {joined\n              ? panel === "withdraw"\n                ? "If the encrypted balance is insufficient, ERC-7984 silently transfers zero without exposing why."\n                : "Deposit amounts stay encrypted. An insufficient confidential token balance silently transfers zero."\n              : "Already funded? Deposit directly. The test-only faucet is optional."}`,
 );
 
 replaceOnce(
@@ -27,4 +27,4 @@ replaceOnce(
 );
 
 fs.writeFileSync(path, source);
-console.log("Patched App.tsx: private withdrawal semantics + claim privacy copy.");
+console.log("Patched App.tsx: ERC-7984 silent-zero transfer UX + claim privacy copy.");
