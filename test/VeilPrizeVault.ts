@@ -275,7 +275,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
 
     await allocatePrize(1);
     expect(await yieldSource.yieldRoundId()).to.equal(2);
-    await expect(allocatePrize(1)).to.be.revertedWith("Wrong yield round");
+    await expect(yieldSource.connect(signers.outsider).allocateRoundYield(1)).to.be.revertedWith("Wrong yield round");
   });
 
   it("allows only the finalized winner to decrypt the encrypted prize", async function () {
