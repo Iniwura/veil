@@ -101,9 +101,9 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     await (await yieldSource.accrueYield(encrypted.handles[0], encrypted.inputProof)).wait();
   }
 
-  async function allocatePrize(amount: bigint | number) {
+  async function allocatePrize(amount: bigint | number, roundId = 1) {
     const encrypted = await encryptFor(yieldSourceAddress, signers.deployer, amount);
-    await (await yieldSource.allocateToRound(1, encrypted.handles[0], encrypted.inputProof)).wait();
+    await (await yieldSource.allocateToRound(roundId, encrypted.handles[0], encrypted.inputProof)).wait();
   }
 
   async function fundPrize(amount: bigint | number) {
@@ -142,6 +142,14 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, encrypted, poolAddress, signer);
   }
 
+  async function authorizeAndDecryptPrize(winnerAddress: string) {
+    const winner = signerFor(winnerAddress);
+    await (await prizeVault.connect(signers.outsider).authorizeWinner(1)).wait();
+    const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(1);
+    const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
+    return { winner, clearPrize };
+  }
+
   it("keeps principal, yield accounting, and prize custody physically separate", async function () {
     expect(await pool.asset()).to.equal(await token.getAddress());
     expect(await yieldSource.asset()).to.equal(await token.getAddress());
@@ -154,6 +162,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     const alicePrincipal = await decryptPoolBalance(signers.alice);
     const bobPrincipal = await decryptPoolBalance(signers.bob);
 
+    await finalizeRound();
     await fundPrize(150);
 
     expect(await decryptPoolBalance(signers.alice)).to.equal(alicePrincipal);
@@ -168,14 +177,22 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     );
   });
 
-  it("does not expose the prize before the pool has a finalized winner", async function () {
-    await fundPrize(150);
-    await expect(prizeVault.connect(signers.alice).encryptedPrizeOf(1)).to.be.revertedWith("Winner not authorized");
+  it("rejects prize allocation before the round winner is finalized without losing accrued yield", async function () {
+    await accrueYield(150);
+    await expect(allocatePrize(150)).to.be.rejectedWith("Winner not finalized");
+
+    const statusBefore = await prizeVault.prizeStatus(1);
+    expect(statusBefore.funded).to.equal(false);
+
+    const winnerAddress = await finalizeRound();
+    await allocatePrize(150);
+    const { clearPrize } = await authorizeAndDecryptPrize(winnerAddress);
+    expect(clearPrize).to.equal(150);
   });
 
   it("allows only the finalized winner to decrypt the encrypted prize", async function () {
-    await fundPrize(150);
     const winnerAddress = await finalizeRound();
+    await fundPrize(150);
     const winner = signerFor(winnerAddress);
     const loser = otherPlayer(winnerAddress);
 
@@ -189,8 +206,8 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
   });
 
   it("pays confidential winnings without mutating the winner's principal", async function () {
-    await fundPrize(150);
     const winnerAddress = await finalizeRound();
+    await fundPrize(150);
     const winner = signerFor(winnerAddress);
 
     await (await prizeVault.connect(signers.outsider).authorizeWinner(1)).wait();
@@ -210,8 +227,8 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
   });
 
   it("prevents a losing participant from claiming the prize", async function () {
-    await fundPrize(150);
     const winnerAddress = await finalizeRound();
+    await fundPrize(150);
     const loser = otherPlayer(winnerAddress);
 
     await (await prizeVault.connect(signers.outsider).authorizeWinner(1)).wait();
@@ -222,13 +239,20 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     await accrueYield(2_000);
     expect(await decryptTokenBalance(signers.deployer)).to.equal(1_000);
 
-    await allocatePrize(2_000);
     const winnerAddress = await finalizeRound();
-    const winner = signerFor(winnerAddress);
-    await (await prizeVault.connect(signers.outsider).authorizeWinner(1)).wait();
+    await allocatePrize(2_000);
+    const { clearPrize } = await authorizeAndDecryptPrize(winnerAddress);
+    expect(clearPrize).to.equal(0);
+  });
 
-    const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(1);
-    const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
+  it("does not clamp an oversized allocation to the remaining realized yield", async function () {
+    await accrueYield(100);
+    expect(await decryptTokenBalance(signers.deployer)).to.equal(900);
+
+    const winnerAddress = await finalizeRound();
+    await allocatePrize(150);
+    const { clearPrize } = await authorizeAndDecryptPrize(winnerAddress);
+
     expect(clearPrize).to.equal(0);
   });
 });
