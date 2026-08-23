@@ -1,6 +1,8 @@
 # UNVEIL production yield path
 
-UNVEIL separates the competition-safe Sepolia prize flow from the production yield integration. That boundary is intentional. The privacy and draw protocol can be tested end to end without pretending that deterministic testnet yield was produced by a live lending strategy.
+UNVEIL separates the competition-safe Sepolia prize flow from the production yield integration. That boundary is
+intentional. The privacy and draw protocol can be tested end to end without pretending that deterministic testnet yield
+was produced by a live lending strategy.
 
 ## Sepolia competition deployment
 
@@ -9,15 +11,19 @@ The competition stack uses Zama's official Sepolia `cUSDCMock` wrapper as the co
 - `cUSDCMock`: `0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639`
 - mock USDC underlying: `0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF`
 
-The strategy operator transfers actual confidential cUSDC into `VeilYieldSource` and seals the current round's encrypted realized-yield bucket after the draw closes. Routing and prize delivery are then permissionless.
+The strategy operator transfers actual confidential cUSDC into `VeilYieldSource` and seals the current round's encrypted
+realized-yield bucket after the draw closes. Routing and prize delivery are then permissionless.
 
-The strategy operator cannot choose the winner. A keeper cannot redirect a sealed bucket to another round or another beneficiary.
+The strategy operator cannot choose the winner. A keeper cannot redirect a sealed bucket to another round or another
+beneficiary.
 
-This proves the complete confidential accounting and prize-delivery path. It does **not** claim that the deterministic Sepolia yield was produced by Morpho or another live lending venue.
+This proves the complete confidential accounting and prize-delivery path. It does **not** claim that the deterministic
+Sepolia yield was produced by Morpho or another live lending venue.
 
 ## Verified production venue
 
-Zama's Steakhouse Confidential Prime USDC vault is live on Ethereum mainnet and routes confidential cUSDC into the Steakhouse USDC Prime strategy on Morpho.
+Zama's Steakhouse Confidential Prime USDC vault is live on Ethereum mainnet and routes confidential cUSDC into the
+Steakhouse USDC Prime strategy on Morpho.
 
 The current Zama protocol registry lists:
 
@@ -25,13 +31,16 @@ The current Zama protocol registry lists:
 - csteakcUSDC: `0x66Bf74E96900D1a19c7070D939D124f2F565C458`
 - underlying Steakhouse USDC Prime vault: `0xbEEF00A59B577423653A1526c7009bdE103F542B`
 
-The official Sepolia wrapper registry currently lists the test cUSDC wrapper used by UNVEIL, but it does not list a Steakhouse confidential share wrapper. For that reason, UNVEIL does not present a third-party Sepolia recipe or address set as official production infrastructure.
+The official Sepolia wrapper registry currently lists the test cUSDC wrapper used by UNVEIL, but it does not list a
+Steakhouse confidential share wrapper. For that reason, UNVEIL does not present a third-party Sepolia recipe or address
+set as official production infrastructure.
 
 Mainnet addresses must be checked against Zama's protocol registry immediately before any production deployment.
 
 ## Production strategy architecture
 
-The Steakhouse confidential vault is asynchronous. Deposits and redemptions are batched, so a production UNVEIL adapter cannot treat it like a synchronous ERC-4626 call.
+The Steakhouse confidential vault is asynchronous. Deposits and redemptions are batched, so a production UNVEIL adapter
+cannot treat it like a synchronous ERC-4626 call.
 
 ```text
 UNVEIL principal accounting
@@ -64,7 +73,9 @@ VeilPrizeVault
 proof-finalized winner
 ```
 
-A production adapter therefore needs explicit pending-deposit, active-share, pending-redemption and idle-liquidity accounting. Yield must not be considered realized until confidential cUSDC has returned from the redemption path and entered UNVEIL's prize-yield custody.
+A production adapter therefore needs explicit pending-deposit, active-share, pending-redemption and idle-liquidity
+accounting. Yield must not be considered realized until confidential cUSDC has returned from the redemption path and
+entered UNVEIL's prize-yield custody.
 
 ## Required production invariants
 
@@ -77,19 +88,27 @@ A production adapter therefore needs explicit pending-deposit, active-share, pen
 7. Pending batch latency is represented explicitly in protocol and UI state.
 8. Withdrawals use either an idle-liquidity buffer or a visible private redemption queue.
 9. Emergency exits return strategy assets to a custody path without exposing per-user balances.
-10. Share-price math and encrypted aggregate arithmetic need explicit overflow and precision bounds before production use.
+10. Share-price math and encrypted aggregate arithmetic need explicit overflow and precision bounds before production
+    use.
 
 ## Why the competition stack does not automatically invest principal
 
-Moving the Sepolia pool's user principal into an asynchronous vault without private pending-deposit shares, delayed-redemption accounting, withdrawal liquidity and failure recovery would make the demo look more production-like while making custody less correct.
+Moving the Sepolia pool's user principal into an asynchronous vault without private pending-deposit shares,
+delayed-redemption accounting, withdrawal liquidity and failure recovery would make the demo look more production-like
+while making custody less correct.
 
-UNVEIL therefore keeps the competition custody path simple and proves the confidential strategy boundary separately. A production migration should introduce the asynchronous strategy adapter as a reviewed protocol version rather than silently changing withdrawal semantics inside the submission build.
+UNVEIL therefore keeps the competition custody path simple and proves the confidential strategy boundary separately. A
+production migration should introduce the asynchronous strategy adapter as a reviewed protocol version rather than
+silently changing withdrawal semantics inside the submission build.
 
 ## Cadence
 
-UNVEIL targets daily production prize draws. The competition deployment uses a shorter contract-configured period so a reviewer can watch a full encrypted round.
+UNVEIL targets daily production prize draws. The competition deployment uses a shorter contract-configured period so a
+reviewer can watch a full encrypted round.
 
-Draw cadence and yield-settlement cadence do not need to be identical. A draw can finalize before its prize is ready. The UI should show `winner proved · yield settling` until the strategy seals the realized confidential cUSDC bucket and a permissionless keeper routes it.
+Draw cadence and yield-settlement cadence do not need to be identical. A draw can finalize before its prize is ready.
+The UI should show `winner proved · yield settling` until the strategy seals the realized confidential cUSDC bucket and
+a permissionless keeper routes it.
 
 ## Source references
 
