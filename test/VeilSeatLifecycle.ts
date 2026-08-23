@@ -12,7 +12,6 @@ async function encrypted64(contractAddress: string, signer: HardhatEthersSigner,
 }
 
 describe("VeilPool draw-seat lifecycle", function () {
-  let deployer: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
   let token: MockConfidentialToken;
@@ -20,7 +19,7 @@ describe("VeilPool draw-seat lifecycle", function () {
   let poolAddress: string;
 
   before(async function () {
-    [deployer, alice, bob] = await ethers.getSigners();
+    [, alice, bob] = await ethers.getSigners();
   });
 
   beforeEach(async function () {
