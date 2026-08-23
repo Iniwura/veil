@@ -31,6 +31,9 @@ interface IUnveilPrizeSink {
 ///      point this boundary at a reviewed confidential yield strategy without giving that strategy draw control.
 ///      Realized yield is assigned to rounds in strict sequence, so permissionless keepers cannot redirect it.
 contract VeilYieldSource is ZamaEthereumConfig {
+    /// @notice Deployment account with one-time prize-vault wiring authority.
+    /// @dev This role has no yield, draw, winner, allocation, or payout authority after configuration.
+    address public immutable configurationAdmin;
     address public immutable strategyOperator;
     IERC7984YieldAsset public immutable asset;
     IUnveilRoundSource public immutable pool;
@@ -47,6 +50,11 @@ contract VeilYieldSource is ZamaEthereumConfig {
     event YieldAllocated(uint256 indexed roundId);
     event CancelledYieldCarried(uint256 indexed fromRoundId, uint256 indexed toRoundId);
 
+    modifier onlyConfigurationAdmin() {
+        require(msg.sender == configurationAdmin, "Only configuration admin");
+        _;
+    }
+
     modifier onlyStrategy() {
         require(msg.sender == strategyOperator, "Only strategy");
         _;
@@ -56,6 +64,8 @@ contract VeilYieldSource is ZamaEthereumConfig {
         require(asset_ != address(0), "Invalid asset");
         require(pool_ != address(0), "Invalid pool");
         require(strategyOperator_ != address(0), "Invalid strategy");
+
+        configurationAdmin = msg.sender;
         strategyOperator = strategyOperator_;
         asset = IERC7984YieldAsset(asset_);
         pool = IUnveilRoundSource(pool_);
@@ -65,7 +75,8 @@ contract VeilYieldSource is ZamaEthereumConfig {
     }
 
     /// @notice One-time wiring to the confidential prize vault.
-    function configurePrizeVault(address prizeVault_) external onlyStrategy {
+    /// @dev Deployment configuration is deliberately separate from the long-lived strategy operator.
+    function configurePrizeVault(address prizeVault_) external onlyConfigurationAdmin {
         require(prizeVault == address(0), "Prize vault configured");
         require(prizeVault_ != address(0), "Invalid prize vault");
         prizeVault = prizeVault_;
