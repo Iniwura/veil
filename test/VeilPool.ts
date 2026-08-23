@@ -269,7 +269,7 @@ describe("VeilPool", function () {
     expect(await veilPoolContract.playerCount()).to.equal(1);
   });
 
-  it("enforces the maximum of 32 active draw seats", async function () {
+  it("keeps saving available when all 32 draw seats are occupied", async function () {
     const wallets = Array.from({ length: 33 }, () => Wallet.createRandom().connect(ethers.provider));
 
     for (const wallet of wallets) {
@@ -282,8 +282,22 @@ describe("VeilPool", function () {
       await deposit(wallet, 1);
     }
 
+    const waitingSaver = wallets[32];
     expect(await veilPoolContract.playerCount()).to.equal(32);
-    await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Draw roster full");
+
+    await deposit(waitingSaver, 1);
+
+    expect(await veilPoolContract.playerCount()).to.equal(32);
+    expect(await veilPoolContract.joined(waitingSaver.address)).to.equal(true);
+    expect(await veilPoolContract.seated(waitingSaver.address)).to.equal(false);
+    await expect(veilPoolContract.connect(waitingSaver).renewDrawSeat()).to.be.revertedWith("Draw roster full");
+
+    await (await veilPoolContract.connect(wallets[0]).leaveDrawSeat()).wait();
+    expect(await veilPoolContract.playerCount()).to.equal(31);
+
+    await (await veilPoolContract.connect(waitingSaver).renewDrawSeat()).wait();
+    expect(await veilPoolContract.playerCount()).to.equal(32);
+    expect(await veilPoolContract.seated(waitingSaver.address)).to.equal(true);
   });
 
   describe("timed encrypted draws", function () {
