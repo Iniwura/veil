@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
 
+// External ABI mirror: exhaustive NatSpec on every selector would duplicate Zama's source documentation.
+// solhint-disable use-natspec
+
 import {euint64} from "@fhevm/solidity/lib/FHE.sol";
 
 /// @title IZamaVaultBatcher
