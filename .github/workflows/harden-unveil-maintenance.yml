@@ -1,0 +1,319 @@
+name: Harden UNVEIL maintenance
+
+on:
+  push:
+    branches:
+      - feat/unveil-winner-build
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: feat/unveil-winner-build
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - name: Harden maintenance backlog handling and coverage boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # The 33-wallet boundary test is intentionally expensive under solidity-coverage on Windows.
+          test = Path('test/VeilPool.ts')
+          test_text = test.read_text()
+          needle = 'it("enforces the maximum of 32 active draw seats", async function () {\n'
+          if 'this.timeout(120_000);' not in test_text[test_text.find(needle):test_text.find(needle)+180]:
+              assert needle in test_text, '32-seat test target missing'
+              test_text = test_text.replace(needle, needle + '    this.timeout(120_000);\n', 1)
+          test.write_text(test_text)
+
+          # Browser maintenance must finish the oldest unfinished round before creating more backlog.
+          client = Path('frontend/src/veilClient.ts')
+          client_text = client.read_text()
+          client_text = client_text.replace(
+              'const first = latestRound > 11n ? latestRound - 11n : 1n;',
+              'const first = latestRound > 31n ? latestRound - 31n : 1n;',
+              1,
+          )
+          new_maintenance = r'''export async function advanceRoundMaintenance(signer: JsonRpcSigner, onStep?: (message: string) => void) {
+            let dashboard = await readDashboard(signer);
+            const { pool, yieldSource, prizeVault } = contracts(signer);
+
+            // Prioritize the oldest unfinished snapshot before closing another elapsed period.
+            // This prevents relayer/KMS outages from leaving earlier rounds stranded behind newer ones.
+            const unsettled = dashboard.rounds
+              .slice()
+              .reverse()
+              .find((round) => round.state === 1 || round.state === 2);
+
+            if (unsettled?.state === 1) {
+              onStep?.(`Running BlindDraw for the oldest unfinished round #${unsettled.id}…`);
+              const tx = await pool.blindDraw(unsettled.id);
+              await withTimeout(tx.wait(), 120_000, "BlindDraw is still pending on Sepolia.");
+              return "drawn" as const;
+            }
+
+            if (unsettled?.state === 2) {
+              onStep?.(`Requesting Zama public decryption proof for unfinished round #${unsettled.id}…`);
+              const winnerHandle = (await pool.getEncryptedWinner(unsettled.id)) as string;
+              const fhe = await relayer();
+              const result = await withTimeout(
+                fhe.publicDecrypt([winnerHandle]),
+                90_000,
+                "Zama public winner decryption timed out. Retry when the relayer is available.",
+              );
+              onStep?.("Winner proof ready. Verifying it onchain…");
+              const tx = await pool.finalizeWinner(unsettled.id, result.abiEncodedClearValues, result.decryptionProof);
+              await withTimeout(tx.wait(), 120_000, "Winner finalization is still pending on Sepolia.");
+              return "finalized" as const;
+            }
+
+            const now = BigInt(Math.floor(Date.now() / 1000));
+            if (now >= dashboard.nextDrawClosesAt) {
+              onStep?.("Closing the elapsed draw period and freezing encrypted weights…");
+              const tx = await pool.closeDraw();
+              await withTimeout(tx.wait(), 120_000, "Draw close is still pending on Sepolia.");
+              return "closed" as const;
+            }
+
+            dashboard = await readDashboard(signer);
+            const yieldRoundId = dashboard.yieldRoundId;
+            const yieldRound = dashboard.rounds.find((round) => round.id === yieldRoundId);
+
+            if (yieldRound && (yieldRound.state === 3 || yieldRound.state === 4) && !dashboard.yieldReady) {
+              onStep?.(`Round #${yieldRoundId} is waiting for the strategy to seal its confidential realized-yield bucket.`);
+              return "awaiting-yield" as const;
+            }
+
+            if (yieldRound?.state === 4 && dashboard.yieldReady) {
+              onStep?.(`Carrying sealed confidential yield through cancelled round #${yieldRoundId}…`);
+              const tx = await yieldSource.carryCancelledYield(yieldRoundId);
+              await withTimeout(tx.wait(), 120_000, "Cancelled-round yield carry is still pending on Sepolia.");
+              return "carried" as const;
+            }
+
+            if (yieldRound?.state === 3 && !yieldRound.funded && dashboard.yieldReady) {
+              onStep?.(`Routing the sealed encrypted strategy yield bucket to finalized round #${yieldRoundId}…`);
+              const tx = await yieldSource.allocateRoundYield(yieldRoundId);
+              await withTimeout(tx.wait(), 120_000, "Prize allocation is still pending on Sepolia.");
+              return "funded" as const;
+            }
+
+            const deliveryTarget = dashboard.rounds
+              .slice()
+              .reverse()
+              .find((round) => round.state === 3 && round.funded && !round.delivered);
+
+            if (deliveryTarget) {
+              onStep?.(`Delivering round #${deliveryTarget.id}'s encrypted prize directly to its proved winner…`);
+              const tx = await prizeVault.deliverPrize(deliveryTarget.id);
+              await withTimeout(tx.wait(), 120_000, "Prize delivery is still pending on Sepolia.");
+              return "delivered" as const;
+            }
+
+            return "waiting" as const;
+          }
+          '''
+          client_text, count = re.subn(
+              r'export async function advanceRoundMaintenance\(.*?\n\}',
+              new_maintenance.rstrip(),
+              client_text,
+              count=1,
+              flags=re.S,
+          )
+          assert count == 1, 'advanceRoundMaintenance replacement failed'
+          client.write_text(client_text)
+
+          # Draw Center mirrors the same oldest-first maintenance policy.
+          app = Path('frontend/src/App.tsx')
+          app_text = app.read_text()
+          old_intro = '''  const latest = state?.rounds[0];
+            const nowSec = BigInt(Math.floor(now / 1000));
+            const closeReady = state ? nowSec >= state.nextDrawClosesAt : false;'''
+          new_intro = '''  const latest = state?.rounds[0];
+            const unsettled = state?.rounds
+              .slice()
+              .reverse()
+              .find((round) => round.state === 1 || round.state === 2);
+            const visualRound = unsettled ?? latest;
+            const nowSec = BigInt(Math.floor(now / 1000));
+            const closeReady = state ? nowSec >= state.nextDrawClosesAt : false;'''
+          assert old_intro in app_text, 'DrawsPage intro target missing'
+          app_text = app_text.replace(old_intro, new_intro, 1)
+
+          block_pattern = r'''  if \(closeReady\) \{.*?  \} else if \(latest\?\.state === 4\) \{
+              phase = "cancelled";
+            \}'''
+          new_block = '''  if (unsettled?.state === 1) {
+              maintenanceLabel = `RUN BLINDDRAW · ROUND #${unsettled.id}`;
+              phase = "snapshot";
+              disabled = false;
+            } else if (unsettled?.state === 2) {
+              maintenanceLabel = `PROVE WINNER · ROUND #${unsettled.id}`;
+              phase = "draw";
+              disabled = false;
+            } else if (closeReady) {
+              maintenanceLabel = "CLOSE ELAPSED DRAW";
+              phase = "ready";
+              disabled = false;
+            } else if (yieldRound && (yieldRound.state === 3 || yieldRound.state === 4) && !state?.yieldReady) {
+              maintenanceLabel = "AWAITING STRATEGY YIELD";
+              phase = "yield";
+              disabled = true;
+            } else if (yieldRound?.state === 4 && state?.yieldReady) {
+              maintenanceLabel = "CARRY SEALED YIELD FORWARD";
+              phase = "yield";
+              disabled = false;
+            } else if (yieldRound?.state === 3 && !yieldRound.funded && state?.yieldReady) {
+              maintenanceLabel = "ROUTE SEALED REALIZED YIELD";
+              phase = "yield";
+              disabled = false;
+            } else if (deliveryTarget) {
+              maintenanceLabel = "DELIVER ENCRYPTED PRIZE";
+              phase = "payout";
+              disabled = false;
+            } else if (latest?.state === 3) {
+              phase = "proved";
+            } else if (latest?.state === 4) {
+              phase = "cancelled";
+            }'''
+          app_text, count = re.subn(block_pattern, new_block, app_text, count=1, flags=re.S)
+          assert count == 1, 'DrawsPage maintenance block replacement failed'
+          app_text = app_text.replace(
+              '<BlindDrawField phase={phase} playerCount={latest?.participantCount ?? state?.playerCount ?? 0} />',
+              '<BlindDrawField phase={phase} playerCount={visualRound?.participantCount ?? state?.playerCount ?? 0} />',
+              1,
+          )
+          app.write_text(app_text)
+
+          # The scheduled keeper also catches up older unfinished draws before closing another period.
+          script = Path('scripts/sepolia-next-round.ts')
+          script_text = script.read_text()
+          settle_helper = r'''
+          async function settleUnfinishedDraws(keeper: HardhatEthersSigner, pool: VeilPool) {
+            const latestRoundId = (await pool.nextRoundId()) - 1n;
+            if (latestRoundId <= 0n) return 0n;
+
+            const first = latestRoundId > 63n ? latestRoundId - 63n : 1n;
+            for (let roundId = first; roundId <= latestRoundId; roundId++) {
+              let draw = await pool.getDrawInfo(roundId);
+              let state = Number(draw.state);
+
+              if (state === 1) {
+                console.log(`  catching up round ${roundId}: running FHE BlindDraw...`);
+                await (await pool.connect(keeper).blindDraw(roundId)).wait();
+                draw = await pool.getDrawInfo(roundId);
+                state = Number(draw.state);
+              }
+
+              if (state === 2) {
+                console.log(`  catching up round ${roundId}: requesting Zama winner proof...`);
+                const encryptedWinner = await pool.getEncryptedWinner(roundId);
+                const result = await fhevm.publicDecrypt([encryptedWinner]);
+                await (
+                  await pool.connect(keeper).finalizeWinner(roundId, result.abiEncodedClearValues, result.decryptionProof)
+                ).wait();
+              }
+            }
+
+            return latestRoundId;
+          }
+
+          '''
+          if 'async function settleUnfinishedDraws' not in script_text:
+              script_text = script_text.replace('async function main() {', settle_helper + 'async function main() {', 1)
+
+          new_main = r'''async function main() {
+            if (network.name !== "sepolia") {
+              throw new Error("Run on Sepolia: npx hardhat run scripts/sepolia-next-round.ts --network sepolia");
+            }
+
+            await fhevm.initializeCLIApi();
+            const [keeper] = (await ethers.getSigners()) as HardhatEthersSigner[];
+            if (!keeper) throw new Error("Missing configured Sepolia keeper signer");
+
+            const poolAddress = await address("VeilPool", "UNVEIL_POOL_ADDRESS");
+            const yieldSourceAddress = await address("VeilYieldSource", "UNVEIL_YIELD_SOURCE_ADDRESS");
+            const prizeVaultAddress = await address("VeilPrizeVault", "UNVEIL_PRIZE_VAULT_ADDRESS");
+
+            const pool = (await ethers.getContractAt("VeilPool", poolAddress)) as VeilPool;
+            const yieldSource = (await ethers.getContractAt("VeilYieldSource", yieldSourceAddress)) as VeilYieldSource;
+            const prizeVault = (await ethers.getContractAt("VeilPrizeVault", prizeVaultAddress)) as VeilPrizeVault;
+
+            console.log("UNVEIL permissionless keeper");
+            console.log(`  keeper:       ${keeper.address}`);
+            console.log(`  pool:         ${poolAddress}`);
+            console.log(`  next round:   ${await pool.nextRoundId()}`);
+            console.log(`  next close:   ${await pool.nextDrawClosesAt()}`);
+            console.log(`  yield cursor: ${await yieldSource.yieldRoundId()}`);
+            console.log(`  yield sealed: ${await yieldSource.yieldReady()}`);
+
+            console.log("1/5 Catching up any older unfinished draw proofs before opening more backlog...");
+            await settleUnfinishedDraws(keeper, pool);
+
+            const now = BigInt(Math.floor(Date.now() / 1000));
+            const closesAt = await pool.nextDrawClosesAt();
+            if (now >= closesAt) {
+              console.log("2/5 Closing the elapsed draw and freezing encrypted weights...");
+              const before = await pool.nextRoundId();
+              await (await pool.connect(keeper).closeDraw()).wait();
+              const after = await pool.nextRoundId();
+              if (after === before) {
+                console.log("  period skipped because fewer than two eligible positions were present at the scheduled close");
+              }
+            } else {
+              console.log(`2/5 Draw still open for ${closesAt - now}s; no privileged early close is possible.`);
+            }
+
+            console.log("3/5 Settling any newly snapshotted draw...");
+            const latestRoundId = await settleUnfinishedDraws(keeper, pool);
+            if (latestRoundId <= 0n) {
+              console.log("No snapshotted round exists yet.");
+              return;
+            }
+
+            const latestDraw = await pool.getDrawInfo(latestRoundId);
+            if (Number(latestDraw.state) === 3) {
+              console.log(`  latest winner: ${await pool.getWinner(latestRoundId)}`);
+            } else if (Number(latestDraw.state) === 4) {
+              console.log(`  latest round ${latestRoundId} is KMS-proven CANCELLED.`);
+            }
+
+            console.log("4/5 Settling sequential confidential yield without caller-selected round routing...");
+            const nextYieldRound = await settleYieldCursor(keeper, pool, yieldSource, prizeVault, latestRoundId);
+
+            console.log("5/5 Sweeping any already-funded undelivered prizes...");
+            await deliverOutstandingPrizes(keeper, pool, prizeVault, latestRoundId);
+
+            console.log("\nUNVEIL keeper run complete");
+            console.log(`  latest round:      ${latestRoundId}`);
+            console.log(`  next yield cursor: ${nextYieldRound}`);
+            console.log(
+              "  note: the keeper cannot choose a prize beneficiary, choose a yield round, or decrypt any prize amount",
+            );
+          }
+          '''
+          script_text, count = re.subn(r'async function main\(\) \{.*?\n\}\n\nmain\(\)\.catch', new_main.rstrip() + '\n\nmain().catch', script_text, count=1, flags=re.S)
+          assert count == 1, 'keeper main replacement failed'
+          script.write_text(script_text)
+          PY
+      - run: npx prettier test/VeilPool.ts frontend/src/veilClient.ts frontend/src/App.tsx scripts/sepolia-next-round.ts --write
+      - name: Commit maintenance hardening
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test/VeilPool.ts frontend/src/veilClient.ts frontend/src/App.tsx scripts/sepolia-next-round.ts
+          git commit -m "Harden UNVEIL maintenance backlog handling"
+          git push origin HEAD:feat/unveil-winner-build
