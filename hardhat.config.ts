@@ -14,7 +14,19 @@ import "./tasks/accounts";
 const LOCAL_TEST_MNEMONIC = "test test test test test test test test test test test junk";
 const LOCAL_MNEMONIC: string = vars.get("MNEMONIC", LOCAL_TEST_MNEMONIC);
 const SEPOLIA_MNEMONIC: string = vars.get("MNEMONIC", "").trim();
-const SEPOLIA_RPC_URL: string = vars.get("SEPOLIA_RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com");
+const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY?.trim() ?? "";
+const SEPOLIA_RPC_URL =
+  process.env.SEPOLIA_RPC_URL?.trim() || vars.get("SEPOLIA_RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com");
+
+const sepoliaAccounts = SEPOLIA_PRIVATE_KEY
+  ? [SEPOLIA_PRIVATE_KEY]
+  : SEPOLIA_MNEMONIC
+    ? {
+        mnemonic: SEPOLIA_MNEMONIC,
+        path: "m/44'/60'/0'/0/",
+        count: 10,
+      }
+    : [];
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
@@ -30,6 +42,9 @@ const config: HardhatUserConfig = {
     currency: "USD",
     enabled: process.env.REPORT_GAS ? true : false,
     excludeContracts: [],
+  },
+  mocha: {
+    timeout: 120_000,
   },
   networks: {
     hardhat: {
@@ -48,13 +63,7 @@ const config: HardhatUserConfig = {
       url: "http://localhost:8545",
     },
     sepolia: {
-      accounts: SEPOLIA_MNEMONIC
-        ? {
-            mnemonic: SEPOLIA_MNEMONIC,
-            path: "m/44'/60'/0'/0/",
-            count: 10,
-          }
-        : [],
+      accounts: sepoliaAccounts,
       chainId: 11155111,
       url: SEPOLIA_RPC_URL,
     },

@@ -1,11 +1,14 @@
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers, fhevm } from "hardhat";
 
 import { MockConfidentialToken, VeilPool } from "../types";
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const DRAW_PERIOD = 3_600n;
+const SEAT_LEASE = 30 * 24 * 60 * 60;
 
 async function encrypted64(contractAddress: string, signer: HardhatEthersSigner, amount: bigint | number) {
   return fhevm.createEncryptedInput(contractAddress, signer.address).add64(amount).encrypt();
@@ -29,7 +32,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     token = (await tokenFactory.deploy()) as MockConfidentialToken;
 
     const poolFactory = await ethers.getContractFactory("VeilPool");
-    pool = (await poolFactory.deploy(await token.getAddress())) as VeilPool;
+    pool = (await poolFactory.deploy(await token.getAddress(), DRAW_PERIOD)) as VeilPool;
     poolAddress = await pool.getAddress();
 
     for (const signer of [alice, bob]) {
@@ -53,7 +56,12 @@ describe("VeilPool draw-seat lifecycle", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, handle, poolAddress, signer);
   }
 
-  it("expires draw seats without trapping confidential principal", async function () {
+  async function closeCurrentDraw() {
+    await time.increaseTo(Number(await pool.nextDrawClosesAt()));
+    await (await pool.closeDraw()).wait();
+  }
+
+  it("expires stale draw seats without trapping confidential principal", async function () {
     await deposit(alice, 10);
     await deposit(bob, 20);
 
@@ -61,8 +69,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     expect(await pool.seated(alice.address)).to.equal(true);
     expect(await decryptPosition(alice)).to.equal(10);
 
-    await ethers.provider.send("evm_increaseTime", [86_401]);
-    await ethers.provider.send("evm_mine", []);
+    await time.increase(SEAT_LEASE + 1);
     await (await pool.pruneExpiredSeats()).wait();
 
     expect(await pool.playerCount()).to.equal(0);
@@ -99,7 +106,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     expect(await decryptPosition(alice)).to.equal(0);
     expect(await decryptPosition(bob)).to.equal(0);
 
-    await (await pool.snapshotRound()).wait();
+    await closeCurrentDraw();
     await (await pool.blindDraw(1)).wait();
 
     const encryptedWinner = await pool.getEncryptedWinner(1);

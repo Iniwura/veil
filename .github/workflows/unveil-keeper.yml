@@ -1,0 +1,41 @@
+name: UNVEIL Sepolia Keeper
+
+on:
+  schedule:
+    - cron: "2-57/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unveil-sepolia-keeper
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - name: Check keeper configuration
+        id: keeper
+        env:
+          KEEPER_KEY: ${{ secrets.UNVEIL_KEEPER_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEEPER_KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "UNVEIL keeper is not configured yet; set the UNVEIL_KEEPER_PRIVATE_KEY repository secret to enable scheduled Sepolia maintenance."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Advance permissionless draw lifecycle
+        if: steps.keeper.outputs.configured == 'true'
+        env:
+          SEPOLIA_PRIVATE_KEY: ${{ secrets.UNVEIL_KEEPER_PRIVATE_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.UNVEIL_SEPOLIA_RPC_URL }}
+        run: npx hardhat run scripts/sepolia-next-round.ts --network sepolia

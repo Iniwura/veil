@@ -2,6 +2,8 @@ import {
   BrowserProvider,
   Contract,
   JsonRpcProvider,
+  formatUnits,
+  parseUnits,
   type BrowserProvider as EthersBrowserProvider,
   type Eip1193Provider,
   type JsonRpcSigner,
@@ -31,52 +33,126 @@ declare global {
 }
 
 const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
-const TFHE_WASM_URL = "/tfhe_bg.wasm";
-const KMS_WASM_URL = "/kms_lib_bg.wasm";
+export const CUSDC_DECIMALS = 6;
+export const CUSDC_UNIT = 1_000_000n;
+const MAX_EUINT64 = 18_446_744_073_709_551_615n;
 const readProvider = new JsonRpcProvider(SEPOLIA_RPC_URL, VEIL_NETWORK.chainId, { staticNetwork: true });
 
 const POOL_ABI = [
   "function joined(address) view returns (bool)",
   "function seated(address) view returns (bool)",
   "function seatExpiresAt(address) view returns (uint64)",
-  "function renewDrawSeat()",
   "function playerCount() view returns (uint8)",
   "function nextRoundId() view returns (uint256)",
+  "function drawPeriod() view returns (uint64)",
+  "function nextDrawClosesAt() view returns (uint64)",
   "function encryptedBalanceOf() view returns (bytes32)",
-  "function deposit(bytes32 encryptedAmount, bytes inputProof)",
-  "function withdraw(bytes32 encryptedAmount, bytes inputProof)",
+  "function encryptedPosition() view returns (bytes32 balance,bytes32 totalDeposited,bytes32 totalWithdrawn,bytes32 lastDeposit,bytes32 lastWithdrawal)",
+  "function encryptedSnapshotWeightOf(uint256 roundId) view returns (bytes32)",
+  "function encryptedSnapshotTotalWeight(uint256 roundId) view returns (bytes32)",
+  "function isSnapshotParticipant(uint256 roundId,address account) view returns (bool)",
+  "function deposit(bytes32 encryptedAmount,bytes inputProof)",
+  "function withdraw(bytes32 encryptedAmount,bytes inputProof)",
+  "function renewDrawSeat()",
+  "function closeDraw() returns (uint256)",
+  "function blindDraw(uint256 roundId)",
+  "function finalizeWinner(uint256 roundId,bytes abiEncodedClearWinner,bytes decryptionProof)",
   "function getDrawInfo(uint256 roundId) view returns (uint64 snapshotBlock,uint8 participantCount,uint8 state)",
+  "function getDrawTiming(uint256 roundId) view returns (uint64 scheduledCloseAt,uint64 snapshotBlock)",
+  "function getEncryptedWinner(uint256 roundId) view returns (bytes32)",
   "function getWinner(uint256 roundId) view returns (address)",
 ] as const;
 
 const ASSET_ABI = [
   "function isOperator(address holder,address spender) view returns (bool)",
   "function setOperator(address operator,uint48 until)",
-  "function mint(address to,uint64 amount)",
+  "function underlying() view returns (address)",
+  "function wrap(address to,uint256 amount)",
   "function confidentialBalanceOf(address account) view returns (bytes32)",
+] as const;
+
+const UNDERLYING_ABI = [
+  "function mint(address to,uint256 amount)",
+  "function approve(address spender,uint256 amount) returns (bool)",
+] as const;
+
+const YIELD_ABI = [
+  "function allocateRoundYield(uint256 roundId)",
+  "function carryCancelledYield(uint256 roundId)",
+  "function strategyOperator() view returns (address)",
+  "function yieldRoundId() view returns (uint256)",
+  "function yieldReady() view returns (bool)",
 ] as const;
 
 const PRIZE_ABI = [
   "function prizeStatus(uint256 roundId) view returns (bool funded,bool winnerAuthorized,bool claimed,address winner)",
   "function encryptedPrizeOf(uint256 roundId) view returns (bytes32)",
   "function authorizeWinner(uint256 roundId)",
-  "function claimPrize(uint256 roundId)",
+  "function deliverPrize(uint256 roundId)",
 ] as const;
 
-export type VerifiedRound = {
+export type DrawState = 0 | 1 | 2 | 3 | 4;
+
+export type RoundRecord = {
   id: bigint;
+  scheduledCloseAt: bigint;
   snapshotBlock: bigint;
   participantCount: number;
-  state: number;
-  cancelled: boolean;
+  state: DrawState;
   winner: string;
   funded: boolean;
   winnerAuthorized: boolean;
-  claimed: boolean;
+  delivered: boolean;
+};
+
+export type PublicState = {
+  playerCount: number;
+  nextRoundId: bigint;
+  drawPeriod: bigint;
+  nextDrawClosesAt: bigint;
+  yieldRoundId: bigint;
+  yieldReady: boolean;
+  rounds: RoundRecord[];
+};
+
+export type PrivatePosition = {
+  balance: bigint;
+  totalDeposited: bigint;
+  totalWithdrawn: bigint;
+  lastDeposit: bigint;
+  lastWithdrawal: bigint;
+};
+
+export type PrivateRoundStats = {
+  roundId: bigint;
+  weight: bigint;
+  totalWeight: bigint;
+  oddsBps: bigint;
 };
 
 let relayerPromise: Promise<FhevmInstance> | null = null;
 let sdkPromise: Promise<boolean> | null = null;
+
+export function parseCusdcInput(value: string) {
+  const normalized = value.trim();
+  if (!normalized) throw new Error("Enter a cUSDC amount.");
+  if (!/^\d+(?:\.\d{0,6})?$/.test(normalized)) {
+    throw new Error("Enter a valid cUSDC amount with at most 6 decimal places.");
+  }
+
+  const amount = parseUnits(normalized, CUSDC_DECIMALS);
+  if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  if (amount > MAX_EUINT64) throw new Error("That amount is too large for this confidential pool.");
+  return amount;
+}
+
+export function formatCusdc(value: bigint | undefined, masked = "••••••") {
+  if (value === undefined) return masked;
+  const formatted = formatUnits(value, CUSDC_DECIMALS);
+  const [whole, fraction = ""] = formatted.split(".");
+  const trimmedFraction = fraction.replace(/0+$/, "");
+  return trimmedFraction ? `${whole}.${trimmedFraction}` : whole;
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -96,13 +172,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 
 async function initializeSdk() {
   const sdk = window.relayerSDK;
-  if (!sdk) {
-    throw new Error("Zama Relayer SDK browser bundle did not load. Check cdn.zama.org connectivity and retry.");
-  }
+  if (!sdk) throw new Error("Zama Relayer SDK browser bundle did not load. Check cdn.zama.org connectivity and retry.");
   if (sdk.__initialized__ === true) return true;
 
   if (!sdkPromise) {
-    // Match Zama's official browser loader: let the CDN bundle resolve its own WASM/worker assets.
     sdkPromise = sdk
       .initSDK()
       .then((result) => {
@@ -115,6 +188,7 @@ async function initializeSdk() {
         throw error;
       });
   }
+
   return sdkPromise;
 }
 
@@ -125,7 +199,7 @@ async function relayer() {
     if (!sdk) throw new Error("Zama Relayer SDK browser bundle is unavailable.");
 
     const baseConfig = sdk.SepoliaConfig;
-    const relayerUrl = baseConfig.relayerUrl.endsWith("/v2") ? baseConfig.relayerUrl : baseConfig.relayerUrl + "/v2";
+    const relayerUrl = baseConfig.relayerUrl.endsWith("/v2") ? baseConfig.relayerUrl : `${baseConfig.relayerUrl}/v2`;
 
     relayerPromise = withTimeout(
       sdk.createInstance({
@@ -141,6 +215,7 @@ async function relayer() {
       throw error;
     });
   }
+
   return relayerPromise;
 }
 
@@ -157,7 +232,7 @@ function rpcErrorCode(error: unknown) {
 }
 
 function actionError(prefix: string, error: unknown): never {
-  console.error(`[VEIL] ${prefix}`, error);
+  console.error(`[UNVEIL] ${prefix}`, error);
   if (rpcErrorCode(error) === 4001) throw error;
   const message = error instanceof Error ? error.message : "";
   if (message.toLowerCase().includes("user rejected")) throw error;
@@ -178,10 +253,30 @@ export async function connectWallet() {
   return { provider, signer, address: await signer.getAddress() };
 }
 
+export function watchWalletSession(onChange: () => void) {
+  const root = window.ethereum;
+  if (!root) return () => undefined;
+
+  const providers = root.providers?.length ? root.providers : [root];
+  const ethereum = providers.find((provider) => provider.isMetaMask) ?? root;
+  const handler = () => {
+    relayerPromise = null;
+    onChange();
+  };
+
+  ethereum.on?.("accountsChanged", handler);
+  ethereum.on?.("chainChanged", handler);
+  return () => {
+    ethereum.removeListener?.("accountsChanged", handler);
+    ethereum.removeListener?.("chainChanged", handler);
+  };
+}
+
 export async function ensureSepolia(ethereum = injectedProvider()) {
   const chainIdHex = `0x${VEIL_NETWORK.chainId.toString(16)}`;
   const current = await ethereum.request({ method: "eth_chainId" });
   if (current === chainIdHex) return;
+
   try {
     await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
   } catch (error) {
@@ -199,8 +294,9 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
       ],
     });
   }
+
   const switched = await ethereum.request({ method: "eth_chainId" });
-  if (switched !== chainIdHex) throw new Error("VEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
+  if (switched !== chainIdHex) throw new Error("UNVEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
   relayerPromise = null;
 }
 
@@ -208,6 +304,7 @@ export function contracts(signer: JsonRpcSigner) {
   return {
     pool: new Contract(VEIL_CONTRACTS.pool, POOL_ABI, signer),
     asset: new Contract(VEIL_CONTRACTS.asset, ASSET_ABI, signer),
+    yieldSource: new Contract(VEIL_CONTRACTS.yieldSource, YIELD_ABI, signer),
     prizeVault: new Contract(VEIL_CONTRACTS.prizeVault, PRIZE_ABI, signer),
   };
 }
@@ -216,27 +313,60 @@ function readContracts() {
   return {
     pool: new Contract(VEIL_CONTRACTS.pool, POOL_ABI, readProvider),
     asset: new Contract(VEIL_CONTRACTS.asset, ASSET_ABI, readProvider),
+    yieldSource: new Contract(VEIL_CONTRACTS.yieldSource, YIELD_ABI, readProvider),
     prizeVault: new Contract(VEIL_CONTRACTS.prizeVault, PRIZE_ABI, readProvider),
   };
 }
 
-export async function fundDemoWallet(signer: JsonRpcSigner, amount = 100n) {
-  if (amount <= 0n || amount > 18_446_744_073_709_551_615n) throw new Error("Invalid demo funding amount.");
+export async function fundDemoWallet(signer: JsonRpcSigner, wholeCusdc = 100n) {
+  if (wholeCusdc <= 0n || wholeCusdc > MAX_EUINT64 / CUSDC_UNIT) throw new Error("Invalid demo funding amount.");
+
   const address = await signer.getAddress();
   const { asset } = contracts(signer);
+  const baseUnits = wholeCusdc * CUSDC_UNIT;
+
   try {
-    const tx = await withTimeout(
-      asset.mint(address, amount),
+    const underlyingAddress = (await withTimeout(
+      asset.underlying(),
+      15_000,
+      "Sepolia did not respond while reading the official cUSDC underlying asset.",
+    )) as string;
+    const underlying = new Contract(underlyingAddress, UNDERLYING_ABI, signer);
+
+    const mintTx = await withTimeout(
+      underlying.mint(address, baseUnits),
       30_000,
-      "Wallet did not respond to the demo funding request. Open MetaMask and check for a pending confirmation.",
+      "Wallet did not respond to the mock USDC funding request.",
+    );
+    await withTimeout(
+      mintTx.wait(),
+      120_000,
+      "Mock USDC funding is still pending on Sepolia. Check MetaMask activity before retrying.",
+    );
+
+    const approveTx = await withTimeout(
+      underlying.approve(VEIL_CONTRACTS.asset, baseUnits),
+      30_000,
+      "Wallet did not respond to the cUSDC wrapper approval request.",
+    );
+    await withTimeout(
+      approveTx.wait(),
+      120_000,
+      "cUSDC wrapper approval is still pending on Sepolia. Check MetaMask activity before retrying.",
+    );
+
+    const wrapTx = await withTimeout(
+      asset.wrap(address, baseUnits),
+      30_000,
+      "Wallet did not respond to the Zama cUSDC wrap request.",
     );
     return await withTimeout(
-      tx.wait(),
+      wrapTx.wait(),
       120_000,
-      "Demo funding transaction is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.",
+      "cUSDC wrapping is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.",
     );
   } catch (error) {
-    actionError("VEIL_DEMO_FUNDING_FAILED:", error);
+    actionError("UNVEIL_DEMO_FUNDING_FAILED:", error);
   }
 }
 
@@ -246,12 +376,13 @@ export async function ensurePoolOperator(signer: JsonRpcSigner) {
   const alreadyOperator = await withTimeout(
     readAsset.isOperator(address, VEIL_CONTRACTS.pool),
     15_000,
-    "Sepolia did not respond while checking VEIL pool authorization.",
+    "Sepolia did not respond while checking pool authorization.",
   );
   if (alreadyOperator) return false;
 
-  const until = BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7);
+  const until = BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30);
   const { asset } = contracts(signer);
+
   try {
     const tx = await withTimeout(
       asset.setOperator(VEIL_CONTRACTS.pool, until),
@@ -264,32 +395,32 @@ export async function ensurePoolOperator(signer: JsonRpcSigner) {
       "Pool authorization is still pending on Sepolia. Check your wallet activity before retrying.",
     );
   } catch (error) {
-    actionError("VEIL_OPERATOR_AUTH_FAILED:", error);
+    actionError("UNVEIL_OPERATOR_AUTH_FAILED:", error);
   }
+
   return true;
 }
 
 export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?: (message: string) => void) {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  if (amount > MAX_EUINT64) throw new Error("That amount is too large for this confidential pool.");
 
-  onStep?.("Checking VEIL pool authorization…");
+  onStep?.("Checking confidential pool authorization…");
   const operatorAdded = await ensurePoolOperator(signer);
-  onStep?.(
-    operatorAdded ? "Pool authorization confirmed. Initializing FHE…" : "Pool already authorized. Initializing FHE…",
-  );
+  onStep?.(operatorAdded ? "Pool authorized. Initializing FHE…" : "Pool already authorized. Initializing FHE…");
 
   const address = await signer.getAddress();
   let encrypted;
   try {
     const fhe = await relayer();
-    onStep?.("FHE ready. Encrypting deposit locally…");
+    onStep?.("FHE ready. Encrypting your cUSDC deposit locally…");
     encrypted = await withTimeout(
       fhe.createEncryptedInput(VEIL_CONTRACTS.pool, address).add64(amount).encrypt(),
       60_000,
       "FHE encryption timed out. Check network connectivity and retry.",
     );
   } catch (error) {
-    actionError("VEIL_ENCRYPTION_FAILED:", error);
+    actionError("UNVEIL_ENCRYPTION_FAILED:", error);
   }
 
   onStep?.("Encrypted request ready. Waiting for wallet confirmation…");
@@ -307,14 +438,16 @@ export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?
       "Encrypted deposit is still pending on Sepolia. Check your wallet activity before retrying.",
     );
   } catch (error) {
-    actionError("VEIL_DEPOSIT_FAILED:", error);
+    actionError("UNVEIL_DEPOSIT_FAILED:", error);
   }
 }
 
 export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  if (amount > MAX_EUINT64) throw new Error("That amount is too large for this confidential pool.");
   const address = await signer.getAddress();
   let encrypted;
+
   try {
     const fhe = await relayer();
     encrypted = await withTimeout(
@@ -323,8 +456,9 @@ export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
       "FHE encryption timed out. Check network connectivity and retry.",
     );
   } catch (error) {
-    actionError("VEIL_ENCRYPTION_FAILED:", error);
+    actionError("UNVEIL_ENCRYPTION_FAILED:", error);
   }
+
   const { pool } = contracts(signer);
   try {
     const tx = await withTimeout(
@@ -338,35 +472,35 @@ export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
       "Withdrawal is still pending on Sepolia. Check your wallet activity before retrying.",
     );
   } catch (error) {
-    actionError("VEIL_WITHDRAW_FAILED:", error);
+    actionError("UNVEIL_WITHDRAW_FAILED:", error);
   }
 }
 
 export async function renewDrawSeat(signer: JsonRpcSigner) {
   const { pool } = contracts(signer);
   try {
-    const tx = await withTimeout(
-      pool.renewDrawSeat(),
-      30_000,
-      "Wallet did not respond to the draw-seat renewal request.",
-    );
+    const tx = await withTimeout(pool.renewDrawSeat(), 30_000, "Wallet did not respond to eligibility renewal.");
     return await withTimeout(
       tx.wait(),
       120_000,
-      "Draw-seat renewal is still pending on Sepolia. Check wallet activity before retrying.",
+      "Eligibility renewal is still pending on Sepolia. Check wallet activity before retrying.",
     );
   } catch (error) {
-    actionError("VEIL_SEAT_RENEWAL_FAILED:", error);
+    actionError("UNVEIL_ELIGIBILITY_RENEWAL_FAILED:", error);
   }
 }
 
-async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contractAddress: string) {
+type DecryptTarget = { key: string; handle: string; contractAddress: string };
+
+async function userDecryptHandles(signer: JsonRpcSigner, targets: DecryptTarget[]) {
+  if (targets.length === 0) return {} as Record<string, bigint>;
+
   const fhe = await relayer();
   const address = await signer.getAddress();
   const keypair = fhe.generateKeypair();
   const startTimestamp = Math.floor(Date.now() / 1000);
   const durationDays = 1;
-  const contractAddresses = [contractAddress];
+  const contractAddresses = [...new Set(targets.map((target) => target.contractAddress))];
   const eip712 = fhe.createEIP712(keypair.publicKey, contractAddresses, startTimestamp, durationDays);
   const signature = await signer.signTypedData(
     eip712.domain,
@@ -375,7 +509,7 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
   );
   const result = await withTimeout(
     fhe.userDecrypt(
-      [{ handle, contractAddress }],
+      targets.map((target) => ({ handle: target.handle, contractAddress: target.contractAddress })),
       keypair.privateKey,
       keypair.publicKey,
       signature.replace("0x", ""),
@@ -387,78 +521,221 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
     60_000,
     "Private decryption timed out. Check network connectivity and retry.",
   );
-  const handleKey = handle as `0x${string}`;
-  return BigInt(result[handleKey] as bigint);
+
+  return Object.fromEntries(
+    targets.map((target) => {
+      const handleKey = target.handle as `0x${string}`;
+      return [target.key, BigInt(result[handleKey] as bigint)];
+    }),
+  );
+}
+
+export async function revealPrivatePosition(signer: JsonRpcSigner): Promise<PrivatePosition> {
+  const { pool } = contracts(signer);
+  const encrypted = await pool.encryptedPosition();
+  const values = await userDecryptHandles(signer, [
+    { key: "balance", handle: encrypted.balance as string, contractAddress: VEIL_CONTRACTS.pool },
+    { key: "totalDeposited", handle: encrypted.totalDeposited as string, contractAddress: VEIL_CONTRACTS.pool },
+    { key: "totalWithdrawn", handle: encrypted.totalWithdrawn as string, contractAddress: VEIL_CONTRACTS.pool },
+    { key: "lastDeposit", handle: encrypted.lastDeposit as string, contractAddress: VEIL_CONTRACTS.pool },
+    { key: "lastWithdrawal", handle: encrypted.lastWithdrawal as string, contractAddress: VEIL_CONTRACTS.pool },
+  ]);
+
+  return {
+    balance: values.balance,
+    totalDeposited: values.totalDeposited,
+    totalWithdrawn: values.totalWithdrawn,
+    lastDeposit: values.lastDeposit,
+    lastWithdrawal: values.lastWithdrawal,
+  };
 }
 
 export async function revealPrivateBalance(signer: JsonRpcSigner) {
+  return (await revealPrivatePosition(signer)).balance;
+}
+
+export async function revealRoundStats(signer: JsonRpcSigner, roundId: bigint): Promise<PrivateRoundStats> {
   const { pool } = contracts(signer);
-  const handle = (await pool.encryptedBalanceOf()) as string;
-  return userDecryptHandle(signer, handle, VEIL_CONTRACTS.pool);
+  const [weightHandle, totalHandle] = await Promise.all([
+    pool.encryptedSnapshotWeightOf(roundId),
+    pool.encryptedSnapshotTotalWeight(roundId),
+  ]);
+  const values = await userDecryptHandles(signer, [
+    { key: "weight", handle: weightHandle as string, contractAddress: VEIL_CONTRACTS.pool },
+    { key: "totalWeight", handle: totalHandle as string, contractAddress: VEIL_CONTRACTS.pool },
+  ]);
+  const oddsBps = values.totalWeight === 0n ? 0n : (values.weight * 10_000n) / values.totalWeight;
+  return { roundId, weight: values.weight, totalWeight: values.totalWeight, oddsBps };
 }
 
 export async function revealPrize(signer: JsonRpcSigner, roundId: bigint) {
   const { prizeVault } = contracts(signer);
   const handle = (await prizeVault.encryptedPrizeOf(roundId)) as string;
-  return userDecryptHandle(signer, handle, VEIL_CONTRACTS.prizeVault);
+  const result = await userDecryptHandles(signer, [
+    { key: "prize", handle, contractAddress: VEIL_CONTRACTS.prizeVault },
+  ]);
+  return result.prize;
 }
 
-async function readVerifiedRounds(latestRound: bigint): Promise<VerifiedRound[]> {
+async function readRounds(latestRound: bigint): Promise<RoundRecord[]> {
   if (latestRound === 0n) return [];
   const { pool, prizeVault } = readContracts();
-  const ids = Array.from({ length: Number(latestRound) }, (_, index) => BigInt(index + 1)).reverse();
+  const first = latestRound > 11n ? latestRound - 11n : 1n;
+  const ids: bigint[] = [];
+  for (let id = latestRound; id >= first; id--) ids.push(id);
+
   const rounds = await Promise.all(
     ids.map(async (id) => {
       try {
-        const draw = await pool.getDrawInfo(id);
-        const state = Number(draw.state);
-        if (state !== 3 && state !== 4) return null;
-        const cancelled = state === 4;
-        const winner = cancelled
-          ? "0x0000000000000000000000000000000000000000"
-          : ((await pool.getWinner(id)) as string);
-        const prize = cancelled ? null : await prizeVault.prizeStatus(id);
+        const [draw, timing] = await Promise.all([pool.getDrawInfo(id), pool.getDrawTiming(id)]);
+        const state = Number(draw.state) as DrawState;
+        const winner =
+          state === 3 ? ((await pool.getWinner(id)) as string) : "0x0000000000000000000000000000000000000000";
+        const prize = state === 3 ? await prizeVault.prizeStatus(id).catch(() => null) : null;
         return {
           id,
+          scheduledCloseAt: BigInt(timing.scheduledCloseAt),
           snapshotBlock: BigInt(draw.snapshotBlock),
           participantCount: Number(draw.participantCount),
           state,
-          cancelled,
           winner,
           funded: prize ? Boolean(prize.funded) : false,
           winnerAuthorized: prize ? Boolean(prize.winnerAuthorized) : false,
-          claimed: prize ? Boolean(prize.claimed) : false,
-        } satisfies VerifiedRound;
+          delivered: prize ? Boolean(prize.claimed) : false,
+        } satisfies RoundRecord;
       } catch {
         return null;
       }
     }),
   );
-  return rounds.filter((round): round is VerifiedRound => round !== null);
+
+  return rounds.filter((round): round is RoundRecord => round !== null);
 }
+
+export async function readPublicState(): Promise<PublicState> {
+  const { pool, yieldSource } = readContracts();
+  const [playerCount, nextRoundId, drawPeriod, nextDrawClosesAt, yieldRoundId, yieldReady] = await Promise.all([
+    pool.playerCount(),
+    pool.nextRoundId(),
+    pool.drawPeriod(),
+    pool.nextDrawClosesAt(),
+    yieldSource.yieldRoundId(),
+    yieldSource.yieldReady(),
+  ]);
+  const latestRound = nextRoundId > 1n ? nextRoundId - 1n : 0n;
+
+  return {
+    playerCount: Number(playerCount),
+    nextRoundId: BigInt(nextRoundId),
+    drawPeriod: BigInt(drawPeriod),
+    nextDrawClosesAt: BigInt(nextDrawClosesAt),
+    yieldRoundId: BigInt(yieldRoundId),
+    yieldReady: Boolean(yieldReady),
+    rounds: await readRounds(latestRound),
+  };
+}
+
 export async function readDashboard(signer: JsonRpcSigner) {
   const address = await signer.getAddress();
-  const { pool, prizeVault } = readContracts();
-  const [joined, seated, seatExpiresAt, playerCount, nextRoundId] = await Promise.all([
+  const { pool } = readContracts();
+  const publicState = await readPublicState();
+  const [joined, seated, seatExpiresAt] = await Promise.all([
     pool.joined(address),
     pool.seated(address),
     pool.seatExpiresAt(address),
-    pool.playerCount(),
-    pool.nextRoundId(),
   ]);
-  const latestRound = nextRoundId > 1n ? nextRoundId - 1n : 0n;
-  const [prize, history] = await Promise.all([
-    latestRound > 0n ? prizeVault.prizeStatus(latestRound).catch(() => null) : Promise.resolve(null),
-    readVerifiedRounds(latestRound),
-  ]);
+  const latestRound = publicState.nextRoundId > 1n ? publicState.nextRoundId - 1n : 0n;
+  const inLatestRound =
+    latestRound > 0n ? Boolean(await pool.isSnapshotParticipant(latestRound, address).catch(() => false)) : false;
+
   return {
+    ...publicState,
+    address,
     joined: Boolean(joined),
     seated: Boolean(seated),
     seatExpiresAt: BigInt(seatExpiresAt),
-    playerCount: Number(playerCount),
-    nextRoundId: BigInt(nextRoundId),
     latestRound,
-    prize,
-    history,
+    inLatestRound,
   };
+}
+
+export function drawStateLabel(state: DrawState) {
+  if (state === 1) return "SNAPSHOTTED";
+  if (state === 2) return "DRAWING";
+  if (state === 3) return "FINALIZED";
+  if (state === 4) return "CANCELLED";
+  return "OPEN";
+}
+
+export async function advanceRoundMaintenance(signer: JsonRpcSigner, onStep?: (message: string) => void) {
+  let dashboard = await readDashboard(signer);
+  const { pool, yieldSource, prizeVault } = contracts(signer);
+  const now = BigInt(Math.floor(Date.now() / 1000));
+
+  if (now >= dashboard.nextDrawClosesAt) {
+    onStep?.("Closing the elapsed draw period and freezing encrypted weights…");
+    const tx = await pool.closeDraw();
+    await withTimeout(tx.wait(), 120_000, "Draw close is still pending on Sepolia.");
+    return "closed" as const;
+  }
+
+  const latest = dashboard.rounds[0];
+  if (latest?.state === 1) {
+    onStep?.("Running BlindDraw over the frozen encrypted weights…");
+    const tx = await pool.blindDraw(latest.id);
+    await withTimeout(tx.wait(), 120_000, "BlindDraw is still pending on Sepolia.");
+    return "drawn" as const;
+  }
+
+  if (latest?.state === 2) {
+    onStep?.("Requesting Zama public decryption proof for the encrypted winner…");
+    const winnerHandle = (await pool.getEncryptedWinner(latest.id)) as string;
+    const fhe = await relayer();
+    const result = await withTimeout(
+      fhe.publicDecrypt([winnerHandle]),
+      90_000,
+      "Zama public winner decryption timed out. Retry when the relayer is available.",
+    );
+    onStep?.("Winner proof ready. Verifying it onchain…");
+    const tx = await pool.finalizeWinner(latest.id, result.abiEncodedClearValues, result.decryptionProof);
+    await withTimeout(tx.wait(), 120_000, "Winner finalization is still pending on Sepolia.");
+    return "finalized" as const;
+  }
+
+  dashboard = await readDashboard(signer);
+  const yieldRoundId = dashboard.yieldRoundId;
+  const yieldRound = dashboard.rounds.find((round) => round.id === yieldRoundId);
+
+  if (yieldRound && (yieldRound.state === 3 || yieldRound.state === 4) && !dashboard.yieldReady) {
+    onStep?.(`Round #${yieldRoundId} is waiting for the strategy to seal its confidential realized-yield bucket.`);
+    return "awaiting-yield" as const;
+  }
+
+  if (yieldRound?.state === 4 && dashboard.yieldReady) {
+    onStep?.(`Carrying sealed confidential yield through cancelled round #${yieldRoundId}…`);
+    const tx = await yieldSource.carryCancelledYield(yieldRoundId);
+    await withTimeout(tx.wait(), 120_000, "Cancelled-round yield carry is still pending on Sepolia.");
+    return "carried" as const;
+  }
+
+  if (yieldRound?.state === 3 && !yieldRound.funded && dashboard.yieldReady) {
+    onStep?.(`Routing the sealed encrypted strategy yield bucket to finalized round #${yieldRoundId}…`);
+    const tx = await yieldSource.allocateRoundYield(yieldRoundId);
+    await withTimeout(tx.wait(), 120_000, "Prize allocation is still pending on Sepolia.");
+    return "funded" as const;
+  }
+
+  const deliveryTarget = dashboard.rounds
+    .slice()
+    .reverse()
+    .find((round) => round.state === 3 && round.funded && !round.delivered);
+
+  if (deliveryTarget) {
+    onStep?.(`Delivering round #${deliveryTarget.id}'s encrypted prize directly to its proved winner…`);
+    const tx = await prizeVault.deliverPrize(deliveryTarget.id);
+    await withTimeout(tx.wait(), 120_000, "Prize delivery is still pending on Sepolia.");
+    return "delivered" as const;
+  }
+
+  return "waiting" as const;
 }

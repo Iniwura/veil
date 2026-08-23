@@ -6,6 +6,7 @@ import { ethers, fhevm } from "hardhat";
 import { MockConfidentialToken, MockConfidentialToken__factory, VeilPool, VeilPool__factory } from "../types";
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const DRAW_PERIOD = 3_600n;
 
 describe("VeilPool withdrawal semantics", function () {
   let alice: HardhatEthersSigner;
@@ -25,7 +26,7 @@ describe("VeilPool withdrawal semantics", function () {
     token = (await tokenFactory.deploy()) as MockConfidentialToken;
 
     const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-    pool = (await poolFactory.deploy(await token.getAddress())) as VeilPool;
+    pool = (await poolFactory.deploy(await token.getAddress(), DRAW_PERIOD)) as VeilPool;
     poolAddress = await pool.getAddress();
 
     await (await token.mint(alice.address, 1_000)).wait();
@@ -113,7 +114,7 @@ describe("VeilPool withdrawal semantics", function () {
     expect(await walletBalanceFor(alice)).to.equal(999);
 
     // The pool holds 21 total, so the asset contract alone could satisfy this request.
-    // VEIL must enforce all-or-zero against Alice's own encrypted principal first.
+    // UNVEIL must enforce all-or-zero against Alice's own encrypted principal first.
     await withdrawFor(alice, 2);
 
     expect(await principalFor(alice)).to.equal(1);

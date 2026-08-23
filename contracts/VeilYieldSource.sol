@@ -13,49 +13,80 @@ interface IERC7984YieldAsset {
     function confidentialTransfer(address to, euint64 amount) external returns (euint64 transferred);
 }
 
-interface IVeilPrizeSink {
+interface IUnveilRoundSource {
+    function nextRoundId() external view returns (uint256);
+
+    function getDrawInfo(
+        uint256 roundId
+    ) external view returns (uint64 snapshotBlock, uint8 participantCount, uint8 state);
+}
+
+interface IUnveilPrizeSink {
     function recordPrize(uint256 roundId, euint64 amount) external;
 }
 
 /// @title VeilYieldSource
-/// @notice Confidentially accounts for realized yield before allocating it to round prizes.
-/// @dev The owner represents the strategy adapter in V0.2. Every credited unit must be backed by an actual
-///      confidential asset transfer into this contract. A production strategy can replace this adapter boundary.
+/// @notice Confidential strategy-adapter boundary for UNVEIL prize yield.
+/// @dev Sepolia uses a controlled strategy operator that transfers real demo assets here. Production deployment can
+///      point this boundary at a reviewed confidential yield strategy without giving that strategy draw control.
+///      Realized yield is assigned to rounds in strict sequence, so permissionless keepers cannot redirect it.
 contract VeilYieldSource is ZamaEthereumConfig {
-    address public immutable owner;
+    /// @notice Deployment account with one-time prize-vault wiring authority.
+    /// @dev This role has no yield, draw, winner, allocation, or payout authority after configuration.
+    address public immutable configurationAdmin;
+    address public immutable strategyOperator;
     IERC7984YieldAsset public immutable asset;
+    IUnveilRoundSource public immutable pool;
     address public prizeVault;
 
+    /// @notice The only round that the current encrypted yield bucket may fund.
+    uint256 public yieldRoundId = 1;
+    bool public yieldReady;
     euint64 private unallocatedYield;
 
     event PrizeVaultConfigured(address indexed prizeVault);
-    event YieldAccrued();
+    event YieldAccrued(uint256 indexed roundId);
+    event YieldSealed(uint256 indexed roundId);
     event YieldAllocated(uint256 indexed roundId);
+    event CancelledYieldCarried(uint256 indexed fromRoundId, uint256 indexed toRoundId);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
+    modifier onlyConfigurationAdmin() {
+        require(msg.sender == configurationAdmin, "Only configuration admin");
         _;
     }
 
-    constructor(address asset_) {
+    modifier onlyStrategy() {
+        require(msg.sender == strategyOperator, "Only strategy");
+        _;
+    }
+
+    constructor(address asset_, address pool_, address strategyOperator_) {
         require(asset_ != address(0), "Invalid asset");
-        owner = msg.sender;
+        require(pool_ != address(0), "Invalid pool");
+        require(strategyOperator_ != address(0), "Invalid strategy");
+
+        configurationAdmin = msg.sender;
+        strategyOperator = strategyOperator_;
         asset = IERC7984YieldAsset(asset_);
+        pool = IUnveilRoundSource(pool_);
 
         unallocatedYield = FHE.asEuint64(0);
         FHE.allowThis(unallocatedYield);
     }
 
     /// @notice One-time wiring to the confidential prize vault.
-    function configurePrizeVault(address prizeVault_) external onlyOwner {
+    /// @dev Deployment configuration is deliberately separate from the long-lived strategy operator.
+    function configurePrizeVault(address prizeVault_) external onlyConfigurationAdmin {
         require(prizeVault == address(0), "Prize vault configured");
         require(prizeVault_ != address(0), "Invalid prize vault");
         prizeVault = prizeVault_;
         emit PrizeVaultConfigured(prizeVault_);
     }
 
-    /// @notice Credits only confidential assets actually transferred from the strategy adapter.
-    function accrueYield(externalEuint64 encryptedAmount, bytes calldata inputProof) external onlyOwner {
+    /// @notice Credits only confidential assets actually transferred from the configured strategy operator.
+    /// @dev The amount joins the encrypted bucket for yieldRoundId. The strategy never chooses a winner or round.
+    function accrueYield(externalEuint64 encryptedAmount, bytes calldata inputProof) external onlyStrategy {
+        require(!yieldReady, "Yield already sealed");
         require(asset.isOperator(msg.sender, address(this)), "Yield source not operator");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
@@ -65,31 +96,57 @@ contract VeilYieldSource is ZamaEthereumConfig {
         unallocatedYield = FHE.add(unallocatedYield, transferred);
         FHE.allowThis(unallocatedYield);
 
-        emit YieldAccrued();
+        emit YieldAccrued(yieldRoundId);
     }
 
-    /// @notice Allocates the full requested amount or zero when realized yield is insufficient.
-    function allocateToRound(
-        uint256 roundId,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
-    ) external onlyOwner {
+    /// @notice Marks the current encrypted yield bucket complete for its predetermined closed round.
+    /// @dev This can seal a legitimate zero-yield round without exposing whether the encrypted bucket is zero.
+    function sealRoundYield() external onlyStrategy {
+        require(!yieldReady, "Yield already sealed");
+        require(yieldRoundId < pool.nextRoundId(), "Round still open");
+        yieldReady = true;
+        emit YieldSealed(yieldRoundId);
+    }
+
+    /// @notice Permissionlessly routes the sealed encrypted yield bucket to its predetermined finalized round.
+    /// @dev A caller cannot choose another round, race an unfinished strategy sync, or learn the encrypted amount.
+    function allocateRoundYield(uint256 roundId) external {
         require(prizeVault != address(0), "Prize vault not configured");
+        require(roundId == yieldRoundId, "Wrong yield round");
+        require(yieldReady, "Yield not ready");
 
-        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        (, , uint8 state) = pool.getDrawInfo(roundId);
+        require(state == 3, "Round not finalized");
 
-        // Preserve ERC-7984-style all-or-zero behavior against VEIL's own encrypted
-        // yield accounting. Never clamp an oversized request to the remaining yield.
-        euint64 permitted = FHE.select(FHE.le(requested, unallocatedYield), requested, FHE.asEuint64(0));
+        euint64 allocation = unallocatedYield;
+        FHE.allowTransient(allocation, address(asset));
+        euint64 transferred = asset.confidentialTransfer(prizeVault, allocation);
 
-        FHE.allowTransient(permitted, address(asset));
-        euint64 transferred = asset.confidentialTransfer(prizeVault, permitted);
         unallocatedYield = FHE.sub(unallocatedYield, transferred);
         FHE.allowThis(unallocatedYield);
 
         FHE.allowTransient(transferred, prizeVault);
-        IVeilPrizeSink(prizeVault).recordPrize(roundId, transferred);
+        IUnveilPrizeSink(prizeVault).recordPrize(roundId, transferred);
 
+        unchecked {
+            yieldRoundId = roundId + 1;
+        }
+        yieldReady = false;
         emit YieldAllocated(roundId);
+    }
+
+    /// @notice Carries sealed encrypted yield through a KMS-proven cancelled round without exposing the amount.
+    function carryCancelledYield(uint256 roundId) external {
+        require(roundId == yieldRoundId, "Wrong yield round");
+        require(yieldReady, "Yield not ready");
+
+        (, , uint8 state) = pool.getDrawInfo(roundId);
+        require(state == 4, "Round not cancelled");
+
+        unchecked {
+            yieldRoundId = roundId + 1;
+        }
+        yieldReady = false;
+        emit CancelledYieldCarried(roundId, yieldRoundId);
     }
 }
