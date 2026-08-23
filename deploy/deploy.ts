@@ -1,13 +1,16 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
+const ZAMA_SEPOLIA_CUSDC_MOCK = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639";
+const ZAMA_SEPOLIA_USDC_MOCK = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF";
+
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
   const { deploy, execute, get } = hre.deployments;
 
   const isSepolia = hre.network.config.chainId === 11155111;
   const configuredAsset = process.env.UNVEIL_ASSET_ADDRESS?.trim() || process.env.VEIL_ASSET_ADDRESS?.trim();
-  const deployDemoAsset =
+  const deployLocalDemoAsset =
     process.env.UNVEIL_DEPLOY_DEMO_ASSET === "true" || process.env.VEIL_DEPLOY_DEMO_ASSET === "true";
   const configuredDrawPeriod = process.env.UNVEIL_DRAW_PERIOD_SECONDS?.trim();
   const drawPeriod = BigInt(configuredDrawPeriod || (isSepolia ? "900" : "86400"));
@@ -16,13 +19,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     throw new Error("UNVEIL_DRAW_PERIOD_SECONDS must be between 1 second and 365 days");
   }
 
-  if (isSepolia && !configuredAsset && !deployDemoAsset) {
-    throw new Error(
-      "Sepolia deployment requires UNVEIL_ASSET_ADDRESS or explicit UNVEIL_DEPLOY_DEMO_ASSET=true for the test-only asset",
-    );
-  }
-
   let assetAddress = configuredAsset;
+  let assetMode = "configured ERC-7984 asset";
+
+  if (!assetAddress && isSepolia && !deployLocalDemoAsset) {
+    assetAddress = ZAMA_SEPOLIA_CUSDC_MOCK;
+    assetMode = `official Zama cUSDCMock wrapper (underlying ${ZAMA_SEPOLIA_USDC_MOCK})`;
+  }
 
   if (!assetAddress) {
     const demoAsset = await deploy("MockConfidentialToken", {
@@ -30,6 +33,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       log: true,
     });
     assetAddress = demoAsset.address;
+    assetMode = "local/test-only MockConfidentialToken";
   }
 
   const pool = await deploy("VeilPool", {
@@ -70,11 +74,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`  prizeVault:  ${prizeVault.address}`);
   console.log(`  drawPeriod:  ${drawPeriod.toString()} seconds`);
   console.log(`  nextClose:   ${nextDrawClosesAt.toString()}`);
-  if (!configuredAsset) {
-    console.log("  asset mode:  TEST-ONLY MockConfidentialToken");
-  }
+  console.log(`  asset mode:  ${assetMode}`);
 };
 
 export default func;
-func.id = "deploy_unveil_v3";
+func.id = "deploy_unveil_v4";
 func.tags = ["UNVEIL", "VEIL"];
