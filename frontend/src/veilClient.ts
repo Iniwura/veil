@@ -2,6 +2,8 @@ import {
   BrowserProvider,
   Contract,
   JsonRpcProvider,
+  formatUnits,
+  parseUnits,
   type BrowserProvider as EthersBrowserProvider,
   type Eip1193Provider,
   type JsonRpcSigner,
@@ -31,6 +33,9 @@ declare global {
 }
 
 const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+export const CUSDC_DECIMALS = 6;
+export const CUSDC_UNIT = 1_000_000n;
+const MAX_EUINT64 = 18_446_744_073_709_551_615n;
 const readProvider = new JsonRpcProvider(SEPOLIA_RPC_URL, VEIL_NETWORK.chainId, { staticNetwork: true });
 
 const POOL_ABI = [
@@ -61,8 +66,14 @@ const POOL_ABI = [
 const ASSET_ABI = [
   "function isOperator(address holder,address spender) view returns (bool)",
   "function setOperator(address operator,uint48 until)",
-  "function mint(address to,uint64 amount)",
+  "function underlying() view returns (address)",
+  "function wrap(address to,uint256 amount)",
   "function confidentialBalanceOf(address account) view returns (bytes32)",
+] as const;
+
+const UNDERLYING_ABI = [
+  "function mint(address to,uint256 amount)",
+  "function approve(address spender,uint256 amount) returns (bool)",
 ] as const;
 
 const YIELD_ABI = [
@@ -121,6 +132,27 @@ export type PrivateRoundStats = {
 
 let relayerPromise: Promise<FhevmInstance> | null = null;
 let sdkPromise: Promise<boolean> | null = null;
+
+export function parseCusdcInput(value: string) {
+  const normalized = value.trim();
+  if (!normalized) throw new Error("Enter a cUSDC amount.");
+  if (!/^\d+(?:\.\d{0,6})?$/.test(normalized)) {
+    throw new Error("Enter a valid cUSDC amount with at most 6 decimal places.");
+  }
+
+  const amount = parseUnits(normalized, CUSDC_DECIMALS);
+  if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  if (amount > MAX_EUINT64) throw new Error("That amount is too large for this confidential pool.");
+  return amount;
+}
+
+export function formatCusdc(value: bigint | undefined, masked = "••••••") {
+  if (value === undefined) return masked;
+  const formatted = formatUnits(value, CUSDC_DECIMALS);
+  const [whole, fraction = ""] = formatted.split(".");
+  const trimmedFraction = fraction.replace(/0+$/, "");
+  return trimmedFraction ? `${whole}.${trimmedFraction}` : whole;
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -286,21 +318,52 @@ function readContracts() {
   };
 }
 
-export async function fundDemoWallet(signer: JsonRpcSigner, amount = 100n) {
-  if (amount <= 0n || amount > 18_446_744_073_709_551_615n) throw new Error("Invalid demo funding amount.");
+export async function fundDemoWallet(signer: JsonRpcSigner, wholeCusdc = 100n) {
+  if (wholeCusdc <= 0n || wholeCusdc > MAX_EUINT64 / CUSDC_UNIT) throw new Error("Invalid demo funding amount.");
+
   const address = await signer.getAddress();
   const { asset } = contracts(signer);
+  const baseUnits = wholeCusdc * CUSDC_UNIT;
 
   try {
-    const tx = await withTimeout(
-      asset.mint(address, amount),
+    const underlyingAddress = (await withTimeout(
+      asset.underlying(),
+      15_000,
+      "Sepolia did not respond while reading the official cUSDC underlying asset.",
+    )) as string;
+    const underlying = new Contract(underlyingAddress, UNDERLYING_ABI, signer);
+
+    const mintTx = await withTimeout(
+      underlying.mint(address, baseUnits),
       30_000,
-      "Wallet did not respond to the demo funding request. Open MetaMask and check for a pending confirmation.",
+      "Wallet did not respond to the mock USDC funding request.",
+    );
+    await withTimeout(
+      mintTx.wait(),
+      120_000,
+      "Mock USDC funding is still pending on Sepolia. Check MetaMask activity before retrying.",
+    );
+
+    const approveTx = await withTimeout(
+      underlying.approve(VEIL_CONTRACTS.asset, baseUnits),
+      30_000,
+      "Wallet did not respond to the cUSDC wrapper approval request.",
+    );
+    await withTimeout(
+      approveTx.wait(),
+      120_000,
+      "cUSDC wrapper approval is still pending on Sepolia. Check MetaMask activity before retrying.",
+    );
+
+    const wrapTx = await withTimeout(
+      asset.wrap(address, baseUnits),
+      30_000,
+      "Wallet did not respond to the Zama cUSDC wrap request.",
     );
     return await withTimeout(
-      tx.wait(),
+      wrapTx.wait(),
       120_000,
-      "Demo funding transaction is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.",
+      "cUSDC wrapping is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.",
     );
   } catch (error) {
     actionError("UNVEIL_DEMO_FUNDING_FAILED:", error);
@@ -340,6 +403,7 @@ export async function ensurePoolOperator(signer: JsonRpcSigner) {
 
 export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?: (message: string) => void) {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  if (amount > MAX_EUINT64) throw new Error("That amount is too large for this confidential pool.");
 
   onStep?.("Checking confidential pool authorization…");
   const operatorAdded = await ensurePoolOperator(signer);
@@ -349,7 +413,7 @@ export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?
   let encrypted;
   try {
     const fhe = await relayer();
-    onStep?.("FHE ready. Encrypting your deposit locally…");
+    onStep?.("FHE ready. Encrypting your cUSDC deposit locally…");
     encrypted = await withTimeout(
       fhe.createEncryptedInput(VEIL_CONTRACTS.pool, address).add64(amount).encrypt(),
       60_000,
@@ -380,6 +444,7 @@ export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?
 
 export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  if (amount > MAX_EUINT64) throw new Error("That amount is too large for this confidential pool.");
   const address = await signer.getAddress();
   let encrypted;
 
