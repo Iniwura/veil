@@ -93,6 +93,7 @@ async function main() {
     throw new Error("Yield source prize vault wiring mismatch");
   }
   if ((await yieldSource.yieldRoundId()) !== 1n) throw new Error("Fresh yield cursor must start at round 1");
+  if (await yieldSource.yieldReady()) throw new Error("Fresh yield bucket must start unsealed");
   if ((await prizeVault.pool()).toLowerCase() !== poolAddress.toLowerCase())
     throw new Error("Prize vault pool mismatch");
   if ((await prizeVault.yieldSource()).toLowerCase() !== yieldSourceAddress.toLowerCase())
@@ -108,17 +109,17 @@ async function main() {
   await ensureGas(deployer, alice);
   await ensureGas(deployer, bob);
 
-  console.log("1/12 Minting test-only confidential assets...");
+  console.log("1/13 Minting test-only confidential assets...");
   await (await token.mint(alice.address, 100)).wait();
   await (await token.mint(bob.address, 100)).wait();
   await (await token.mint(deployer.address, 50)).wait();
 
-  console.log("2/12 Authorizing confidential asset operators...");
+  console.log("2/13 Authorizing confidential asset operators...");
   await (await token.connect(alice).setOperator(poolAddress, MAX_OPERATOR_UNTIL)).wait();
   await (await token.connect(bob).setOperator(poolAddress, MAX_OPERATOR_UNTIL)).wait();
   await (await token.connect(deployer).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
 
-  console.log("3/12 Making private encrypted deposits...");
+  console.log("3/13 Making private encrypted deposits...");
   const aliceDeposit = await encrypted64(poolAddress, alice, 10);
   await (await pool.connect(alice).deposit(aliceDeposit.handles[0], aliceDeposit.inputProof)).wait();
   const bobDeposit = await encrypted64(poolAddress, bob, 30);
@@ -134,14 +135,14 @@ async function main() {
   const roundId = await pool.nextRoundId();
   if ((await yieldSource.yieldRoundId()) !== roundId) throw new Error("Yield bucket is not aligned with the open draw");
 
-  console.log("4/12 Accruing asset-backed confidential demo yield during the open draw...");
+  console.log("4/13 Accruing asset-backed confidential demo yield during the open draw...");
   const accruedYield = await encrypted64(yieldSourceAddress, deployer, 15);
   await (await yieldSource.connect(deployer).accrueYield(accruedYield.handles[0], accruedYield.inputProof)).wait();
 
-  console.log("5/12 Waiting for the onchain draw deadline...");
+  console.log("5/13 Waiting for the onchain draw deadline...");
   await waitForDrawClose(pool);
 
-  console.log("6/12 Permissionlessly closing and snapshotting the draw as Alice...");
+  console.log("6/13 Permissionlessly closing and snapshotting the draw as Alice...");
   await (await pool.connect(alice).closeDraw()).wait();
 
   const aliceWeight = await pool.connect(alice).encryptedSnapshotWeightOf(roundId);
@@ -153,10 +154,10 @@ async function main() {
   }
   console.log("  Alice privately confirms exact snapshot odds: 25.00%");
 
-  console.log("7/12 Permissionlessly running BlindDraw as Bob...");
+  console.log("7/13 Permissionlessly running BlindDraw as Bob...");
   await (await pool.connect(bob).blindDraw(roundId)).wait();
 
-  console.log("8/12 Publicly decrypting and proving the encrypted winner...");
+  console.log("8/13 Publicly decrypting and proving the encrypted winner...");
   const encryptedWinner = await pool.getEncryptedWinner(roundId);
   const publicResult = await fhevm.publicDecrypt([encryptedWinner]);
   await (
@@ -167,19 +168,32 @@ async function main() {
   if (!winner) throw new Error(`Unexpected winner ${winnerAddress}`);
   console.log(`  winner: ${winnerAddress}`);
 
-  console.log("9/12 Permissionlessly routing the predetermined round's encrypted yield as Bob...");
+  console.log("9/13 Proving a keeper cannot race unfinished strategy yield sync...");
+  try {
+    await yieldSource.connect(bob).allocateRoundYield(roundId);
+    throw new Error("Unsealed yield was unexpectedly routable");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("Yield not ready")) throw error;
+  }
+
+  console.log("10/13 Strategy sealing the encrypted realized-yield bucket...");
+  await (await yieldSource.connect(deployer).sealRoundYield()).wait();
+  if (!(await yieldSource.yieldReady())) throw new Error("Yield readiness was not persisted");
+
+  console.log("11/13 Permissionlessly routing the predetermined sealed yield as Bob...");
   await (await yieldSource.connect(bob).allocateRoundYield(roundId)).wait();
   if ((await yieldSource.yieldRoundId()) !== roundId + 1n) throw new Error("Yield cursor did not advance");
+  if (await yieldSource.yieldReady()) throw new Error("Next round yield bucket should reopen after allocation");
 
-  console.log("10/12 Permissionlessly delivering the encrypted prize as Alice...");
+  console.log("12/13 Permissionlessly delivering the encrypted prize as Alice...");
   await (await prizeVault.connect(alice).deliverPrize(roundId)).wait();
 
-  console.log("11/12 Winner privately unveils the delivered prize amount...");
+  console.log("13/13 Winner privately unveils prize amount and verifies principal separation...");
   const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(roundId);
   const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
   if (clearPrize !== 15n) throw new Error(`Expected encrypted awarded amount 15, got ${clearPrize}`);
 
-  console.log("12/12 Verifying delivery state and principal separation...");
   const status = await prizeVault.prizeStatus(roundId);
   if (!status.claimed) throw new Error("Prize delivery status was not persisted");
   const winnerPrincipalHandle = await pool.connect(winner).encryptedBalanceOf();
@@ -193,7 +207,7 @@ async function main() {
   console.log("  private odds: Alice 25.00% (unveiled only by Alice)");
   console.log(`  prize:        ${clearPrize} encrypted token units (unveiled only by winner)`);
   console.log("  maintenance: close, BlindDraw, yield routing, and payout were permissionless");
-  console.log("  yield safety: keeper could not choose the prize round; the onchain cursor did");
+  console.log("  yield safety: keeper could not choose the round or race the unsealed strategy bucket");
 }
 
 main().catch((error: unknown) => {
