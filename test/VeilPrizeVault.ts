@@ -117,7 +117,14 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     await (await yieldSource.connect(signers.deployer).accrueYield(encrypted.handles[0], encrypted.inputProof)).wait();
   }
 
+  async function sealYield() {
+    if (!(await yieldSource.yieldReady())) {
+      await (await yieldSource.connect(signers.deployer).sealRoundYield()).wait();
+    }
+  }
+
   async function allocatePrize(roundId = 1) {
+    await sealYield();
     await (await yieldSource.connect(signers.outsider).allocateRoundYield(roundId)).wait();
   }
 
@@ -182,6 +189,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     expect(await yieldSource.pool()).to.equal(poolAddress);
     expect(await yieldSource.strategyOperator()).to.equal(signers.deployer.address);
     expect(await yieldSource.yieldRoundId()).to.equal(1);
+    expect(await yieldSource.yieldReady()).to.equal(false);
     expect(await prizeVault.asset()).to.equal(await token.getAddress());
     expect(await prizeVault.pool()).to.equal(poolAddress);
     expect(await prizeVault.yieldSource()).to.equal(yieldSourceAddress);
@@ -199,13 +207,39 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     expect(await decryptPoolBalance(signers.bob)).to.equal(bobPrincipal);
     expect(await decryptTokenBalance(signers.deployer)).to.equal(850);
     expect(await yieldSource.yieldRoundId()).to.equal(2);
+    expect(await yieldSource.yieldReady()).to.equal(false);
   });
 
-  it("restricts yield accrual to the configured strategy operator", async function () {
+  it("restricts yield accrual and sealing to the configured strategy operator", async function () {
     const encrypted = await encryptFor(yieldSourceAddress, signers.outsider, 10);
     await expect(
       yieldSource.connect(signers.outsider).accrueYield(encrypted.handles[0], encrypted.inputProof),
     ).to.be.revertedWith("Only strategy");
+    await expect(yieldSource.connect(signers.outsider).sealRoundYield()).to.be.revertedWith("Only strategy");
+  });
+
+  it("prevents a keeper from racing an unfinished strategy yield sync", async function () {
+    await accrueYield(150);
+    await finalizeRound();
+
+    await expect(yieldSource.connect(signers.outsider).allocateRoundYield(1)).to.be.revertedWith("Yield not ready");
+    expect((await prizeVault.prizeStatus(1)).funded).to.equal(false);
+    expect(await yieldSource.yieldRoundId()).to.equal(1);
+
+    await sealYield();
+    await (await yieldSource.connect(signers.outsider).allocateRoundYield(1)).wait();
+    expect((await prizeVault.prizeStatus(1)).funded).to.equal(true);
+    expect(await yieldSource.yieldRoundId()).to.equal(2);
+  });
+
+  it("freezes strategy accrual after the round yield bucket is sealed", async function () {
+    await accrueYield(100);
+    await sealYield();
+
+    const encrypted = await encryptFor(yieldSourceAddress, signers.deployer, 25);
+    await expect(
+      yieldSource.connect(signers.deployer).accrueYield(encrypted.handles[0], encrypted.inputProof),
+    ).to.be.revertedWith("Yield already sealed");
   });
 
   it("rejects direct prize credits from accounts other than the yield source", async function () {
@@ -219,6 +253,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     await accrueYield(150);
     await expect(allocatePrize()).to.be.rejectedWith("Round not finalized");
     expect(await yieldSource.yieldRoundId()).to.equal(1);
+    expect(await yieldSource.yieldReady()).to.equal(true);
 
     const statusBefore = await prizeVault.prizeStatus(1);
     expect(statusBefore.funded).to.equal(false);
@@ -313,9 +348,11 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
     const cancelled = await finalizeOrCancel(round2);
     expect(cancelled.state).to.equal(4);
 
+    await sealYield();
     await expect(yieldSource.connect(signers.outsider).allocateRoundYield(2)).to.be.revertedWith("Round not finalized");
     await (await yieldSource.connect(signers.outsider).carryCancelledYield(2)).wait();
     expect(await yieldSource.yieldRoundId()).to.equal(3);
+    expect(await yieldSource.yieldReady()).to.equal(false);
 
     await deposit(signers.alice, 12);
     await deposit(signers.bob, 28);
@@ -331,6 +368,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
   });
 
   it("rejects cancelled-yield carry for a round that is not cancelled", async function () {
+    await sealYield();
     await finalizeRound();
     await expect(yieldSource.connect(signers.outsider).carryCancelledYield(1)).to.be.revertedWith(
       "Round not cancelled",
