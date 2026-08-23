@@ -43,6 +43,9 @@ const config: HardhatUserConfig = {
     enabled: process.env.REPORT_GAS ? true : false,
     excludeContracts: [],
   },
+  mocha: {
+    timeout: 120_000,
+  },
   networks: {
     hardhat: {
       accounts: {
