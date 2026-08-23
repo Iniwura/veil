@@ -1,12 +1,13 @@
 import { expect } from "chai";
 import { deployments, ethers } from "hardhat";
 
-describe("VEIL deployment", function () {
+describe("UNVEIL deployment", function () {
   beforeEach(async function () {
-    await deployments.fixture(["VEIL"]);
+    await deployments.fixture(["UNVEIL"]);
   });
 
-  it("deploys and wires the confidential custody stack", async function () {
+  it("deploys and wires the confidential prize-savings stack", async function () {
+    const [deployer] = await ethers.getSigners();
     const asset = await deployments.get("MockConfidentialToken");
     const poolDeployment = await deployments.get("VeilPool");
     const yieldDeployment = await deployments.get("VeilYieldSource");
@@ -17,7 +18,10 @@ describe("VEIL deployment", function () {
     const prizeVault = await ethers.getContractAt("VeilPrizeVault", vaultDeployment.address);
 
     expect(await pool.asset()).to.equal(asset.address);
+    expect(await pool.drawPeriod()).to.be.greaterThan(0);
+    expect(await pool.nextDrawClosesAt()).to.be.greaterThan(0);
     expect(await yieldSource.asset()).to.equal(asset.address);
+    expect(await yieldSource.strategyOperator()).to.equal(deployer.address);
     expect(await yieldSource.prizeVault()).to.equal(vaultDeployment.address);
     expect(await prizeVault.pool()).to.equal(poolDeployment.address);
     expect(await prizeVault.asset()).to.equal(asset.address);
