@@ -5,7 +5,12 @@ import { expect } from "chai";
 import { ContractTransactionResponse, HDNodeWallet, Wallet } from "ethers";
 import { ethers, fhevm } from "hardhat";
 
-import { MockConfidentialToken, MockConfidentialToken__factory, VeilPool, VeilPool__factory } from "../types";
+import {
+  MockConfidentialToken,
+  MockConfidentialToken__factory,
+  VeilPool,
+  VeilPool__factory,
+} from "../types";
 
 type Signers = {
   deployer: HardhatEthersSigner;
@@ -110,18 +115,41 @@ describe("VeilPool", function () {
 
   async function decryptPositionStats(signer: HardhatEthersSigner) {
     const encrypted = await veilPoolContract.connect(signer).encryptedPosition();
-    const values = await Promise.all(
-      [encrypted.balance, encrypted.totalDeposited, encrypted.totalWithdrawn, encrypted.lastDeposit, encrypted.lastWithdrawal].map(
-        (handle) => fhevm.userDecryptEuint(FhevmType.euint64, handle, veilPoolContractAddress, signer),
-      ),
+
+    // The mock relayer maintains a single event cursor. Keep these decryptions sequential
+    // so parallel reads of handles created in the same block cannot race that cursor on Windows CI.
+    const balance = await fhevm.userDecryptEuint(
+      FhevmType.euint64,
+      encrypted.balance,
+      veilPoolContractAddress,
+      signer,
     );
-    return {
-      balance: values[0],
-      totalDeposited: values[1],
-      totalWithdrawn: values[2],
-      lastDeposit: values[3],
-      lastWithdrawal: values[4],
-    };
+    const totalDeposited = await fhevm.userDecryptEuint(
+      FhevmType.euint64,
+      encrypted.totalDeposited,
+      veilPoolContractAddress,
+      signer,
+    );
+    const totalWithdrawn = await fhevm.userDecryptEuint(
+      FhevmType.euint64,
+      encrypted.totalWithdrawn,
+      veilPoolContractAddress,
+      signer,
+    );
+    const lastDeposit = await fhevm.userDecryptEuint(
+      FhevmType.euint64,
+      encrypted.lastDeposit,
+      veilPoolContractAddress,
+      signer,
+    );
+    const lastWithdrawal = await fhevm.userDecryptEuint(
+      FhevmType.euint64,
+      encrypted.lastWithdrawal,
+      veilPoolContractAddress,
+      signer,
+    );
+
+    return { balance, totalDeposited, totalWithdrawn, lastDeposit, lastWithdrawal };
   }
 
   it("starts with a configured asset and autonomous draw schedule", async function () {
