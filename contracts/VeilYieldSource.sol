@@ -14,6 +14,8 @@ interface IERC7984YieldAsset {
 }
 
 interface IUnveilRoundSource {
+    function nextRoundId() external view returns (uint256);
+
     function getDrawInfo(
         uint256 roundId
     ) external view returns (uint64 snapshotBlock, uint8 participantCount, uint8 state);
@@ -86,10 +88,11 @@ contract VeilYieldSource is ZamaEthereumConfig {
         emit YieldAccrued(yieldRoundId);
     }
 
-    /// @notice Marks the current encrypted yield bucket complete for its predetermined round.
+    /// @notice Marks the current encrypted yield bucket complete for its predetermined closed round.
     /// @dev This can seal a legitimate zero-yield round without exposing whether the encrypted bucket is zero.
     function sealRoundYield() external onlyStrategy {
         require(!yieldReady, "Yield already sealed");
+        require(yieldRoundId < pool.nextRoundId(), "Round still open");
         yieldReady = true;
         emit YieldSealed(yieldRoundId);
     }
