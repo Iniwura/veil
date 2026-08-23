@@ -1,0 +1,238 @@
+name: Polish UNVEIL guided demo
+
+on:
+  push:
+    branches:
+      - feat/unveil-winner-build
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: feat/unveil-winner-build
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - name: Upgrade guided demo to real UI spotlight
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app = Path('frontend/src/App.tsx')
+          text = app.read_text()
+
+          guide_steps = '''const GUIDE_STEPS = [
+            ["WELCOME TO UNVEIL", "Save cUSDC. Keep the numbers private. Win from shared yield.", "/app", ""],
+            [
+              "CONNECT YOUR WALLET",
+              "Use a Sepolia wallet. UNVEIL will never ask you to paste a private key.",
+              "/app",
+              '[data-guide="wallet"]',
+            ],
+            [
+              "SAVE PRIVATELY",
+              "Choose a cUSDC amount. It is encrypted in your browser before the pool receives the request.",
+              "/app/save",
+              '[data-guide="save-card"]',
+            ],
+            [
+              "WATCH THE DRAW",
+              "The contract enforces the deadline. Anyone can progress the permissionless draw after it closes.",
+              "/app/draws",
+              '[data-guide="draw-center"]',
+            ],
+            [
+              "UNVEIL YOUR STATS",
+              "Your balance, activity, draw weight and exact odds are private from everyone else, not from you.",
+              "/app/vault",
+              '[data-guide="vault-unveil"]',
+            ],
+            [
+              "WIN WITHOUT CLAIM FRICTION",
+              "If you win, a keeper can deliver the encrypted prize. Only you can reveal its cUSDC amount.",
+              "/app/prizes",
+              '[data-guide="prizes"]',
+            ],
+          ] as const;'''
+          text, count = re.subn(r'const GUIDE_STEPS = \[.*?\] as const;', guide_steps, text, count=1, flags=re.S)
+          assert count == 1, 'GUIDE_STEPS replacement failed'
+
+          replacements = {
+            '<button className="wallet-pill" disabled={Boolean(busy)} onClick={connect}>': '<button data-guide="wallet" className="wallet-pill" disabled={Boolean(busy)} onClick={connect}>',
+            '<div className="save-card">': '<div className="save-card" data-guide="save-card">',
+            '<div className="draw-dashboard">': '<div className="draw-dashboard" data-guide="draw-center">',
+            '<button className="veil-toggle" disabled={Boolean(busy)} onClick={open ? veil : unveil}>': '<button data-guide="vault-unveil" className="veil-toggle" disabled={Boolean(busy)} onClick={open ? veil : unveil}>',
+          }
+          for old, new in replacements.items():
+            assert old in text, f'missing target: {old}'
+            text = text.replace(old, new, 1)
+
+          prize_pattern = r'(function PrizesPage\(.*?return \(\n\s*)<section className="product-page">'
+          text, count = re.subn(prize_pattern, r'\1<section className="product-page prizes-page" data-guide="prizes">', text, count=1, flags=re.S)
+          assert count == 1, 'prize page target replacement failed'
+
+          guide_function = r'''function Guide({
+            step,
+            setStep,
+            close,
+            navigate,
+          }: {
+            step: number;
+            setStep: (step: number) => void;
+            close: () => void;
+            navigate: (route: Route) => void;
+          }) {
+            const current = GUIDE_STEPS[step];
+            const [targetRect, setTargetRect] = useState<{ top: number; left: number; width: number; height: number }>();
+
+            useEffect(() => {
+              navigate(current[2] as Route);
+              const selector = current[3];
+              let timer = 0;
+
+              const locate = () => {
+                if (!selector) {
+                  setTargetRect(undefined);
+                  return;
+                }
+                const node = document.querySelector<HTMLElement>(selector);
+                if (!node) {
+                  setTargetRect(undefined);
+                  return;
+                }
+                node.scrollIntoView({ block: "center", behavior: "smooth" });
+                const rect = node.getBoundingClientRect();
+                setTargetRect({
+                  top: Math.max(8, rect.top - 10),
+                  left: Math.max(8, rect.left - 10),
+                  width: Math.min(window.innerWidth - Math.max(8, rect.left - 10) - 8, rect.width + 20),
+                  height: rect.height + 20,
+                });
+              };
+
+              timer = window.setTimeout(locate, 260);
+              window.addEventListener("resize", locate);
+              return () => {
+                window.clearTimeout(timer);
+                window.removeEventListener("resize", locate);
+              };
+            }, [current, navigate]);
+
+            const finish = () => {
+              localStorage.setItem(GUIDE_KEY, "1");
+              close();
+            };
+
+            return (
+              <div className={`guide-backdrop ${targetRect ? "has-target" : ""}`}>
+                {targetRect && (
+                  <div
+                    className="guide-spotlight"
+                    style={{
+                      top: targetRect.top,
+                      left: targetRect.left,
+                      width: targetRect.width,
+                      height: targetRect.height,
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+                <div className={`guide-card ${targetRect ? "contextual" : ""}`} role="dialog" aria-modal="true" aria-label="UNVEIL guided demo">
+                  <div className="guide-progress">
+                    {GUIDE_STEPS.map((_, index) => (
+                      <i className={index <= step ? "active" : ""} key={index} />
+                    ))}
+                  </div>
+                  <span>
+                    {step + 1} / {GUIDE_STEPS.length}
+                  </span>
+                  <h2>{current[0]}</h2>
+                  <p>{current[1]}</p>
+                  {targetRect && <small className="guide-do-this">DO THIS HERE · THE REAL APP STAYS INTERACTIVE</small>}
+                  <div className="guide-actions">
+                    <button onClick={finish}>SKIP</button>
+                    <button className="guide-next" onClick={() => (step === GUIDE_STEPS.length - 1 ? finish() : setStep(step + 1))}>
+                      {step === GUIDE_STEPS.length - 1 ? "FINISH" : "CONTINUE"} →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          export default function App()'''
+          text, count = re.subn(r'function Guide\(\{.*?\n\}\n\nexport default function App\(\)', guide_function, text, count=1, flags=re.S)
+          assert count == 1, 'Guide function replacement failed'
+          app.write_text(text)
+
+          css = Path('frontend/src/styles.css')
+          styles = css.read_text()
+          marker = '/* ---------------- Contextual guided demo spotlight ---------------- */'
+          if marker not in styles:
+            styles += r'''
+
+          /* ---------------- Contextual guided demo spotlight ---------------- */
+          .guide-backdrop.has-target {
+            background: transparent;
+            backdrop-filter: none;
+            place-items: end center;
+            pointer-events: none;
+          }
+          .guide-spotlight {
+            position: fixed;
+            z-index: 101;
+            border: 1px solid var(--acid);
+            border-radius: 14px;
+            box-shadow: 0 0 0 9999px rgba(2, 3, 2, 0.76), 0 0 0 5px rgba(232, 255, 69, 0.08), 0 0 46px rgba(232, 255, 69, 0.22);
+            pointer-events: none;
+            transition: top .48s var(--ease), left .48s var(--ease), width .48s var(--ease), height .48s var(--ease);
+            animation: guideSpotlightPulse 2.4s ease-in-out infinite;
+          }
+          .guide-card { position: relative; z-index: 102; pointer-events: auto; }
+          .guide-backdrop.has-target .guide-card.contextual {
+            width: min(600px, calc(100vw - 32px));
+            margin-bottom: 24px;
+            border-color: var(--acid);
+            box-shadow: 0 24px 90px rgba(0,0,0,.62), 0 0 0 1px rgba(232,255,69,.18);
+          }
+          .guide-do-this {
+            display: block;
+            margin-top: 18px;
+            font-family: var(--mono);
+            font-size: 8px;
+            letter-spacing: .12em;
+            color: #52563f;
+          }
+          @keyframes guideSpotlightPulse {
+            0%, 100% { filter: drop-shadow(0 0 0 rgba(232,255,69,0)); }
+            50% { filter: drop-shadow(0 0 14px rgba(232,255,69,.24)); }
+          }
+          @media (max-width: 760px) {
+            .guide-backdrop.has-target .guide-card.contextual { margin-bottom: 82px; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .guide-spotlight { animation: none; transition: none; }
+          }
+          '''
+          css.write_text(styles)
+          PY
+      - run: npx prettier frontend/src/App.tsx frontend/src/styles.css --write
+      - name: Commit guided demo polish
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/App.tsx frontend/src/styles.css
+          git commit -m "Upgrade UNVEIL guided demo spotlight"
+          git push origin HEAD:feat/unveil-winner-build
