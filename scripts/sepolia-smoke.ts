@@ -7,10 +7,10 @@ import { MockConfidentialToken, VeilPool, VeilPrizeVault, VeilYieldSource } from
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
 
 const DEFAULT_ADDRESSES = {
-  asset: "0xBAa442fFC1C8EEF0FE53E181aF0c3caD3c87e575",
-  pool: "0xbFFb9dA6e363D72B2f86B511ecefad3DF49d19e9",
-  yieldSource: "0xA083930Fcccc43d73a5DB5f7340188f734Bf5505",
-  prizeVault: "0xE9c1779d58a1b3e31C3C5417e927B09c18Cd1B76",
+  asset: "0x79836eCae72C3EB5423fd5D1d200CbaEA0cCEE6e",
+  pool: "0xd5395972b0Cd747fAD531389E449958a343adA1b",
+  yieldSource: "0xdDB2b7fe447c55576F882138d59DE00a7d8EbE3D",
+  prizeVault: "0xb580c50192f5d7C613Db4e9427a2fA0C9701Af84",
 };
 
 function address(name: keyof typeof DEFAULT_ADDRESSES): string {
