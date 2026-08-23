@@ -70,6 +70,7 @@ const YIELD_ABI = [
   "function carryCancelledYield(uint256 roundId)",
   "function strategyOperator() view returns (address)",
   "function yieldRoundId() view returns (uint256)",
+  "function yieldReady() view returns (bool)",
 ] as const;
 
 const PRIZE_ABI = [
@@ -99,6 +100,7 @@ export type PublicState = {
   drawPeriod: bigint;
   nextDrawClosesAt: bigint;
   yieldRoundId: bigint;
+  yieldReady: boolean;
   rounds: RoundRecord[];
 };
 
@@ -547,12 +549,13 @@ async function readRounds(latestRound: bigint): Promise<RoundRecord[]> {
 
 export async function readPublicState(): Promise<PublicState> {
   const { pool, yieldSource } = readContracts();
-  const [playerCount, nextRoundId, drawPeriod, nextDrawClosesAt, yieldRoundId] = await Promise.all([
+  const [playerCount, nextRoundId, drawPeriod, nextDrawClosesAt, yieldRoundId, yieldReady] = await Promise.all([
     pool.playerCount(),
     pool.nextRoundId(),
     pool.drawPeriod(),
     pool.nextDrawClosesAt(),
     yieldSource.yieldRoundId(),
+    yieldSource.yieldReady(),
   ]);
   const latestRound = nextRoundId > 1n ? nextRoundId - 1n : 0n;
 
@@ -562,6 +565,7 @@ export async function readPublicState(): Promise<PublicState> {
     drawPeriod: BigInt(drawPeriod),
     nextDrawClosesAt: BigInt(nextDrawClosesAt),
     yieldRoundId: BigInt(yieldRoundId),
+    yieldReady: Boolean(yieldReady),
     rounds: await readRounds(latestRound),
   };
 }
@@ -637,15 +641,20 @@ export async function advanceRoundMaintenance(signer: JsonRpcSigner, onStep?: (m
   const yieldRoundId = dashboard.yieldRoundId;
   const yieldRound = dashboard.rounds.find((round) => round.id === yieldRoundId);
 
-  if (yieldRound?.state === 4) {
-    onStep?.(`Carrying confidential yield through cancelled round #${yieldRoundId}…`);
+  if (yieldRound && (yieldRound.state === 3 || yieldRound.state === 4) && !dashboard.yieldReady) {
+    onStep?.(`Round #${yieldRoundId} is waiting for the strategy to seal its confidential realized-yield bucket.`);
+    return "awaiting-yield" as const;
+  }
+
+  if (yieldRound?.state === 4 && dashboard.yieldReady) {
+    onStep?.(`Carrying sealed confidential yield through cancelled round #${yieldRoundId}…`);
     const tx = await yieldSource.carryCancelledYield(yieldRoundId);
     await withTimeout(tx.wait(), 120_000, "Cancelled-round yield carry is still pending on Sepolia.");
     return "carried" as const;
   }
 
-  if (yieldRound?.state === 3 && !yieldRound.funded) {
-    onStep?.(`Routing the encrypted strategy yield bucket to finalized round #${yieldRoundId}…`);
+  if (yieldRound?.state === 3 && !yieldRound.funded && dashboard.yieldReady) {
+    onStep?.(`Routing the sealed encrypted strategy yield bucket to finalized round #${yieldRoundId}…`);
     const tx = await yieldSource.allocateRoundYield(yieldRoundId);
     await withTimeout(tx.wait(), 120_000, "Prize allocation is still pending on Sepolia.");
     return "funded" as const;
