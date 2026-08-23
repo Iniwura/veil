@@ -25,7 +25,9 @@ async function deploymentAddress(name: string, envName: string) {
   const configured = process.env[envName]?.trim();
   if (configured) return configured;
   const deployment = await deployments.getOrNull(name);
-  if (!deployment) throw new Error(`Missing ${envName} and no ${name} deployment was found for ${network.name}`);
+  if (!deployment) {
+    throw new Error(`Missing ${envName} and no ${name} deployment was found for ${network.name}`);
+  }
   return deployment.address;
 }
 
@@ -58,17 +60,39 @@ async function waitForDrawClose(pool: VeilPool) {
   await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
 }
 
+function wrapperFor(assetAddress: string, signer: HardhatEthersSigner) {
+  return new Contract(assetAddress, WRAPPER_ABI, signer);
+}
+
+function underlyingFor(underlyingAddress: string, signer: HardhatEthersSigner) {
+  return new Contract(underlyingAddress, UNDERLYING_ABI, signer);
+}
+
 async function wrapDemoCusdc(
-  wrapper: Contract,
-  underlying: Contract,
+  assetAddress: string,
+  underlyingAddress: string,
   signer: HardhatEthersSigner,
   wholeTokens: bigint,
 ) {
   const amount = wholeTokens * CUSDC_UNIT;
-  await (await underlying.connect(signer).mint(signer.address, amount)).wait();
-  await (await underlying.connect(signer).approve(await wrapper.getAddress(), amount)).wait();
-  await (await wrapper.connect(signer).wrap(signer.address, amount)).wait();
+  const wrapper = wrapperFor(assetAddress, signer);
+  const underlying = underlyingFor(underlyingAddress, signer);
+
+  await (await underlying.mint(signer.address, amount)).wait();
+  await (await underlying.approve(assetAddress, amount)).wait();
+  await (await wrapper.wrap(signer.address, amount)).wait();
   return amount;
+}
+
+async function expectRevertReason(action: () => Promise<unknown>, reason: string) {
+  try {
+    await action();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes(reason)) return;
+    throw error;
+  }
+  throw new Error(`Expected transaction to revert with ${reason}`);
 }
 
 async function main() {
@@ -89,9 +113,8 @@ async function main() {
   const yieldSource = (await ethers.getContractAt("VeilYieldSource", yieldSourceAddress)) as VeilYieldSource;
   const prizeVault = (await ethers.getContractAt("VeilPrizeVault", prizeVaultAddress)) as VeilPrizeVault;
   const assetAddress = process.env.UNVEIL_ASSET_ADDRESS?.trim() || (await pool.asset());
-  const wrapper = new Contract(assetAddress, WRAPPER_ABI, deployer);
-  const underlyingAddress = await wrapper.underlying();
-  const underlying = new Contract(underlyingAddress, UNDERLYING_ABI, deployer);
+  const readWrapper = wrapperFor(assetAddress, deployer);
+  const underlyingAddress = (await readWrapper.underlying()) as string;
 
   console.log("UNVEIL Sepolia smoke test");
   console.log(`  deployer:     ${deployer.address}`);
@@ -148,14 +171,14 @@ async function main() {
   await ensureGas(deployer, bob);
 
   console.log("1/14 Minting mock USDC and wrapping it through Zama's official cUSDC wrapper...");
-  await wrapDemoCusdc(wrapper, underlying, alice, 100n);
-  await wrapDemoCusdc(wrapper, underlying, bob, 100n);
-  await wrapDemoCusdc(wrapper, underlying, deployer, 50n);
+  await wrapDemoCusdc(assetAddress, underlyingAddress, alice, 100n);
+  await wrapDemoCusdc(assetAddress, underlyingAddress, bob, 100n);
+  await wrapDemoCusdc(assetAddress, underlyingAddress, deployer, 50n);
 
   console.log("2/14 Authorizing UNVEIL as an ERC-7984 cUSDC operator...");
-  await (await wrapper.connect(alice).setOperator(poolAddress, MAX_OPERATOR_UNTIL)).wait();
-  await (await wrapper.connect(bob).setOperator(poolAddress, MAX_OPERATOR_UNTIL)).wait();
-  await (await wrapper.connect(deployer).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
+  await (await wrapperFor(assetAddress, alice).setOperator(poolAddress, MAX_OPERATOR_UNTIL)).wait();
+  await (await wrapperFor(assetAddress, bob).setOperator(poolAddress, MAX_OPERATOR_UNTIL)).wait();
+  await (await wrapperFor(assetAddress, deployer).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
 
   console.log("3/14 Making private encrypted cUSDC deposits...");
   const aliceDepositAmount = 10n * CUSDC_UNIT;
@@ -235,7 +258,8 @@ async function main() {
   if (!status.claimed) throw new Error("Prize delivery status was not persisted");
   const winnerPrincipalHandle = await pool.connect(winner).encryptedBalanceOf();
   const winnerPrincipal = await fhevm.userDecryptEuint(FhevmType.euint64, winnerPrincipalHandle, poolAddress, winner);
-  const expectedPrincipal = winner.address.toLowerCase() === alice.address.toLowerCase() ? aliceDepositAmount : bobDepositAmount;
+  const expectedPrincipal =
+    winner.address.toLowerCase() === alice.address.toLowerCase() ? aliceDepositAmount : bobDepositAmount;
   if (winnerPrincipal !== expectedPrincipal) throw new Error("Prize delivery changed winner principal");
 
   console.log("\nUNVEIL Sepolia smoke test PASSED");
@@ -246,17 +270,6 @@ async function main() {
   console.log("  prize:        15 cUSDC (unveiled only by winner)");
   console.log("  maintenance:  close, BlindDraw, yield routing, and payout were permissionless");
   console.log("  yield safety: keeper could not choose the round or race the unsealed strategy bucket");
-}
-
-async function expectRevertReason(action: () => Promise<unknown>, reason: string) {
-  try {
-    await action();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes(reason)) return;
-    throw error;
-  }
-  throw new Error(`Expected transaction to revert with ${reason}`);
 }
 
 main().catch((error: unknown) => {
