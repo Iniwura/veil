@@ -93,7 +93,7 @@ contract VeilPrizeVault is ZamaEthereumConfig {
     }
 
     /// @notice Permissionlessly sends the confidential prize to the fixed finalized winner.
-    /// @dev The caller never receives the funds. The awarded amount remains encrypted and winner-readable afterward.
+    /// @dev The caller never receives the funds. The actual transferred amount remains encrypted and winner-readable afterward.
     function deliverPrize(uint256 roundId) public {
         Prize storage prize = prizes[roundId];
         require(prize.funded, "Prize not funded");
@@ -103,12 +103,14 @@ contract VeilPrizeVault is ZamaEthereumConfig {
             _authorizeWinner(roundId);
         }
 
-        prize.awardedAmount = prize.amount;
+        FHE.allowTransient(prize.amount, address(asset));
+        euint64 transferred = asset.confidentialTransfer(prize.winner, prize.amount);
+
+        // Preserve what actually moved under ERC-7984 all-or-zero semantics, not the pre-transfer request handle.
+        prize.awardedAmount = transferred;
         FHE.allowThis(prize.awardedAmount);
         FHE.allow(prize.awardedAmount, prize.winner);
 
-        FHE.allowTransient(prize.amount, address(asset));
-        euint64 transferred = asset.confidentialTransfer(prize.winner, prize.amount);
         prize.amount = FHE.sub(prize.amount, transferred);
         prize.claimed = true;
 
