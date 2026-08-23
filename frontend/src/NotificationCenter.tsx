@@ -131,10 +131,11 @@ export default function NotificationCenter() {
   useEffect(() => {
     const provider = injectedProvider();
     if (!provider) return;
+    const activeProvider = provider;
 
     async function readAccount() {
       try {
-        const result = await provider.request({ method: "eth_accounts" });
+        const result = await activeProvider.request({ method: "eth_accounts" });
         const accounts = Array.isArray(result) ? result.filter((value): value is string => typeof value === "string") : [];
         setAccount(accounts[0] ?? "");
       } catch {
@@ -148,8 +149,8 @@ export default function NotificationCenter() {
     };
 
     void readAccount();
-    provider.on?.("accountsChanged", onAccounts);
-    return () => provider.removeListener?.("accountsChanged", onAccounts);
+    activeProvider.on?.("accountsChanged", onAccounts);
+    return () => activeProvider.removeListener?.("accountsChanged", onAccounts);
   }, []);
 
   useEffect(() => {
