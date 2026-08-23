@@ -32,10 +32,10 @@ async function relayer() {
   if (!relayerPromise) {
     await initializeSdk();
 
-    // Zama's official ERC-7984 frontend uses the v2 relayer route explicitly.
+    // Match Zama's official ERC-7984 browser configuration.
     const relayerUrl = SepoliaConfig.relayerUrl.endsWith("/v2")
       ? SepoliaConfig.relayerUrl
-      : \`${SepoliaConfig.relayerUrl}/v2\`;
+      : SepoliaConfig.relayerUrl + "/v2";
     const config = {
       ...SepoliaConfig,
       relayerUrl,
