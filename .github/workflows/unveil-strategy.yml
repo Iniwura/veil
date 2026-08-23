@@ -1,0 +1,42 @@
+name: UNVEIL Sepolia Strategy
+
+on:
+  schedule:
+    - cron: "1-56/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unveil-sepolia-strategy
+  cancel-in-progress: false
+
+jobs:
+  sync-yield:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - name: Check strategy configuration
+        id: strategy
+        env:
+          STRATEGY_KEY: ${{ secrets.UNVEIL_STRATEGY_PRIVATE_KEY }}
+        run: |
+          if [ -z "$STRATEGY_KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "UNVEIL strategy automation is not configured yet; set UNVEIL_STRATEGY_PRIVATE_KEY to enable scheduled Sepolia yield sync."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Seal deterministic Sepolia demo yield
+        if: steps.strategy.outputs.configured == 'true'
+        env:
+          SEPOLIA_PRIVATE_KEY: ${{ secrets.UNVEIL_STRATEGY_PRIVATE_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.UNVEIL_SEPOLIA_RPC_URL }}
+          UNVEIL_REALIZED_YIELD: ${{ vars.UNVEIL_REALIZED_YIELD }}
+        run: npx hardhat run scripts/sepolia-sync-yield.ts --network sepolia
