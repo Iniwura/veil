@@ -4,7 +4,9 @@ UNVEIL's Sepolia deployment and its production yield target are intentionally di
 
 ## Sepolia competition deployment
 
-Sepolia uses Zama's official confidential USDC mock wrapper (`cUSDCMock`) as the prize-pool asset. Real confidential token units are transferred into `VeilYieldSource`, but the yield itself is supplied by a controlled strategy adapter for deterministic end-to-end testing.
+Sepolia uses Zama's official confidential USDC mock wrapper (`cUSDCMock`) as the prize-pool asset. Real confidential
+token units are transferred into `VeilYieldSource`, but the yield itself is supplied by a controlled strategy adapter
+for deterministic end-to-end testing.
 
 That means the demo proves:
 
@@ -20,7 +22,9 @@ It does **not** claim that the Sepolia asset is earning production DeFi yield.
 
 ## Current Zama mainnet target
 
-Zama now operates a live confidential USDC yield product on Ethereum with Morpho and Steakhouse Financial. Public Zama sources describe a batched confidential vault that accepts cUSDC and processes deposits into the underlying strategy every 24 hours.
+Zama now operates a live confidential USDC yield product on Ethereum with Morpho and Steakhouse Financial. Public Zama
+sources describe a batched confidential vault that accepts cUSDC and processes deposits into the underlying strategy
+every 24 hours.
 
 Current public Ethereum mainnet registry entries include:
 
@@ -57,7 +61,8 @@ VeilPrizeVault
 proof-finalized winner
 ```
 
-The exact production adapter must be written against the reviewed live vault ABI and batching/redemption lifecycle. UNVEIL should not guess that interface from the wrapper symbol or hard-code an unverified deposit/redeem API.
+The exact production adapter must be written against the reviewed live vault ABI and batching/redemption lifecycle.
+UNVEIL should not guess that interface from the wrapper symbol or hard-code an unverified deposit/redeem API.
 
 ## Production invariants
 
@@ -74,6 +79,9 @@ A production strategy adapter should preserve all of these properties:
 
 ## Cadence
 
-UNVEIL's target product cadence is daily prize draws, matching the recurring prize-savings experience users expect. The Sepolia competition deployment uses a shorter contract-configured period so a reviewer can observe a full encrypted round without waiting a day.
+UNVEIL's target product cadence is daily prize draws, matching the recurring prize-savings experience users expect. The
+Sepolia competition deployment uses a shorter contract-configured period so a reviewer can observe a full encrypted
+round without waiting a day.
 
-A mainnet adapter around a 24-hour-batched yield venue must coordinate draw/yield settlement so a round is never advertised as funded before its realized confidential yield has actually been sealed.
+A mainnet adapter around a 24-hour-batched yield venue must coordinate draw/yield settlement so a round is never
+advertised as funded before its realized confidential yield has actually been sealed.

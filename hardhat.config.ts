@@ -16,8 +16,7 @@ const LOCAL_MNEMONIC: string = vars.get("MNEMONIC", LOCAL_TEST_MNEMONIC);
 const SEPOLIA_MNEMONIC: string = vars.get("MNEMONIC", "").trim();
 const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY?.trim() ?? "";
 const SEPOLIA_RPC_URL =
-  process.env.SEPOLIA_RPC_URL?.trim() ||
-  vars.get("SEPOLIA_RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com");
+  process.env.SEPOLIA_RPC_URL?.trim() || vars.get("SEPOLIA_RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com");
 
 const sepoliaAccounts = SEPOLIA_PRIVATE_KEY
   ? [SEPOLIA_PRIVATE_KEY]
