@@ -6,6 +6,7 @@ import NotificationCenter from "./NotificationCenter";
 import "./styles.css";
 import "./unveil-motion.css";
 import "./notifications.css";
+import "./notifications-position.css";
 import "./error-boundary.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
