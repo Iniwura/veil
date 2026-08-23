@@ -1,5 +1,6 @@
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ContractTransactionResponse, HDNodeWallet, Wallet } from "ethers";
 import { ethers, fhevm } from "hardhat";
@@ -14,6 +15,7 @@ type Signers = {
 };
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const DRAW_PERIOD = 3_600n;
 
 async function deployFixture() {
   const tokenFactory = (await ethers.getContractFactory("MockConfidentialToken")) as MockConfidentialToken__factory;
@@ -21,7 +23,7 @@ async function deployFixture() {
   const tokenAddress = await token.getAddress();
 
   const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-  const veilPoolContract = (await poolFactory.deploy(tokenAddress)) as VeilPool;
+  const veilPoolContract = (await poolFactory.deploy(tokenAddress, DRAW_PERIOD)) as VeilPool;
   const veilPoolContractAddress = await veilPoolContract.getAddress();
 
   return { token, tokenAddress, veilPoolContract, veilPoolContractAddress };
@@ -80,6 +82,12 @@ describe("VeilPool", function () {
     ).wait();
   }
 
+  async function closeCurrentDraw(caller = signers.outsider) {
+    const closesAt = await veilPoolContract.nextDrawClosesAt();
+    await time.increaseTo(Number(closesAt));
+    await (await veilPoolContract.connect(caller).closeDraw()).wait();
+  }
+
   async function decryptOwnBalance(signer: HardhatEthersSigner) {
     const encryptedBalance = await veilPoolContract.connect(signer).encryptedBalanceOf();
     return fhevm.userDecryptEuint(FhevmType.euint64, encryptedBalance, veilPoolContractAddress, signer);
@@ -95,11 +103,33 @@ describe("VeilPool", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, encryptedWeight, veilPoolContractAddress, signer);
   }
 
-  it("starts with zero players, the configured asset, and deployer ownership", async function () {
+  async function decryptSnapshotTotal(signer: HardhatEthersSigner, roundId: bigint | number) {
+    const encryptedTotal = await veilPoolContract.connect(signer).encryptedSnapshotTotalWeight(roundId);
+    return fhevm.userDecryptEuint(FhevmType.euint64, encryptedTotal, veilPoolContractAddress, signer);
+  }
+
+  async function decryptPositionStats(signer: HardhatEthersSigner) {
+    const encrypted = await veilPoolContract.connect(signer).encryptedPosition();
+    const values = await Promise.all(
+      [encrypted.balance, encrypted.totalDeposited, encrypted.totalWithdrawn, encrypted.lastDeposit, encrypted.lastWithdrawal].map(
+        (handle) => fhevm.userDecryptEuint(FhevmType.euint64, handle, veilPoolContractAddress, signer),
+      ),
+    );
+    return {
+      balance: values[0],
+      totalDeposited: values[1],
+      totalWithdrawn: values[2],
+      lastDeposit: values[3],
+      lastWithdrawal: values[4],
+    };
+  }
+
+  it("starts with a configured asset and autonomous draw schedule", async function () {
     expect(await veilPoolContract.playerCount()).to.equal(0);
     expect(await veilPoolContract.nextRoundId()).to.equal(1);
-    expect(await veilPoolContract.owner()).to.equal(signers.deployer.address);
     expect(await veilPoolContract.asset()).to.equal(await token.getAddress());
+    expect(await veilPoolContract.drawPeriod()).to.equal(DRAW_PERIOD);
+    expect(await veilPoolContract.nextDrawClosesAt()).to.be.greaterThan(0);
   });
 
   it("requires the pool to be an authorized confidential-token operator", async function () {
@@ -145,10 +175,25 @@ describe("VeilPool", function () {
       .to.be.rejected;
   });
 
+  it("privately tracks the owner's balance, deposits, withdrawals, and latest activity", async function () {
+    await deposit(signers.alice, 20);
+    await withdraw(signers.alice, 5);
+    await deposit(signers.alice, 7);
+    await withdraw(signers.alice, 3);
+
+    expect(await decryptPositionStats(signers.alice)).to.deep.equal({
+      balance: 19n,
+      totalDeposited: 27n,
+      totalWithdrawn: 8n,
+      lastDeposit: 7n,
+      lastWithdrawal: 3n,
+    });
+  });
+
   it("withdraws principal confidentially without changing old snapshots", async function () {
     await deposit(signers.alice, 100);
     await deposit(signers.bob, 100);
-    await (await veilPoolContract.snapshotRound()).wait();
+    await closeCurrentDraw();
 
     await withdraw(signers.alice, 40);
 
@@ -175,7 +220,7 @@ describe("VeilPool", function () {
     expect(await decryptTokenBalance(signers.alice)).to.equal(1_000);
   });
 
-  it("preserves ACLs across deposit, withdraw, deposit, and reveal cycles", async function () {
+  it("preserves ACLs across repeated private accounting changes", async function () {
     await deposit(signers.alice, 20);
     await withdraw(signers.alice, 5);
     await deposit(signers.alice, 7);
@@ -183,6 +228,7 @@ describe("VeilPool", function () {
 
     expect(await decryptOwnBalance(signers.alice)).to.equal(19);
     expect(await decryptTokenBalance(signers.alice)).to.equal(981);
+    expect((await decryptPositionStats(signers.alice)).totalDeposited).to.equal(27);
   });
 
   it("rejects withdrawals from non-participants", async function () {
@@ -222,14 +268,37 @@ describe("VeilPool", function () {
     await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Draw roster full");
   });
 
-  describe("encrypted snapshots and BlindDraw", function () {
+  describe("timed encrypted draws", function () {
     beforeEach(async function () {
       await deposit(signers.alice, 10);
       await deposit(signers.bob, 30);
     });
 
+    it("cannot close early and lets any account close after the onchain deadline", async function () {
+      await expect(veilPoolContract.connect(signers.outsider).closeDraw()).to.be.revertedWith("Draw still open");
+
+      const firstClose = await veilPoolContract.nextDrawClosesAt();
+      await closeCurrentDraw(signers.outsider);
+
+      expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(1);
+      expect((await veilPoolContract.getDrawTiming(1)).scheduledCloseAt).to.equal(firstClose);
+      expect(await veilPoolContract.nextDrawClosesAt()).to.be.greaterThan(firstClose);
+    });
+
+    it("snapshots an expired round before a late deposit can change its weight", async function () {
+      const closesAt = await veilPoolContract.nextDrawClosesAt();
+      await time.increaseTo(Number(closesAt) + 1);
+
+      await deposit(signers.alice, 15);
+
+      expect(await veilPoolContract.nextRoundId()).to.equal(2);
+      expect(await decryptOwnBalance(signers.alice)).to.equal(25);
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+    });
+
     it("creates immutable encrypted snapshot weights while live balances keep moving", async function () {
-      await (await veilPoolContract.snapshotRound()).wait();
+      await closeCurrentDraw();
 
       await deposit(signers.alice, 15);
       await withdraw(signers.bob, 10);
@@ -240,22 +309,27 @@ describe("VeilPool", function () {
       expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
     });
 
-    it("lets each participant decrypt only their own historical weight", async function () {
-      await (await veilPoolContract.snapshotRound()).wait();
+    it("lets each participant privately compute exact snapshot odds without exposing peer weights", async function () {
+      await closeCurrentDraw();
 
       expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotTotal(signers.alice, 1)).to.equal(40);
       expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+      expect(await decryptSnapshotTotal(signers.bob, 1)).to.equal(40);
 
       const bobWeight = await veilPoolContract.connect(signers.bob).encryptedSnapshotWeightOf(1);
       await expect(fhevm.userDecryptEuint(FhevmType.euint64, bobWeight, veilPoolContractAddress, signers.alice)).to.be
         .rejected;
+      await expect(veilPoolContract.connect(signers.outsider).encryptedSnapshotTotalWeight(1)).to.be.revertedWith(
+        "Not in round",
+      );
     });
 
-    it("runs BlindDraw once against the frozen asset-backed snapshot", async function () {
-      await (await veilPoolContract.snapshotRound()).wait();
+    it("runs BlindDraw permissionlessly once against the frozen snapshot", async function () {
+      await closeCurrentDraw();
       await withdraw(signers.alice, 10);
 
-      await (await veilPoolContract.blindDraw(1)).wait();
+      await (await veilPoolContract.connect(signers.outsider).blindDraw(1)).wait();
 
       const draw = await veilPoolContract.getDrawInfo(1);
       expect(draw.participantCount).to.equal(2);
@@ -268,8 +342,8 @@ describe("VeilPool", function () {
     });
 
     it("permissionlessly finalizes only the KMS-proven public winner", async function () {
-      await (await veilPoolContract.snapshotRound()).wait();
-      await (await veilPoolContract.blindDraw(1)).wait();
+      await closeCurrentDraw();
+      await (await veilPoolContract.connect(signers.outsider).blindDraw(1)).wait();
 
       const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
       const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
@@ -293,7 +367,7 @@ describe("VeilPool", function () {
     });
 
     it("rejects an invalid winner decryption proof", async function () {
-      await (await veilPoolContract.snapshotRound()).wait();
+      await closeCurrentDraw();
       await (await veilPoolContract.blindDraw(1)).wait();
 
       const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
@@ -308,11 +382,9 @@ describe("VeilPool", function () {
       expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(2);
     });
 
-    it("retains owner controls and round validation", async function () {
-      await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith("Only owner");
+    it("retains round validation without privileged draw controls", async function () {
       await expect(veilPoolContract.blindDraw(99)).to.be.revertedWith("Round not ready");
-
-      await (await veilPoolContract.snapshotRound()).wait();
+      await closeCurrentDraw(signers.alice);
 
       expect(await veilPoolContract.getSnapshotPlayer(1, 0)).to.equal(signers.alice.address);
       expect(await veilPoolContract.getSnapshotPlayer(1, 1)).to.equal(signers.bob.address);
