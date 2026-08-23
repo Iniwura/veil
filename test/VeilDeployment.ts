@@ -22,6 +22,7 @@ describe("UNVEIL deployment", function () {
     expect(await pool.nextDrawClosesAt()).to.be.greaterThan(0);
     expect(await yieldSource.asset()).to.equal(asset.address);
     expect(await yieldSource.pool()).to.equal(poolDeployment.address);
+    expect(await yieldSource.configurationAdmin()).to.equal(deployer.address);
     expect(await yieldSource.strategyOperator()).to.equal(deployer.address);
     expect(await yieldSource.yieldRoundId()).to.equal(1);
     expect(await yieldSource.prizeVault()).to.equal(vaultDeployment.address);
