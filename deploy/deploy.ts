@@ -14,9 +14,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.env.UNVEIL_DEPLOY_DEMO_ASSET === "true" || process.env.VEIL_DEPLOY_DEMO_ASSET === "true";
   const configuredDrawPeriod = process.env.UNVEIL_DRAW_PERIOD_SECONDS?.trim();
   const drawPeriod = BigInt(configuredDrawPeriod || (isSepolia ? "900" : "86400"));
+  const strategyOperator = process.env.UNVEIL_STRATEGY_OPERATOR_ADDRESS?.trim() || deployer;
 
   if (drawPeriod <= 0n || drawPeriod > 31_536_000n) {
     throw new Error("UNVEIL_DRAW_PERIOD_SECONDS must be between 1 second and 365 days");
+  }
+  if (!hre.ethers.isAddress(strategyOperator) || strategyOperator === hre.ethers.ZeroAddress) {
+    throw new Error("UNVEIL_STRATEGY_OPERATOR_ADDRESS must be a non-zero Ethereum address");
   }
 
   let assetAddress = configuredAsset;
@@ -44,7 +48,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const yieldSource = await deploy("VeilYieldSource", {
     from: deployer,
-    args: [assetAddress, pool.address, deployer],
+    args: [assetAddress, pool.address, strategyOperator],
     log: true,
   });
 
@@ -72,6 +76,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`  pool:        ${pool.address}`);
   console.log(`  yieldSource: ${yieldSource.address}`);
   console.log(`  prizeVault:  ${prizeVault.address}`);
+  console.log(`  strategy:    ${strategyOperator}`);
   console.log(`  drawPeriod:  ${drawPeriod.toString()} seconds`);
   console.log(`  nextClose:   ${nextDrawClosesAt.toString()}`);
   console.log(`  asset mode:  ${assetMode}`);
