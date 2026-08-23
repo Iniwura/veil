@@ -5,6 +5,7 @@ import {
   connectWallet,
   fundDemoWallet,
   readDashboard,
+  renewDrawSeat,
   revealPrivateBalance,
   sealDeposit,
   withdrawPrivate,
@@ -13,13 +14,6 @@ import {
 type View = "landing" | "app";
 type Panel = "deposit" | "withdraw";
 type DashboardData = Awaited<ReturnType<typeof readDashboard>>;
-
-const VERIFIED_ROUND = {
-  id: 1,
-  winner: "0xcC427b61573EEE146fc735159292f06E13bc8B80",
-  prize: "15 encrypted token units",
-  date: "21 AUG 2026",
-};
 
 function shortAddress(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
@@ -175,72 +169,60 @@ function Landing({ enter, showProtocol }: { enter: () => void; showProtocol: () 
   );
 }
 
-function VerifiedHistory() {
+function VerifiedHistory({ rounds }: { rounds: DashboardData["history"] }) {
   return (
     <section className="verified-history" id="history">
       <div className="history-heading">
         <div>
-          <span className="history-kicker">
-            <i /> LIVE SEPOLIA PROOF
-          </span>
-          <h2>ONE ROUND. FULLY VERIFIED.</h2>
-          <p>This is observed deployment evidence, not placeholder dashboard data.</p>
+          <span className="history-kicker"><i /> LIVE SEPOLIA PROOF</span>
+          <h2>{rounds.length} ROUND{rounds.length === 1 ? "" : "S"}. ONCHAIN VERIFIED.</h2>
+          <p>Finalized winners and KMS-proven cancellations read directly from the hardened Sepolia deployment.</p>
         </div>
-        <a className="explorer-link" href={explorerAddress(VEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
-          VIEW POOL ON ETHERSCAN ↗
-        </a>
+        <a className="explorer-link" href={explorerAddress(VEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">VIEW POOL ON ETHERSCAN ↗</a>
       </div>
-      <div className="history-proof">
-        <div className="proof-number">
-          <span>ROUND</span>
-          <strong>01</strong>
-          <small>FINALIZED</small>
+      {rounds.length === 0 ? (
+        <div className="history-proof"><div className="proof-detail"><strong>CONNECT WALLET TO LOAD ROUND HISTORY</strong></div></div>
+      ) : rounds.map((round) => (
+        <div className="history-proof" key={round.id.toString()}>
+          <div className="proof-number">
+            <span>ROUND</span>
+            <strong>{round.id.toString().padStart(2, "0")}</strong>
+            <small>{round.cancelled ? "CANCELLED" : "FINALIZED"}</small>
+          </div>
+          <div className="proof-detail">
+            <span>{round.cancelled ? "RESULT" : "WINNER"}</span>
+            {round.cancelled ? (
+              <><strong>NO ELIGIBLE WEIGHT</strong><small>KMS proved a zero winner without exposing balances.</small></>
+            ) : (
+              <><strong>{shortAddress(round.winner)}</strong><a href={explorerAddress(round.winner)} target="_blank" rel="noreferrer">{round.winner} ↗</a></>
+            )}
+          </div>
+          <div className="proof-detail">
+            <span>CONFIDENTIAL PRIZE</span>
+            <strong>{round.cancelled ? "NOT ALLOCATED" : round.funded ? "ENCRYPTED PRIZE FUNDED" : "NO PRIZE FUNDED"}</strong>
+            <small>Prize values remain hidden from the public chain.</small>
+          </div>
+          <div className="proof-detail">
+            <span>VERIFICATION</span>
+            <strong className="pass-mark">PASS</strong>
+            <small>{round.cancelled ? "KMS zero-winner proof · cancelled onchain" : "KMS winner proof · finalized onchain"}</small>
+          </div>
+          <div className="proof-detail">
+            <span>{round.cancelled ? "SNAPSHOT" : "CLAIM"}</span>
+            <strong>{round.cancelled ? round.participantCount.toString() + " POSITIONS" : round.claimed ? "CLAIMED" : round.winnerAuthorized ? "AUTHORIZED" : "PENDING"}</strong>
+            <small>snapshot block {round.snapshotBlock.toString()}</small>
+          </div>
         </div>
-        <div className="proof-detail">
-          <span>WINNER</span>
-          <strong>{shortAddress(VERIFIED_ROUND.winner)}</strong>
-          <a href={explorerAddress(VERIFIED_ROUND.winner)} target="_blank" rel="noreferrer">
-            {VERIFIED_ROUND.winner} ↗
-          </a>
-        </div>
-        <div className="proof-detail">
-          <span>CONFIDENTIAL PRIZE</span>
-          <strong>{VERIFIED_ROUND.prize}</strong>
-          <small>Only the winner decrypted the prize value.</small>
-        </div>
-        <div className="proof-detail">
-          <span>VERIFICATION</span>
-          <strong className="pass-mark">PASS</strong>
-          <small>KMS winner proof · confidential claim</small>
-        </div>
-        <div className="proof-detail">
-          <span>OBSERVED</span>
-          <strong>{VERIFIED_ROUND.date}</strong>
-          <small>Sepolia end-to-end smoke run</small>
-        </div>
-      </div>
+      ))}
       <div className="proof-contracts">
-        <a href={explorerAddress(VEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
-          <span>POOL</span>
-          <code>{shortAddress(VEIL_CONTRACTS.pool)}</code>
-        </a>
-        <a href={explorerAddress(VEIL_CONTRACTS.yieldSource)} target="_blank" rel="noreferrer">
-          <span>YIELD SOURCE</span>
-          <code>{shortAddress(VEIL_CONTRACTS.yieldSource)}</code>
-        </a>
-        <a href={explorerAddress(VEIL_CONTRACTS.prizeVault)} target="_blank" rel="noreferrer">
-          <span>PRIZE VAULT</span>
-          <code>{shortAddress(VEIL_CONTRACTS.prizeVault)}</code>
-        </a>
-        <a href={explorerAddress(VEIL_CONTRACTS.asset)} target="_blank" rel="noreferrer">
-          <span>DEMO ASSET</span>
-          <code>{shortAddress(VEIL_CONTRACTS.asset)}</code>
-        </a>
+        <a href={explorerAddress(VEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer"><span>POOL</span><code>{shortAddress(VEIL_CONTRACTS.pool)}</code></a>
+        <a href={explorerAddress(VEIL_CONTRACTS.yieldSource)} target="_blank" rel="noreferrer"><span>YIELD SOURCE</span><code>{shortAddress(VEIL_CONTRACTS.yieldSource)}</code></a>
+        <a href={explorerAddress(VEIL_CONTRACTS.prizeVault)} target="_blank" rel="noreferrer"><span>PRIZE VAULT</span><code>{shortAddress(VEIL_CONTRACTS.prizeVault)}</code></a>
+        <a href={explorerAddress(VEIL_CONTRACTS.asset)} target="_blank" rel="noreferrer"><span>DEMO ASSET</span><code>{shortAddress(VEIL_CONTRACTS.asset)}</code></a>
       </div>
     </section>
   );
 }
-
 function Dashboard({ home }: { home: () => void }) {
   const [signer, setSigner] = useState<JsonRpcSigner>();
   const [address, setAddress] = useState("");
@@ -269,7 +251,9 @@ function Dashboard({ home }: { home: () => void }) {
       setData(dashboard);
       setNotice(
         dashboard.joined
-          ? "Wallet connected. Your private position is sealed until you request decryption."
+          ? dashboard.seated
+            ? "Wallet connected. Your private position is sealed and your draw seat is active."
+            : "Wallet connected. Your private position is sealed. Renew the draw seat to enter the next snapshot."
           : "Wallet connected. Deposit directly if this wallet already has demo cUSD; the faucet below is optional.",
       );
     } catch (error) {
@@ -317,6 +301,22 @@ function Dashboard({ home }: { home: () => void }) {
     }
   }
 
+  async function renewSeat() {
+    if (!signer) return connect();
+    try {
+      setFailure("");
+      setBusy("seat");
+      setNotice("Renewing your temporary BlindDraw seat…");
+      await renewDrawSeat(signer);
+      await refresh(signer);
+      setNotice("Draw seat renewed. Your private balance was not exposed or changed.");
+    } catch (error) {
+      setFailure(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function transact() {
     if (!signer) return connect();
     if (panel === "withdraw" && !data?.joined) {
@@ -343,13 +343,15 @@ function Dashboard({ home }: { home: () => void }) {
       setFailure("");
       setBusy(panel);
       setNotice(panel === "deposit" ? "Encrypting deposit before submission…" : "Encrypting withdrawal request…");
-      if (panel === "deposit") await sealDeposit(signer, value);
+      if (panel === "deposit") await sealDeposit(signer, value, setNotice);
       else await withdrawPrivate(signer, value);
       setAmount("");
       setBalance(undefined);
       await refresh(signer);
       setNotice(
-        panel === "deposit" ? "Deposit sealed and confirmed on Sepolia." : "Private withdrawal confirmed on Sepolia.",
+        panel === "deposit"
+          ? "Private deposit request processed on Sepolia. Reveal locally to verify the resulting position."
+          : "Private withdrawal request processed on Sepolia. Reveal locally to verify the resulting position.",
       );
     } catch (error) {
       setFailure(errorMessage(error));
@@ -361,6 +363,7 @@ function Dashboard({ home }: { home: () => void }) {
   const participants = data?.playerCount ?? 0;
   const round = data?.nextRoundId ?? 1n;
   const joined = data?.joined ?? false;
+  const seated = data?.seated ?? false;
   const revealLabel =
     busy === "reveal"
       ? "DECRYPTING…"
@@ -387,6 +390,16 @@ function Dashboard({ home }: { home: () => void }) {
           <div className="sealed-row">
             <span className="lock-dot">⌾</span> {joined ? "SEALED" : "NOT ENTERED"}
           </div>
+          {joined && (
+            <div className="privacy-lines">
+              <p><span>Next draw seat</span><strong>{seated ? "ACTIVE" : "RENEW"}</strong></p>
+            </div>
+          )}
+          {joined && !seated && (
+            <button className="outline" disabled={!!busy} onClick={renewSeat}>
+              {busy === "seat" ? "RENEWING…" : "RENEW DRAW SEAT"}
+            </button>
+          )}
           <button className="outline" disabled={!!busy} onClick={revealAction}>
             {revealLabel}
           </button>
@@ -519,7 +532,7 @@ function Dashboard({ home }: { home: () => void }) {
             </div>
           </div>
           <div className="prize-card">
-            <span>PRIZE STATUS</span>
+            <span>{data?.latestRound && data.latestRound > 0n ? `ROUND ${data.latestRound.toString()} · PRIZE STATUS` : "PRIZE STATUS"}</span>
             <h3>
               {data?.prize?.claimed
                 ? "PRIZE CLAIMED"
@@ -539,7 +552,7 @@ function Dashboard({ home }: { home: () => void }) {
         </aside>
       </section>
 
-      <VerifiedHistory />
+      <VerifiedHistory rounds={data?.history ?? []} />
 
       <section className="protocol-strip" id="protocol">
         <div>
@@ -565,7 +578,7 @@ function Dashboard({ home }: { home: () => void }) {
         <div>
           <span>05</span>
           <strong>CLAIM</strong>
-          <p>Prize stays private until the winner decrypts it.</p>
+          <p>Winner privately decrypts and claims. Prize value remains hidden from everyone else.</p>
         </div>
       </section>
     </main>
