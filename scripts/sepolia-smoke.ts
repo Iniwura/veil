@@ -84,12 +84,15 @@ async function main() {
   if ((await pool.asset()).toLowerCase() !== assetAddress.toLowerCase()) throw new Error("Pool asset wiring mismatch");
   if ((await yieldSource.asset()).toLowerCase() !== assetAddress.toLowerCase())
     throw new Error("Yield source asset wiring mismatch");
+  if ((await yieldSource.pool()).toLowerCase() !== poolAddress.toLowerCase())
+    throw new Error("Yield source pool wiring mismatch");
   if ((await yieldSource.strategyOperator()).toLowerCase() !== deployer.address.toLowerCase()) {
     throw new Error("Unexpected strategy operator");
   }
   if ((await yieldSource.prizeVault()).toLowerCase() !== prizeVaultAddress.toLowerCase()) {
     throw new Error("Yield source prize vault wiring mismatch");
   }
+  if ((await yieldSource.yieldRoundId()) !== 1n) throw new Error("Fresh yield cursor must start at round 1");
   if ((await prizeVault.pool()).toLowerCase() !== poolAddress.toLowerCase())
     throw new Error("Prize vault pool mismatch");
   if ((await prizeVault.yieldSource()).toLowerCase() !== yieldSourceAddress.toLowerCase())
@@ -128,11 +131,17 @@ async function main() {
   if (alicePrincipal !== 10n || bobPrincipal !== 30n)
     throw new Error(`Unexpected principal: Alice=${alicePrincipal}, Bob=${bobPrincipal}`);
 
-  console.log("4/12 Waiting for the onchain draw deadline...");
   const roundId = await pool.nextRoundId();
+  if ((await yieldSource.yieldRoundId()) !== roundId) throw new Error("Yield bucket is not aligned with the open draw");
+
+  console.log("4/12 Accruing asset-backed confidential demo yield during the open draw...");
+  const accruedYield = await encrypted64(yieldSourceAddress, deployer, 15);
+  await (await yieldSource.connect(deployer).accrueYield(accruedYield.handles[0], accruedYield.inputProof)).wait();
+
+  console.log("5/12 Waiting for the onchain draw deadline...");
   await waitForDrawClose(pool);
 
-  console.log("5/12 Permissionlessly closing and snapshotting the draw as Alice...");
+  console.log("6/12 Permissionlessly closing and snapshotting the draw as Alice...");
   await (await pool.connect(alice).closeDraw()).wait();
 
   const aliceWeight = await pool.connect(alice).encryptedSnapshotWeightOf(roundId);
@@ -144,10 +153,10 @@ async function main() {
   }
   console.log("  Alice privately confirms exact snapshot odds: 25.00%");
 
-  console.log("6/12 Permissionlessly running BlindDraw as Bob...");
+  console.log("7/12 Permissionlessly running BlindDraw as Bob...");
   await (await pool.connect(bob).blindDraw(roundId)).wait();
 
-  console.log("7/12 Publicly decrypting and proving the encrypted winner...");
+  console.log("8/12 Publicly decrypting and proving the encrypted winner...");
   const encryptedWinner = await pool.getEncryptedWinner(roundId);
   const publicResult = await fhevm.publicDecrypt([encryptedWinner]);
   await (
@@ -158,12 +167,9 @@ async function main() {
   if (!winner) throw new Error(`Unexpected winner ${winnerAddress}`);
   console.log(`  winner: ${winnerAddress}`);
 
-  console.log("8/12 Accruing asset-backed confidential demo yield through the strategy boundary...");
-  const accruedYield = await encrypted64(yieldSourceAddress, deployer, 15);
-  await (await yieldSource.connect(deployer).accrueYield(accruedYield.handles[0], accruedYield.inputProof)).wait();
-
-  console.log("9/12 Permissionlessly routing all realized yield to the finalized round as Bob...");
-  await (await yieldSource.connect(bob).allocateAllToRound(roundId)).wait();
+  console.log("9/12 Permissionlessly routing the predetermined round's encrypted yield as Bob...");
+  await (await yieldSource.connect(bob).allocateRoundYield(roundId)).wait();
+  if ((await yieldSource.yieldRoundId()) !== roundId + 1n) throw new Error("Yield cursor did not advance");
 
   console.log("10/12 Permissionlessly delivering the encrypted prize as Alice...");
   await (await prizeVault.connect(alice).deliverPrize(roundId)).wait();
@@ -182,11 +188,12 @@ async function main() {
   if (winnerPrincipal !== expectedPrincipal) throw new Error("Prize delivery changed winner principal");
 
   console.log("\nUNVEIL Sepolia smoke test PASSED");
-  console.log(`  round:       ${roundId}`);
-  console.log(`  winner:      ${winnerAddress}`);
-  console.log(`  private odds: Alice 25.00% (unveiled only by Alice)`);
-  console.log(`  prize:       ${clearPrize} encrypted token units (unveiled only by winner)`);
+  console.log(`  round:        ${roundId}`);
+  console.log(`  winner:       ${winnerAddress}`);
+  console.log("  private odds: Alice 25.00% (unveiled only by Alice)");
+  console.log(`  prize:        ${clearPrize} encrypted token units (unveiled only by winner)`);
   console.log("  maintenance: close, BlindDraw, yield routing, and payout were permissionless");
+  console.log("  yield safety: keeper could not choose the prize round; the onchain cursor did");
 }
 
 main().catch((error: unknown) => {
