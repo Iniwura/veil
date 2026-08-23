@@ -93,7 +93,8 @@ contract VeilPrizeVault is ZamaEthereumConfig {
     }
 
     /// @notice Permissionlessly sends the confidential prize to the fixed finalized winner.
-    /// @dev The caller never receives the funds. The actual transferred amount remains encrypted and winner-readable afterward.
+    /// @dev The caller never receives the funds. The actual transferred amount remains encrypted
+    ///      and winner-readable afterward.
     function deliverPrize(uint256 roundId) public {
         Prize storage prize = prizes[roundId];
         require(prize.funded, "Prize not funded");
