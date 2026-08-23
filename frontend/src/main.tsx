@@ -4,6 +4,7 @@ import App from "./App";
 import ErrorBoundary from "./ErrorBoundary";
 import "./styles.css";
 import "./unveil-motion.css";
+import "./error-boundary.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
