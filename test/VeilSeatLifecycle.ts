@@ -53,6 +53,15 @@ describe("VeilPool draw-seat lifecycle", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, handle, poolAddress, signer);
   }
 
+  async function advanceToDrawClose() {
+    const closesAt = Number(await pool.nextDrawClosesAt());
+    const latest = await ethers.provider.getBlock("latest");
+    if (!latest) throw new Error("Latest block unavailable");
+    const delta = closesAt - latest.timestamp;
+    if (delta > 0) await ethers.provider.send("evm_increaseTime", [delta]);
+    await ethers.provider.send("evm_mine", []);
+  }
+
   it("expires draw seats without trapping confidential principal", async function () {
     await deposit(alice, 10);
     await deposit(bob, 20);
@@ -99,6 +108,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     expect(await decryptPosition(alice)).to.equal(0);
     expect(await decryptPosition(bob)).to.equal(0);
 
+    await advanceToDrawClose();
     await (await pool.snapshotRound()).wait();
     await (await pool.blindDraw(1)).wait();
 
@@ -108,6 +118,8 @@ describe("VeilPool draw-seat lifecycle", function () {
 
     const draw = await pool.getDrawInfo(1);
     expect(draw.state).to.equal(4);
+    expect(await pool.activeRoundId()).to.equal(0);
+    expect(await pool.nextDrawClosesAt()).to.be.greaterThan(0);
     await expect(pool.getWinner(1)).to.be.revertedWith("Winner not finalized");
   });
 });
