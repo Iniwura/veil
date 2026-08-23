@@ -1,9 +1,9 @@
-name: Format Sepolia files
+name: Format UNVEIL winner build
 
 on:
   push:
     branches:
-      - feat/sepolia-deployment
+      - feat/unveil-winner-build
 
 permissions:
   contents: write
@@ -15,12 +15,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feat/sepolia-deployment
+          ref: feat/unveil-winner-build
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
       - run: npm ci
-      - run: npx prettier deploy/deploy.ts docs/DEPLOYMENT.md hardhat.config.ts --write
+      - run: >-
+          npx prettier
+          contracts/VeilPool.sol
+          scripts/sepolia-next-round.ts
+          scripts/sepolia-smoke.ts
+          scripts/sepolia-sync-yield.ts
+          test/VeilYieldTiming.ts
+          --write
       - name: Commit formatting
         run: |
           if git diff --quiet; then
@@ -28,6 +35,11 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add deploy/deploy.ts docs/DEPLOYMENT.md hardhat.config.ts
-          git commit -m "Format Sepolia deployment files"
-          git push origin HEAD:feat/sepolia-deployment
+          git add \
+            contracts/VeilPool.sol \
+            scripts/sepolia-next-round.ts \
+            scripts/sepolia-smoke.ts \
+            scripts/sepolia-sync-yield.ts \
+            test/VeilYieldTiming.ts
+          git commit -m "Format UNVEIL winner build"
+          git push origin HEAD:feat/unveil-winner-build
