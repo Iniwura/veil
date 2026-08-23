@@ -23,6 +23,8 @@ interface IERC7984Asset {
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
     uint64 public constant SEAT_LEASE = 1 days;
+    uint64 public constant DEFAULT_DRAW_PERIOD = 1 days;
+    uint64 public constant SEPOLIA_DRAW_PERIOD = 15 minutes;
 
     enum DrawState {
         NONE,
@@ -48,6 +50,7 @@ contract VeilPool is ZamaEthereumConfig {
 
     address public immutable owner;
     IERC7984Asset public immutable asset;
+    uint64 public immutable drawPeriod;
 
     mapping(address => Position) private positions;
     mapping(address => bool) public joined;
@@ -60,6 +63,8 @@ contract VeilPool is ZamaEthereumConfig {
 
     euint64 private encryptedTotalWeight;
     uint256 public nextRoundId = 1;
+    uint256 public activeRoundId;
+    uint64 public nextDrawClosesAt;
 
     mapping(uint256 => Draw) private draws;
     mapping(uint256 => mapping(uint8 => address)) private drawPlayers;
@@ -72,23 +77,26 @@ contract VeilPool is ZamaEthereumConfig {
     event DrawSeatReleased(address indexed player);
     event DepositRecorded(address indexed player);
     event WithdrawalRecorded(address indexed player);
+    event DrawWindowOpened(uint256 indexed roundId, uint64 closesAt);
     event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
     event BlindDrawCompleted(uint256 indexed roundId, eaddress encryptedWinner);
     event WinnerFinalized(uint256 indexed roundId, address indexed winner);
     event RoundCancelled(uint256 indexed roundId);
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
-        _;
-    }
 
     constructor(address asset_) {
         require(asset_ != address(0), "Invalid asset");
         owner = msg.sender;
         asset = IERC7984Asset(asset_);
 
+        // Mainnet/default cadence mirrors PoolTogether's daily prize rhythm. Sepolia is deliberately
+        // accelerated so reviewers can experience a complete autonomous round during a demo session.
+        drawPeriod = block.chainid == 11155111 ? SEPOLIA_DRAW_PERIOD : DEFAULT_DRAW_PERIOD;
+        nextDrawClosesAt = uint64(block.timestamp + drawPeriod);
+
         encryptedTotalWeight = FHE.asEuint64(0);
         FHE.allowThis(encryptedTotalWeight);
+
+        emit DrawWindowOpened(nextRoundId, nextDrawClosesAt);
     }
 
     function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
@@ -167,7 +175,13 @@ contract VeilPool is ZamaEthereumConfig {
         return players[index];
     }
 
-    function snapshotRound() external onlyOwner returns (uint256 roundId) {
+    /// @notice Closes the current open draw window and freezes confidential weights.
+    /// @dev Permissionless once the scheduled close time has passed. A new round cannot be
+    ///      snapshotted until the active round is finalized or proven cancelled.
+    function snapshotRound() external returns (uint256 roundId) {
+        require(activeRoundId == 0, "Previous round unsettled");
+        require(block.timestamp >= nextDrawClosesAt, "Draw still open");
+
         _pruneExpiredSeats();
         require(playerCount >= 2, "Need 2 players");
 
@@ -175,6 +189,7 @@ contract VeilPool is ZamaEthereumConfig {
         unchecked {
             nextRoundId++;
         }
+        activeRoundId = roundId;
 
         Draw storage draw = draws[roundId];
         draw.snapshotBlock = uint64(block.number);
@@ -203,7 +218,11 @@ contract VeilPool is ZamaEthereumConfig {
         emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
     }
 
-    function blindDraw(uint256 roundId) external onlyOwner {
+    /// @notice Runs the FHE weighted selection against an already frozen round.
+    /// @dev Permissionless. The random target and all weights remain encrypted.
+    function blindDraw(uint256 roundId) external {
+        require(activeRoundId == roundId, "Round not active");
+
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.SNAPSHOTTED, "Round not ready");
 
@@ -239,6 +258,8 @@ contract VeilPool is ZamaEthereumConfig {
         bytes calldata abiEncodedClearWinner,
         bytes calldata decryptionProof
     ) external {
+        require(activeRoundId == roundId, "Round not active");
+
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.DRAWN, "Round not awaiting finalization");
 
@@ -250,12 +271,14 @@ contract VeilPool is ZamaEthereumConfig {
         if (clearWinner == address(0)) {
             draw.state = DrawState.CANCELLED;
             emit RoundCancelled(roundId);
+            _openNextDrawWindow();
             return;
         }
 
         draw.winner = clearWinner;
         draw.state = DrawState.FINALIZED;
         emit WinnerFinalized(roundId, clearWinner);
+        _openNextDrawWindow();
     }
 
     function getDrawInfo(
@@ -291,6 +314,12 @@ contract VeilPool is ZamaEthereumConfig {
         require(draw.state != DrawState.NONE, "Unknown round");
         require(index < draw.participantCount, "Invalid index");
         return drawPlayers[roundId][index];
+    }
+
+    function _openNextDrawWindow() private {
+        activeRoundId = 0;
+        nextDrawClosesAt = uint64(block.timestamp + drawPeriod);
+        emit DrawWindowOpened(nextRoundId, nextDrawClosesAt);
     }
 
     function _acquireOrRenewSeat(address account) private {
