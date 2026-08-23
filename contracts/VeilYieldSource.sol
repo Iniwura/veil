@@ -36,10 +36,12 @@ contract VeilYieldSource is ZamaEthereumConfig {
 
     /// @notice The only round that the current encrypted yield bucket may fund.
     uint256 public yieldRoundId = 1;
+    bool public yieldReady;
     euint64 private unallocatedYield;
 
     event PrizeVaultConfigured(address indexed prizeVault);
     event YieldAccrued(uint256 indexed roundId);
+    event YieldSealed(uint256 indexed roundId);
     event YieldAllocated(uint256 indexed roundId);
     event CancelledYieldCarried(uint256 indexed fromRoundId, uint256 indexed toRoundId);
 
@@ -71,6 +73,7 @@ contract VeilYieldSource is ZamaEthereumConfig {
     /// @notice Credits only confidential assets actually transferred from the configured strategy operator.
     /// @dev The amount joins the encrypted bucket for yieldRoundId. The strategy never chooses a winner or round.
     function accrueYield(externalEuint64 encryptedAmount, bytes calldata inputProof) external onlyStrategy {
+        require(!yieldReady, "Yield already sealed");
         require(asset.isOperator(msg.sender, address(this)), "Yield source not operator");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
@@ -83,11 +86,20 @@ contract VeilYieldSource is ZamaEthereumConfig {
         emit YieldAccrued(yieldRoundId);
     }
 
-    /// @notice Permissionlessly routes the current encrypted yield bucket to its predetermined finalized round.
-    /// @dev A caller cannot choose another round or learn the encrypted amount.
+    /// @notice Marks the current encrypted yield bucket complete for its predetermined round.
+    /// @dev This can seal a legitimate zero-yield round without exposing whether the encrypted bucket is zero.
+    function sealRoundYield() external onlyStrategy {
+        require(!yieldReady, "Yield already sealed");
+        yieldReady = true;
+        emit YieldSealed(yieldRoundId);
+    }
+
+    /// @notice Permissionlessly routes the sealed encrypted yield bucket to its predetermined finalized round.
+    /// @dev A caller cannot choose another round, race an unfinished strategy sync, or learn the encrypted amount.
     function allocateRoundYield(uint256 roundId) external {
         require(prizeVault != address(0), "Prize vault not configured");
         require(roundId == yieldRoundId, "Wrong yield round");
+        require(yieldReady, "Yield not ready");
 
         (, , uint8 state) = pool.getDrawInfo(roundId);
         require(state == 3, "Round not finalized");
@@ -105,12 +117,14 @@ contract VeilYieldSource is ZamaEthereumConfig {
         unchecked {
             yieldRoundId = roundId + 1;
         }
+        yieldReady = false;
         emit YieldAllocated(roundId);
     }
 
-    /// @notice Carries encrypted yield through a KMS-proven cancelled round without exposing the amount.
+    /// @notice Carries sealed encrypted yield through a KMS-proven cancelled round without exposing the amount.
     function carryCancelledYield(uint256 roundId) external {
         require(roundId == yieldRoundId, "Wrong yield round");
+        require(yieldReady, "Yield not ready");
 
         (, , uint8 state) = pool.getDrawInfo(roundId);
         require(state == 4, "Round not cancelled");
@@ -118,6 +132,7 @@ contract VeilYieldSource is ZamaEthereumConfig {
         unchecked {
             yieldRoundId = roundId + 1;
         }
+        yieldReady = false;
         emit CancelledYieldCarried(roundId, yieldRoundId);
     }
 }
