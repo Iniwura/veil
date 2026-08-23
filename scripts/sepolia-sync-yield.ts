@@ -1,9 +1,23 @@
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { ethers, fhevm, network, deployments } from "hardhat";
+import { Contract } from "ethers";
+import { deployments, ethers, fhevm, network } from "hardhat";
 
-import { MockConfidentialToken, VeilPool, VeilYieldSource } from "../types";
+import { VeilPool, VeilYieldSource } from "../types";
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const CUSDC_UNIT = 1_000_000n;
+
+const WRAPPER_ABI = [
+  "function underlying() view returns (address)",
+  "function setOperator(address operator,uint48 until)",
+  "function isOperator(address holder,address spender) view returns (bool)",
+  "function wrap(address to,uint256 amount) returns (bytes32)",
+] as const;
+
+const UNDERLYING_ABI = [
+  "function mint(address to,uint256 amount)",
+  "function approve(address spender,uint256 amount) returns (bool)",
+] as const;
 
 async function address(name: string, envName: string) {
   const configured = process.env[envName]?.trim();
@@ -11,6 +25,15 @@ async function address(name: string, envName: string) {
   const deployment = await deployments.getOrNull(name);
   if (!deployment) throw new Error(`Missing ${envName} and no ${name} deployment exists for ${network.name}`);
   return deployment.address;
+}
+
+async function fundDemoYieldAsset(wrapper: Contract, strategy: HardhatEthersSigner, amount: bigint) {
+  if (amount === 0n) return;
+  const underlyingAddress = await wrapper.underlying();
+  const underlying = new Contract(underlyingAddress, UNDERLYING_ABI, strategy);
+  await (await underlying.mint(strategy.address, amount)).wait();
+  await (await underlying.approve(await wrapper.getAddress(), amount)).wait();
+  await (await wrapper.connect(strategy).wrap(strategy.address, amount)).wait();
 }
 
 async function main() {
@@ -22,15 +45,18 @@ async function main() {
   const [strategy] = (await ethers.getSigners()) as HardhatEthersSigner[];
   if (!strategy) throw new Error("Missing configured Sepolia strategy signer");
 
-  const assetAddress = await address("MockConfidentialToken", "UNVEIL_ASSET_ADDRESS");
   const poolAddress = await address("VeilPool", "UNVEIL_POOL_ADDRESS");
   const yieldSourceAddress = await address("VeilYieldSource", "UNVEIL_YIELD_SOURCE_ADDRESS");
-  const amount = BigInt(process.env.UNVEIL_REALIZED_YIELD?.trim() || "15");
-  if (amount < 0n || amount > 18_446_744_073_709_551_615n) throw new Error("UNVEIL_REALIZED_YIELD is out of range");
+  const wholeCusdc = BigInt(process.env.UNVEIL_REALIZED_YIELD?.trim() || "15");
+  if (wholeCusdc < 0n || wholeCusdc > 18_446_744_073_709n) {
+    throw new Error("UNVEIL_REALIZED_YIELD is out of range");
+  }
+  const amount = wholeCusdc * CUSDC_UNIT;
 
-  const token = (await ethers.getContractAt("MockConfidentialToken", assetAddress)) as MockConfidentialToken;
   const pool = (await ethers.getContractAt("VeilPool", poolAddress)) as VeilPool;
   const yieldSource = (await ethers.getContractAt("VeilYieldSource", yieldSourceAddress)) as VeilYieldSource;
+  const assetAddress = process.env.UNVEIL_ASSET_ADDRESS?.trim() || (await pool.asset());
+  const wrapper = new Contract(assetAddress, WRAPPER_ABI, strategy);
 
   if ((await yieldSource.strategyOperator()).toLowerCase() !== strategy.address.toLowerCase()) {
     throw new Error(`Configured signer ${strategy.address} is not strategy operator ${await yieldSource.strategyOperator()}`);
@@ -49,26 +75,31 @@ async function main() {
   console.log("UNVEIL Sepolia strategy sync");
   console.log(`  strategy:    ${strategy.address}`);
   console.log(`  round:       ${roundId}`);
+  console.log(`  cUSDC:       ${assetAddress}`);
   console.log(`  yieldSource: ${yieldSourceAddress}`);
-  console.log(`  demo yield:  ${amount} confidential token units`);
+  console.log(`  demo yield:  ${wholeCusdc} cUSDC`);
 
   if (amount > 0n) {
-    if (!(await token.isOperator(strategy.address, yieldSourceAddress))) {
-      console.log("1/3 Authorizing the yield adapter to receive confidential strategy assets...");
-      await (await token.connect(strategy).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
+    console.log("1/4 Minting mock USDC and wrapping it through Zama's official cUSDC wrapper...");
+    await fundDemoYieldAsset(wrapper, strategy, amount);
+
+    if (!(await wrapper.isOperator(strategy.address, yieldSourceAddress))) {
+      console.log("2/4 Authorizing the yield adapter to receive confidential cUSDC...");
+      await (await wrapper.connect(strategy).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
     } else {
-      console.log("1/3 Yield adapter already authorized.");
+      console.log("2/4 Yield adapter already authorized.");
     }
 
-    console.log("2/3 Encrypting and accruing realized strategy yield...");
+    console.log("3/4 Encrypting and accruing realized strategy yield...");
     const encrypted = await fhevm.createEncryptedInput(yieldSourceAddress, strategy.address).add64(amount).encrypt();
     await (await yieldSource.connect(strategy).accrueYield(encrypted.handles[0], encrypted.inputProof)).wait();
   } else {
-    console.log("1/3 No strategy transfer required for this legitimate zero-yield round.");
-    console.log("2/3 Encrypted yield bucket remains zero without publishing a special zero-prize branch.");
+    console.log("1/4 No strategy transfer required for this legitimate zero-yield round.");
+    console.log("2/4 No confidential operator change required.");
+    console.log("3/4 Encrypted yield bucket remains zero without publishing a special zero-prize branch.");
   }
 
-  console.log("3/3 Sealing the closed round's confidential yield bucket for permissionless routing...");
+  console.log("4/4 Sealing the closed round's confidential yield bucket for permissionless routing...");
   await (await yieldSource.connect(strategy).sealRoundYield()).wait();
 
   if (!(await yieldSource.yieldReady())) throw new Error("Yield readiness was not persisted");
