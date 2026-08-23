@@ -68,7 +68,7 @@ contract VeilYieldSource is ZamaEthereumConfig {
         emit YieldAccrued();
     }
 
-    /// @notice Allocates up to the available realized yield to a round without touching pool principal.
+    /// @notice Allocates the full requested amount or zero when realized yield is insufficient.
     function allocateToRound(
         uint256 roundId,
         externalEuint64 encryptedAmount,
@@ -77,10 +77,13 @@ contract VeilYieldSource is ZamaEthereumConfig {
         require(prizeVault != address(0), "Prize vault not configured");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        euint64 available = FHE.select(FHE.le(requested, unallocatedYield), requested, unallocatedYield);
 
-        FHE.allowTransient(available, address(asset));
-        euint64 transferred = asset.confidentialTransfer(prizeVault, available);
+        // Preserve ERC-7984-style all-or-zero behavior against VEIL's own encrypted
+        // yield accounting. Never clamp an oversized request to the remaining yield.
+        euint64 permitted = FHE.select(FHE.le(requested, unallocatedYield), requested, FHE.asEuint64(0));
+
+        FHE.allowTransient(permitted, address(asset));
+        euint64 transferred = asset.confidentialTransfer(prizeVault, permitted);
         unallocatedYield = FHE.sub(unallocatedYield, transferred);
         FHE.allowThis(unallocatedYield);
 

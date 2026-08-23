@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// Prototype-specific lint suppressions keep V0.4 readable while the economic model is still changing.
+// Prototype-specific lint suppressions keep V0.5 readable while the economic model is still changing.
 // Revisit these before production hardening.
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
 // solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping, gas-struct-packing
@@ -16,18 +16,20 @@ interface IERC7984Asset {
 }
 
 /// @title VeilPool
-/// @notice Privacy-first prize-pool foundation for Zama Developer Program Season 4.
-/// @dev V0.4 adds permissionless, KMS-proof-verified winner finalization on top of ERC-7984-backed
-///      deposits, withdrawals, encrypted snapshots, and weighted BlindDraw. Yield and prize settlement
-///      remain separate milestones.
+/// @notice Privacy-first prize-pool foundation using confidential ERC-7984-style assets.
+/// @dev Private positions and bounded BlindDraw seats are intentionally separate concepts. A position
+///      remains withdrawable/decryptable even if its draw seat expires. Seats are leases so abandoned
+///      or zero-weight accounts cannot permanently consume the 32-player bounded FHE draw roster.
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
+    uint64 public constant SEAT_LEASE = 1 days;
 
     enum DrawState {
         NONE,
         SNAPSHOTTED,
         DRAWN,
-        FINALIZED
+        FINALIZED,
+        CANCELLED
     }
 
     struct Position {
@@ -48,14 +50,15 @@ contract VeilPool is ZamaEthereumConfig {
     IERC7984Asset public immutable asset;
 
     mapping(address => Position) private positions;
+    mapping(address => bool) public joined;
 
     address[MAX_PLAYERS] private players;
     mapping(address => uint8) private playerIndex;
-    mapping(address => bool) public joined;
-
+    mapping(address => bool) public seated;
+    mapping(address => uint64) public seatExpiresAt;
     uint8 public playerCount;
-    euint64 private encryptedTotalWeight;
 
+    euint64 private encryptedTotalWeight;
     uint256 public nextRoundId = 1;
 
     mapping(uint256 => Draw) private draws;
@@ -65,11 +68,14 @@ contract VeilPool is ZamaEthereumConfig {
     mapping(uint256 => mapping(address => bool)) private drawParticipantIncluded;
 
     event PlayerJoined(address indexed player);
+    event DrawSeatRenewed(address indexed player, uint64 expiresAt);
+    event DrawSeatReleased(address indexed player);
     event DepositRecorded(address indexed player);
     event WithdrawalRecorded(address indexed player);
     event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
     event BlindDrawCompleted(uint256 indexed roundId, eaddress encryptedWinner);
     event WinnerFinalized(uint256 indexed roundId, address indexed winner);
+    event RoundCancelled(uint256 indexed roundId);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -85,32 +91,21 @@ contract VeilPool is ZamaEthereumConfig {
         FHE.allowThis(encryptedTotalWeight);
     }
 
-    /// @notice Deposits confidential ERC-7984 assets and credits only the amount actually transferred.
-    /// @dev The user must first authorize this pool as an operator on the confidential asset.
     function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(asset.isOperator(msg.sender, address(this)), "Pool not operator");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
         FHE.allowTransient(requested, address(asset));
-
         euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
 
         if (!joined[msg.sender]) {
-            require(playerCount < MAX_PLAYERS, "Pool full");
-
-            players[playerCount] = msg.sender;
-            playerIndex[msg.sender] = playerCount;
-
             positions[msg.sender].balance = FHE.asEuint64(0);
             positions[msg.sender].active = true;
             joined[msg.sender] = true;
-
-            unchecked {
-                playerCount++;
-            }
-
             emit PlayerJoined(msg.sender);
         }
+
+        _acquireOrRenewSeat(msg.sender);
 
         positions[msg.sender].balance = FHE.add(positions[msg.sender].balance, transferred);
         encryptedTotalWeight = FHE.add(encryptedTotalWeight, transferred);
@@ -122,20 +117,31 @@ contract VeilPool is ZamaEthereumConfig {
         emit DepositRecorded(msg.sender);
     }
 
-    /// @notice Withdraws up to the caller's live confidential principal.
-    /// @dev The live position changes, but historical draw snapshots remain immutable.
+    function renewDrawSeat() external {
+        require(joined[msg.sender], "Not joined");
+        _acquireOrRenewSeat(msg.sender);
+    }
+
+    function leaveDrawSeat() external {
+        require(seated[msg.sender], "Not seated");
+        _removeSeat(msg.sender);
+    }
+
+    function pruneExpiredSeats() external {
+        _pruneExpiredSeats();
+    }
+
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(joined[msg.sender], "Not joined");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        euint64 available = FHE.select(
-            FHE.le(requested, positions[msg.sender].balance),
-            requested,
-            positions[msg.sender].balance
-        );
 
-        FHE.allowTransient(available, address(asset));
-        euint64 transferred = asset.confidentialTransfer(msg.sender, available);
+        // The asset contract sees the pool's aggregate custody. Guard the request against
+        // this user's encrypted principal first so one depositor can never spend another's funds.
+        // Oversized requests remain private and silently become zero.
+        euint64 permitted = FHE.select(FHE.le(requested, positions[msg.sender].balance), requested, FHE.asEuint64(0));
+        FHE.allowTransient(permitted, address(asset));
+        euint64 transferred = asset.confidentialTransfer(msg.sender, permitted);
 
         positions[msg.sender].balance = FHE.sub(positions[msg.sender].balance, transferred);
         encryptedTotalWeight = FHE.sub(encryptedTotalWeight, transferred);
@@ -162,6 +168,7 @@ contract VeilPool is ZamaEthereumConfig {
     }
 
     function snapshotRound() external onlyOwner returns (uint256 roundId) {
+        _pruneExpiredSeats();
         require(playerCount >= 2, "Need 2 players");
 
         roundId = nextRoundId;
@@ -172,10 +179,9 @@ contract VeilPool is ZamaEthereumConfig {
         Draw storage draw = draws[roundId];
         draw.snapshotBlock = uint64(block.number);
         draw.participantCount = playerCount;
-        draw.encryptedTotalWeight = encryptedTotalWeight;
         draw.state = DrawState.SNAPSHOTTED;
 
-        FHE.allowThis(draw.encryptedTotalWeight);
+        euint64 snapshotTotalWeight = FHE.asEuint64(0);
 
         for (uint8 i = 0; i < playerCount; i++) {
             address account = players[i];
@@ -185,10 +191,14 @@ contract VeilPool is ZamaEthereumConfig {
             drawWeights[roundId][i] = weight;
             drawPlayerIndex[roundId][account] = i;
             drawParticipantIncluded[roundId][account] = true;
+            snapshotTotalWeight = FHE.add(snapshotTotalWeight, weight);
 
             FHE.allowThis(drawWeights[roundId][i]);
             FHE.allow(drawWeights[roundId][i], account);
         }
+
+        draw.encryptedTotalWeight = snapshotTotalWeight;
+        FHE.allowThis(draw.encryptedTotalWeight);
 
         emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
     }
@@ -224,8 +234,6 @@ contract VeilPool is ZamaEthereumConfig {
         emit BlindDrawCompleted(roundId, draw.encryptedWinner);
     }
 
-    /// @notice Permissionlessly finalizes the public winner after relayer/KMS decryption.
-    /// @dev The proof is cryptographically bound to this round's encrypted-winner handle and clear address.
     function finalizeWinner(
         uint256 roundId,
         bytes calldata abiEncodedClearWinner,
@@ -236,15 +244,17 @@ contract VeilPool is ZamaEthereumConfig {
 
         bytes32[] memory handles = new bytes32[](1);
         handles[0] = FHE.toBytes32(draw.encryptedWinner);
-
         FHE.checkSignatures(handles, abiEncodedClearWinner, decryptionProof);
 
         address clearWinner = abi.decode(abiEncodedClearWinner, (address));
-        require(clearWinner != address(0), "No eligible winner");
+        if (clearWinner == address(0)) {
+            draw.state = DrawState.CANCELLED;
+            emit RoundCancelled(roundId);
+            return;
+        }
 
         draw.winner = clearWinner;
         draw.state = DrawState.FINALIZED;
-
         emit WinnerFinalized(roundId, clearWinner);
     }
 
@@ -263,7 +273,10 @@ contract VeilPool is ZamaEthereumConfig {
 
     function getEncryptedWinner(uint256 roundId) external view returns (eaddress) {
         Draw storage draw = draws[roundId];
-        require(draw.state == DrawState.DRAWN || draw.state == DrawState.FINALIZED, "Winner unavailable");
+        require(
+            draw.state == DrawState.DRAWN || draw.state == DrawState.FINALIZED || draw.state == DrawState.CANCELLED,
+            "Winner unavailable"
+        );
         return draw.encryptedWinner;
     }
 
@@ -278,5 +291,58 @@ contract VeilPool is ZamaEthereumConfig {
         require(draw.state != DrawState.NONE, "Unknown round");
         require(index < draw.participantCount, "Invalid index");
         return drawPlayers[roundId][index];
+    }
+
+    function _acquireOrRenewSeat(address account) private {
+        if (!seated[account]) {
+            _pruneExpiredSeats();
+            require(playerCount < MAX_PLAYERS, "Draw roster full");
+            players[playerCount] = account;
+            playerIndex[account] = playerCount;
+            seated[account] = true;
+            unchecked {
+                playerCount++;
+            }
+        }
+
+        uint64 expiresAt = uint64(block.timestamp + SEAT_LEASE);
+        seatExpiresAt[account] = expiresAt;
+        emit DrawSeatRenewed(account, expiresAt);
+    }
+
+    function _pruneExpiredSeats() private {
+        uint8 i = 0;
+        while (i < playerCount) {
+            address account = players[i];
+            if (seatExpiresAt[account] < block.timestamp) {
+                _removeSeat(account);
+            } else {
+                unchecked {
+                    i++;
+                }
+            }
+        }
+    }
+
+    function _removeSeat(address account) private {
+        uint8 index = playerIndex[account];
+        uint8 lastIndex = playerCount - 1;
+
+        if (index != lastIndex) {
+            address moved = players[lastIndex];
+            players[index] = moved;
+            playerIndex[moved] = index;
+        }
+
+        players[lastIndex] = address(0);
+        delete playerIndex[account];
+        seated[account] = false;
+        seatExpiresAt[account] = 0;
+
+        unchecked {
+            playerCount--;
+        }
+
+        emit DrawSeatReleased(account);
     }
 }

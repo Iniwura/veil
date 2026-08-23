@@ -54,8 +54,12 @@ contract VeilPrizeVault is ZamaEthereumConfig {
     }
 
     /// @notice Records a confidential prize amount already transferred here by the configured yield source.
-    /// @dev The yield source grants this contract transient access to `amount` before this call.
+    /// @dev Funding is accepted only for a round whose winner is already finalized. Any failure reverts the
+    ///      entire yield-source allocation transaction, including the preceding confidential asset transfer.
     function recordPrize(uint256 roundId, euint64 amount) external onlyYieldSource {
+        address finalizedWinner = pool.getWinner(roundId);
+        require(finalizedWinner != address(0), "Invalid winner");
+
         Prize storage prize = prizes[roundId];
         require(!prize.claimed, "Prize already claimed");
         require(!prize.winnerAuthorized, "Winner already authorized");

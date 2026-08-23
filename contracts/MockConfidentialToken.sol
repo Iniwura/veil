@@ -49,7 +49,9 @@ contract MockConfidentialToken is ZamaEthereumConfig {
         _ensureInitialized(from);
         _ensureInitialized(to);
 
-        transferred = FHE.select(FHE.le(amount, balances[from]), amount, balances[from]);
+        // ERC-7984-style silent-zero semantics: either the full requested amount
+        // transfers, or zero transfers when the encrypted balance is insufficient.
+        transferred = FHE.select(FHE.le(amount, balances[from]), amount, FHE.asEuint64(0));
         balances[from] = FHE.sub(balances[from], transferred);
         balances[to] = FHE.add(balances[to], transferred);
 

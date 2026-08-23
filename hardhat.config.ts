@@ -10,12 +10,11 @@ import { vars } from "hardhat/config";
 import "solidity-coverage";
 
 import "./tasks/accounts";
-import "./tasks/FHECounter";
 
-// Run 'npx hardhat vars setup' to see the list of variables that need to be set.
-const MNEMONIC: string = vars.get("MNEMONIC", "test test test test test test test test test test test junk");
-const INFURA_API_KEY: string = vars.get("INFURA_API_KEY", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
-const SEPOLIA_RPC_URL: string = vars.get("SEPOLIA_RPC_URL", `https://sepolia.infura.io/v3/${INFURA_API_KEY}`);
+const LOCAL_TEST_MNEMONIC = "test test test test test test test test test test test junk";
+const LOCAL_MNEMONIC: string = vars.get("MNEMONIC", LOCAL_TEST_MNEMONIC);
+const SEPOLIA_MNEMONIC: string = vars.get("MNEMONIC", "").trim();
+const SEPOLIA_RPC_URL: string = vars.get("SEPOLIA_RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com");
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
@@ -35,13 +34,13 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       accounts: {
-        mnemonic: MNEMONIC,
+        mnemonic: LOCAL_MNEMONIC,
       },
       chainId: 31337,
     },
     anvil: {
       accounts: {
-        mnemonic: MNEMONIC,
+        mnemonic: LOCAL_MNEMONIC,
         path: "m/44'/60'/0'/0/",
         count: 10,
       },
@@ -49,11 +48,13 @@ const config: HardhatUserConfig = {
       url: "http://localhost:8545",
     },
     sepolia: {
-      accounts: {
-        mnemonic: MNEMONIC,
-        path: "m/44'/60'/0'/0/",
-        count: 10,
-      },
+      accounts: SEPOLIA_MNEMONIC
+        ? {
+            mnemonic: SEPOLIA_MNEMONIC,
+            path: "m/44'/60'/0'/0/",
+            count: 10,
+          }
+        : [],
       chainId: 11155111,
       url: SEPOLIA_RPC_URL,
     },
@@ -68,12 +69,8 @@ const config: HardhatUserConfig = {
     version: "0.8.27",
     settings: {
       metadata: {
-        // Not including the metadata hash
-        // https://github.com/paulrberg/hardhat-template/issues/31
         bytecodeHash: "none",
       },
-      // Disable the optimizer when debugging
-      // https://hardhat.org/hardhat-network/#solidity-optimizer-support
       optimizer: {
         enabled: true,
         runs: 800,

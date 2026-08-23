@@ -2,7 +2,7 @@
 
 Private prize savings on Ethereum, powered by Zama FHE.
 
-VEIL lets users deposit confidential balances into a shared prize pool, freezes encrypted round snapshots, selects a winner with BlindDraw over encrypted weights, routes confidential yield into an encrypted prize, and lets only the finalized winner decrypt and claim that prize.
+VEIL lets users deposit confidential balances into a shared prize pool, freeze encrypted round snapshots, run BlindDraw over encrypted weights, route confidential yield into an encrypted prize, and let only the finalized winner decrypt and claim that prize.
 
 The core idea is simple: **balances stay private, selection stays blind, winners stay verifiable.**
 
@@ -10,54 +10,84 @@ The core idea is simple: **balances stay private, selection stays blind, winners
 
 Traditional prize-savings systems expose user balances, deposit sizes, and often implied winning odds onchain. VEIL uses Fully Homomorphic Encryption so the pool can operate on encrypted values without revealing them.
 
-What stays private:
+Private:
 
-- User balances
-- Deposit amounts
-- Participant weights
-- Winner odds
-- Prize values until the authorized winner decrypts them
+- User balance plaintext
+- Deposit and withdrawal amounts
+- Snapshot weight plaintext
+- Winning odds
+- Prize plaintext before authorized winner decryption
 
-What stays verifiable:
+Public:
 
-- Participants and round lifecycle
-- Snapshot creation
-- Finalized winner
-- KMS-backed public winner proof
+- Wallet addresses
+- Transaction timing and occurrence
+- Active draw-seat membership
+- Round lifecycle
+- Finalized winner or proven cancellation
 - Prize authorization and claim state
 
-## Live Sepolia deployment
+VEIL does not claim full metadata privacy. That boundary is intentional and explicit.
+
+## Final Sepolia deployment
 
 VEIL is deployed and tested on Ethereum Sepolia.
 
 | Contract | Address |
 | --- | --- |
-| Demo confidential asset | `0x2a267e64bb8B460EEFF9bA25e51b8D9431A00125` |
-| VeilPool | `0x523b515A6e3fCB19737dF45243616c36564fD62f` |
-| VeilYieldSource | `0x752c132D7E6d45F7dA71D7Fe00F4afde22eAc7b3` |
-| VeilPrizeVault | `0x217a64703DfBfC92A52a81cBfF0d86078dc84aF8` |
+| Demo confidential asset | `0x79836eCae72C3EB5423fd5D1d200CbaEA0cCEE6e` |
+| VeilPool | `0xd5395972b0Cd747fAD531389E449958a343adA1b` |
+| VeilYieldSource | `0xdDB2b7fe447c55576F882138d59DE00a7d8EbE3D` |
+| VeilPrizeVault | `0xb580c50192f5d7C613Db4e9427a2fA0C9701Af84` |
 
-A full Sepolia smoke test passed on **21 August 2026**:
+The asset is the explicit test-only `MockConfidentialToken` used for controlled protocol integration testing. It is not presented as production infrastructure.
+
+The final Sepolia end-to-end smoke test passed on **23 August 2026**:
 
 - Round: `1`
-- Winner: `0xcC427b61573EEE146fc735159292f06E13bc8B80`
+- Winner: `0x7d105bd4Ba5a28E9813F75D172BC59D689cA8a84`
 - Prize: `15 encrypted token units`
-- Result: **PASS**
+- Winner-only prize decryption: **PASS**
+- Confidential prize claim: **PASS**
 
-The exact execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPOLIA_SMOKE_RESULT.md).
+The execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPOLIA_SMOKE_RESULT.md).
 
 ## End-to-end flow
 
 1. A user encrypts a deposit client-side with the Zama Relayer SDK.
-2. `VeilPool` records the confidential principal and encrypted draw weight.
-3. A round snapshot freezes the encrypted participant weights.
-4. `blindDraw` selects over encrypted weights without revealing balances or odds.
-5. Zama public decryption produces a proof for the encrypted winner handle.
-6. `finalizeWinner` verifies the proof and stores the public winner.
-7. `VeilYieldSource` records confidential asset-backed yield.
-8. Yield is allocated to the round as an encrypted prize in `VeilPrizeVault`.
-9. Only the finalized winner is authorized to decrypt the prize.
-10. The winner claims the confidential prize.
+2. `VeilPool` records confidential principal and encrypted draw weight.
+3. A temporary draw seat makes the position eligible for the next snapshot.
+4. A round snapshot freezes the active roster and encrypted participant weights.
+5. `blindDraw` selects over encrypted weights without revealing balances or odds.
+6. Zama public decryption produces a proof for the encrypted winner handle.
+7. `finalizeWinner` verifies the proof and stores the public winner, or records a proven zero-weight cancellation.
+8. `VeilYieldSource` records asset-backed confidential demo yield.
+9. Yield is allocated to a finalized round as an encrypted prize in `VeilPrizeVault`.
+10. Only the finalized winner is authorized to decrypt and claim the prize.
+
+## Confidential transfer semantics
+
+VEIL uses all-or-zero ERC-7984-style behavior for confidential requests.
+
+For a user with private principal `5`:
+
+- Withdraw `2` → `2` moves and private principal becomes `3`.
+- Withdraw `6` → `0` moves and private principal remains `5`.
+
+The oversized request is checked against the caller's encrypted VEIL principal before the shared custody contract moves assets. This prevents one participant from spending another participant's pooled custody while keeping the caller's exact balance private.
+
+The frontend therefore never infers or publishes an "insufficient balance" result. It reports that the confidential request was processed and lets the user explicitly decrypt their resulting position.
+
+## Draw-seat model
+
+Private positions and BlindDraw roster membership are separate concepts.
+
+- Principal remains withdrawable even when a draw seat expires.
+- Draw seats use a 1-day renewable lease.
+- Users can renew or release a seat without changing confidential principal.
+- Anyone can prune expired seats.
+- The active roster is bounded to 32 seats.
+- All-zero encrypted rounds can be proven and finalized as `CANCELLED` instead of becoming stuck.
 
 ## Architecture
 
@@ -65,13 +95,13 @@ The exact execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](doc
 Wallet + Zama Relayer SDK
           |
           v
-  encrypted deposit / withdrawal
+ encrypted deposit / withdrawal
           |
           v
       VeilPool
-  - confidential balances
-  - encrypted weights
-  - round snapshots
+  - confidential principal
+  - temporary draw seats
+  - encrypted snapshots
   - BlindDraw
   - winner proof finalization
           |
@@ -93,39 +123,45 @@ Wallet + Zama Relayer SDK
 
 ### `VeilPool.sol`
 
-The pool owns the confidential user-position and draw lifecycle.
+Owns confidential user positions and the draw lifecycle.
 
 Key responsibilities:
 
 - Confidential deposits and withdrawals
 - Per-user encrypted balances
 - Encrypted total weight
-- Maximum 32-player pool boundary
-- Snapshot-based draw rounds
+- Renewable bounded draw seats
+- Immutable encrypted round snapshots
 - Blind weighted selection
-- Winner finalization using public FHE decryption proofs
+- KMS-backed winner finalization and cancellation recovery
 
 ### `VeilYieldSource.sol`
 
-Represents the confidential yield layer used by the demo architecture.
+Represents the confidential demo yield layer.
 
 Key responsibilities:
 
 - Records asset-backed encrypted yield
 - Preserves confidential yield values
-- Allocates yield to a finalized round prize
-- Separates prize funding from user principal and draw weight
+- Uses all-or-zero allocation semantics
+- Allocates only to finalized rounds
+- Keeps prize funding separate from user principal and draw weight
 
 ### `VeilPrizeVault.sol`
 
-Stores encrypted prize accounting and enforces the winner-only privacy boundary.
+Stores confidential prize assets separately from pool principal.
 
 Key responsibilities:
 
-- Accepts prize accounting from the configured yield source
+- Accepts prize funding only from the configured yield source
+- Requires a finalized round before prize funding
 - Keeps prize values encrypted
-- Authorizes the finalized winner
+- Authorizes only the finalized winner
 - Allows only that winner to decrypt and claim the prize
+
+### `MockConfidentialToken.sol`
+
+Test-only confidential asset used for the Sepolia integration demo. Its permissionless mint is deliberate demo infrastructure and not a production token design.
 
 ## Frontend
 
@@ -133,12 +169,14 @@ The React/Vite demo lives in [`frontend/`](frontend/).
 
 It includes:
 
-- Wallet connection with automatic Sepolia add/switch handling
+- MetaMask connection with Sepolia add/switch handling
+- Zama 0.4.1 browser runtime through the official CDN bundle
+- Relayer `/v2` configuration using the connected EIP-1193 wallet provider
 - Client-side FHE encryption for deposits and withdrawals
-- Private balance reveal using user decryption
-- Live pool and round state
-- Verified Sepolia Round 1 proof/history
-- Direct explorer links for deployed contracts and winner evidence
+- Explicit wallet-scoped private balance reveal
+- Active draw-seat state and renewal
+- Dynamic onchain finalized/cancelled round history
+- Direct explorer links for the live contracts and public winner evidence
 - Responsive desktop, tablet, and mobile layouts
 
 ### Run the frontend
@@ -149,7 +187,7 @@ npm install
 npm run dev
 ```
 
-Build verification:
+Production build:
 
 ```bash
 npm run build
@@ -161,7 +199,6 @@ Requirements:
 
 - Node.js 20+
 - npm
-- Foundry
 
 Install dependencies:
 
@@ -187,7 +224,7 @@ Run coverage:
 npm run coverage
 ```
 
-## Sepolia smoke test
+## Sepolia deployment and smoke test
 
 Store secrets with Hardhat's encrypted variables rather than committing them:
 
@@ -196,57 +233,37 @@ npx hardhat vars set MNEMONIC
 npx hardhat vars set SEPOLIA_RPC_URL
 ```
 
-Then run the live end-to-end flow:
+Deploy the explicit demo asset stack:
+
+```bash
+VEIL_DEPLOY_DEMO_ASSET=true \
+npx hardhat deploy --network sepolia --tags VEIL --reset
+```
+
+Run the live end-to-end flow:
 
 ```bash
 npx hardhat run scripts/sepolia-smoke.ts --network sepolia
 ```
 
-The script exercises confidential deposits, private balance decryption, snapshotting, BlindDraw, public winner proof verification, confidential yield, encrypted prize authorization, winner-only decryption, and claim.
+The smoke script verifies contract wiring, confidential deposits, user-scoped decryption, encrypted snapshotting, BlindDraw, public winner proof finalization, confidential yield, finalized-round prize allocation, winner-only prize decryption, and claim.
 
 ## Testing and verification
 
-The repository has dedicated GitHub Actions for both protocol and frontend verification.
+Protocol tests cover:
 
-Protocol CI checks:
+- Confidential deposit and withdrawal semantics
+- Multi-user custody isolation
+- ACL preservation
+- Oversized silent-zero requests
+- Immutable encrypted snapshots
+- BlindDraw and public winner proof validation
+- Draw-seat expiry, release, pruning, and cancellation recovery
+- Prize/yield custody separation
+- Finalized-round prize funding
+- Winner-only decryption and claim
 
-- Prettier
-- ESLint and Solhint
-- Solidity compile
-- TypeScript build
-- Full Hardhat test suite
-- Coverage
-- Ubuntu and Windows runners
-
-Frontend CI checks:
-
-- Clean dependency install
-- TypeScript/Vite production build
-
-The final UX branch passed both frontend and repository-wide CI before merge.
-
-## Privacy model
-
-VEIL does not claim full metadata privacy.
-
-Private:
-
-- Amounts stored and operated on as FHE ciphertexts
-- User balance plaintext
-- Draw weight plaintext
-- Prize plaintext before authorized decryption
-
-Public:
-
-- Wallet addresses
-- Transaction timing
-- Deposit/withdrawal occurrence
-- Participant membership
-- Round state
-- Finalized winner
-- Claim occurrence
-
-This distinction is intentional and documented rather than hidden behind a broad "private" claim.
+The frontend production build was validated after the final Zama browser-runtime migration, and the live browser regression confirmed that an oversized withdrawal request leaves the user's private principal unchanged.
 
 ## Security notes and known limitations
 
@@ -254,12 +271,12 @@ This repository is a testnet competition build, not production financial softwar
 
 Important limitations:
 
-- The deployed asset is a test-only confidential token used for the Sepolia demo.
-- The pool currently supports at most 32 registered players.
-- Transaction identities and timing remain public.
-- FHE ciphertext arithmetic and economic bounds should be reviewed again before any production deployment.
-- The contracts and frontend have extensive automated tests, but they have not received an independent professional audit.
-- Production yield integration would require a real confidential asset/yield adapter rather than the demo yield source.
+- The deployed asset is a test-only confidential token.
+- The yield source is an owner-controlled demo adapter, not a production yield venue.
+- The active draw roster is bounded to 32 leased seats; temporary Sybil seat spam is still an economic/design consideration.
+- Wallet identities, transaction timing, and transaction occurrence remain public.
+- FHE ciphertext arithmetic and economic bounds should receive another dedicated production audit before real-value deployment.
+- The contracts and frontend have automated tests and live testnet evidence, but they have not received an independent professional security audit.
 
 ## Repository layout
 
@@ -271,19 +288,20 @@ contracts/
   MockConfidentialToken.sol
 
 deploy/
-  deployment scripts
+  deploy.ts
 
 scripts/
   sepolia-smoke.ts
+  sepolia-next-round.ts
 
 frontend/
   React + Vite demo
 
 test/
-  FHEVM contract tests
+  VEIL FHEVM protocol tests
 
 docs/
-  deployment and Sepolia verification evidence
+  audit and Sepolia verification evidence
 ```
 
 ## Built with
@@ -301,6 +319,6 @@ docs/
 
 ## Status
 
-**Sepolia deployed. Full end-to-end smoke test passed. Frontend and repository CI green.**
+**Final Sepolia deployment live. End-to-end confidential smoke test passed. Browser deposit, private reveal, and oversized-withdrawal regression passed.**
 
 VEIL is built for the Zama Developer Program Mainnet Season 4.

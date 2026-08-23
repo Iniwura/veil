@@ -1,25 +1,24 @@
 {
-  "name": "fhevm-hardhat-template",
-  "description": "Hardhat-based template for developing FHEVM Solidity smart contracts",
-  "version": "0.4.1",
+  "name": "veil",
+  "description": "Private prize savings on Ethereum powered by Zama FHE.",
+  "version": "0.1.0",
   "engines": {
     "node": ">=20",
     "npm": ">=7.0.0"
   },
   "license": "BSD-3-Clause-Clear",
-  "homepage": "https://github.com/zama-ai/fhevm-hardhat-template/README.md",
+  "homepage": "https://github.com/Iniwura/veil#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zama-ai/fhevm-hardhat-template.git"
+    "url": "git+https://github.com/Iniwura/veil.git"
   },
   "keywords": [
     "fhevm",
     "zama",
-    "eth",
+    "confidential",
+    "prize-savings",
     "ethereum",
-    "dapps",
-    "wallet",
-    "web3",
+    "privacy",
     "typescript",
     "hardhat"
   ],
@@ -86,7 +85,8 @@
     "verify:sepolia": "hardhat verify --network sepolia"
   },
   "overrides": {
-    "ws@>=7.0.0 <7.5.10": ">=7.5.10",
+    "ws@>=7.0.0 <7.5.11": ">=7.5.11 <8.0.0",
+    "ws@>=8.0.0 <8.21.0": ">=8.21.0 <9.0.0",
     "axios@>=1.3.2 <=1.7.3": ">=1.7.4",
     "elliptic@>=4.0.0 <=6.5.6": ">=6.5.7",
     "elliptic@>=2.0.0 <=6.5.6": ">=6.5.7",
