@@ -25,15 +25,7 @@ import {
 type DashboardData = Awaited<ReturnType<typeof readDashboard>>;
 type SaveMode = "deposit" | "withdraw";
 
-type Route =
-  | "/"
-  | "/app"
-  | "/app/save"
-  | "/app/draws"
-  | "/app/vault"
-  | "/app/prizes"
-  | "/app/history"
-  | "/protocol";
+type Route = "/" | "/app" | "/app/save" | "/app/draws" | "/app/vault" | "/app/prizes" | "/app/history" | "/protocol";
 
 const ROUTES: Route[] = [
   "/",
@@ -48,27 +40,36 @@ const ROUTES: Route[] = [
 
 const GUIDE_KEY = "unveil-guide-complete-v1";
 const GUIDE_STEPS = [
-  ["WELCOME TO UNVEIL", "Save cUSDC. Keep the numbers private. Win from shared yield.", "/app"],
-  ["CONNECT YOUR WALLET", "Use a Sepolia wallet. UNVEIL will never ask you to paste a private key.", "/app"],
+  ["WELCOME TO UNVEIL", "Save cUSDC. Keep the numbers private. Win from shared yield.", "/app", ""],
+  [
+    "CONNECT YOUR WALLET",
+    "Use a Sepolia wallet. UNVEIL will never ask you to paste a private key.",
+    "/app",
+    '[data-guide="wallet"]',
+  ],
   [
     "SAVE PRIVATELY",
     "Choose a cUSDC amount. It is encrypted in your browser before the pool receives the request.",
     "/app/save",
+    '[data-guide="save-card"]',
   ],
   [
     "WATCH THE DRAW",
     "The contract enforces the deadline. Anyone can progress the permissionless draw after it closes.",
     "/app/draws",
+    '[data-guide="draw-center"]',
   ],
   [
     "UNVEIL YOUR STATS",
     "Your balance, activity, draw weight and exact odds are private from everyone else, not from you.",
     "/app/vault",
+    '[data-guide="vault-unveil"]',
   ],
   [
     "WIN WITHOUT CLAIM FRICTION",
     "If you win, a keeper can deliver the encrypted prize. Only you can reveal its cUSDC amount.",
     "/app/prizes",
+    '[data-guide="prizes"]',
   ],
 ] as const;
 
@@ -140,7 +141,8 @@ function userMessage(error: unknown) {
   }
   if (lower.includes("not in round")) return "You were not in that frozen draw snapshot.";
   if (lower.includes("not winner")) return "Only the finalized winner can unveil that prize.";
-  if (lower.includes("decimal places") || lower.includes("valid cusdc") || lower.includes("cusdc amount")) return message;
+  if (lower.includes("decimal places") || lower.includes("valid cusdc") || lower.includes("cusdc amount"))
+    return message;
   if (lower.includes("timed out") || lower.includes("did not respond")) {
     return "The wallet or Sepolia request timed out. Check MetaMask activity before retrying.";
   }
@@ -207,7 +209,15 @@ function CipherResolve({ value }: { value: string }) {
   return <>{display}</>;
 }
 
-function Reveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+function Reveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
 
@@ -259,10 +269,7 @@ function EncryptionTheatre() {
   const cipher = useMemo(() => "9F A2 7C 11 E8 4D B0 C6 33 7A 21 F4", []);
 
   return (
-    <div
-      className={`encryption-theatre ${opened ? "opened" : ""}`}
-      onClick={() => setOpened((value) => !value)}
-    >
+    <div className={`encryption-theatre ${opened ? "opened" : ""}`} onClick={() => setOpened((value) => !value)}>
       <div className="aperture-grid" />
       <div className="orbit orbit-a" />
       <div className="orbit orbit-b" />
@@ -381,7 +388,11 @@ function Landing({
         </Reveal>
         <div className="how-grid">
           {[
-            ["01", "SAVE", "Encrypt a cUSDC deposit in your browser. The pool records principal without publishing the amount."],
+            [
+              "01",
+              "SAVE",
+              "Encrypt a cUSDC deposit in your browser. The pool records principal without publishing the amount.",
+            ],
             ["02", "EARN", "A confidential strategy adapter realizes yield separately from user principal."],
             ["03", "FREEZE", "At the onchain deadline, anyone can close the draw and freeze encrypted weights."],
             ["04", "BLINDDRAW", "FHE samples a weighted winner without exposing balances or odds."],
@@ -483,12 +494,30 @@ function Landing({
         </Reveal>
         <div className="faq-grid">
           {[
-            ["Can I lose my deposit?", "UNVEIL's prize comes from strategy yield. Your recorded principal remains separately withdrawable."],
-            ["Can I see my own balance?", "Yes. Click UNVEIL and sign once. Your browser decrypts your private stats for your session."],
-            ["Can I see my odds?", "After a draw closes, you can privately decrypt your frozen weight and total pool weight and calculate exact odds locally."],
-            ["Who runs the draw?", "Nobody controls the timing. The contract enforces the deadline and any account can progress the permissionless draw steps."],
-            ["Do I need to claim a win?", "No. Any keeper can deliver the encrypted prize, but the destination is fixed to the proved winner."],
-            ["Is everything anonymous?", "No. Addresses and transaction metadata are public. UNVEIL protects financial values, not all blockchain metadata."],
+            [
+              "Can I lose my deposit?",
+              "UNVEIL's prize comes from strategy yield. Your recorded principal remains separately withdrawable.",
+            ],
+            [
+              "Can I see my own balance?",
+              "Yes. Click UNVEIL and sign once. Your browser decrypts your private stats for your session.",
+            ],
+            [
+              "Can I see my odds?",
+              "After a draw closes, you can privately decrypt your frozen weight and total pool weight and calculate exact odds locally.",
+            ],
+            [
+              "Who runs the draw?",
+              "Nobody controls the timing. The contract enforces the deadline and any account can progress the permissionless draw steps.",
+            ],
+            [
+              "Do I need to claim a win?",
+              "No. Any keeper can deliver the encrypted prize, but the destination is fixed to the proved winner.",
+            ],
+            [
+              "Is everything anonymous?",
+              "No. Addresses and transaction metadata are public. UNVEIL protects financial values, not all blockchain metadata.",
+            ],
           ].map(([q, a], index) => (
             <Reveal delay={index * 50} key={q} className="faq-card">
               <h3>{q}</h3>
@@ -576,7 +605,7 @@ function AppShell({
           <span className="private-mode">
             <i /> PRIVATE MODE ACTIVE
           </span>
-          <button className="wallet-pill" disabled={Boolean(busy)} onClick={connect}>
+          <button data-guide="wallet" className="wallet-pill" disabled={Boolean(busy)} onClick={connect}>
             {busy === "connect" ? "CONNECTING…" : address ? shortAddress(address) : "CONNECT WALLET"}
           </button>
         </header>
@@ -797,7 +826,7 @@ function SavePage({
         copy="The cUSDC amount is encrypted in your browser before the pool sees it."
       />
       <div className="save-layout">
-        <div className="save-card">
+        <div className="save-card" data-guide="save-card">
           <div className="segmented">
             <button className={mode === "deposit" ? "active" : ""} onClick={() => setMode("deposit")}>
               Deposit
@@ -857,7 +886,17 @@ function SavePage({
   );
 }
 
-function DrawsPage({ state, now, busy, maintain }: { state?: PublicState; now: number; busy: string; maintain: () => void }) {
+function DrawsPage({
+  state,
+  now,
+  busy,
+  maintain,
+}: {
+  state?: PublicState;
+  now: number;
+  busy: string;
+  maintain: () => void;
+}) {
   const latest = state?.rounds[0];
   const nowSec = BigInt(Math.floor(now / 1000));
   const closeReady = state ? nowSec >= state.nextDrawClosesAt : false;
@@ -912,7 +951,7 @@ function DrawsPage({ state, now, busy, maintain }: { state?: PublicState; now: n
         title="The clock controls the round."
         copy="UNVEIL enforces the deadline onchain. Any account can progress the permissionless steps afterward."
       />
-      <div className="draw-dashboard">
+      <div className="draw-dashboard" data-guide="draw-center">
         <div className="countdown-panel">
           <span>NEXT SCHEDULED CLOSE</span>
           <strong>{state ? formatCountdown(state.nextDrawClosesAt, now) : "--:--:--"}</strong>
@@ -1011,18 +1050,48 @@ function VaultPage({
         title="Encrypted to everyone. Unveiled only to you."
         copy="One wallet signature decrypts your private position for this browser session."
         action={
-          <button className="veil-toggle" disabled={Boolean(busy)} onClick={open ? veil : unveil}>
+          <button
+            data-guide="vault-unveil"
+            className="veil-toggle"
+            disabled={Boolean(busy)}
+            onClick={open ? veil : unveil}
+          >
             {busy === "unveil" ? "UNVEILING…" : open ? "VEIL MY STATS" : "UNVEIL MY STATS"}
           </button>
         }
       />
       <div className="private-grid">
-        <SealedMetric label="CURRENT PRINCIPAL" value={formatPrivate(position?.balance)} hint="Withdrawable cUSDC" accent />
-        <SealedMetric label="TOTAL DEPOSITED" value={formatPrivate(position?.totalDeposited)} hint="Private lifetime activity" />
-        <SealedMetric label="TOTAL WITHDRAWN" value={formatPrivate(position?.totalWithdrawn)} hint="Private lifetime activity" />
-        <SealedMetric label="LAST DEPOSIT" value={formatPrivate(position?.lastDeposit)} hint="Never published as plaintext" />
-        <SealedMetric label="LAST WITHDRAWAL" value={formatPrivate(position?.lastWithdrawal)} hint="Never published as plaintext" />
-        <SealedMetric label="LATEST DRAW WEIGHT" value={formatWeight(roundStats?.weight)} hint="Frozen cUSDC snapshot weight" />
+        <SealedMetric
+          label="CURRENT PRINCIPAL"
+          value={formatPrivate(position?.balance)}
+          hint="Withdrawable cUSDC"
+          accent
+        />
+        <SealedMetric
+          label="TOTAL DEPOSITED"
+          value={formatPrivate(position?.totalDeposited)}
+          hint="Private lifetime activity"
+        />
+        <SealedMetric
+          label="TOTAL WITHDRAWN"
+          value={formatPrivate(position?.totalWithdrawn)}
+          hint="Private lifetime activity"
+        />
+        <SealedMetric
+          label="LAST DEPOSIT"
+          value={formatPrivate(position?.lastDeposit)}
+          hint="Never published as plaintext"
+        />
+        <SealedMetric
+          label="LAST WITHDRAWAL"
+          value={formatPrivate(position?.lastWithdrawal)}
+          hint="Never published as plaintext"
+        />
+        <SealedMetric
+          label="LATEST DRAW WEIGHT"
+          value={formatWeight(roundStats?.weight)}
+          hint="Frozen cUSDC snapshot weight"
+        />
         <SealedMetric
           label="LATEST EXACT ODDS"
           value={formatOdds(roundStats)}
@@ -1067,7 +1136,7 @@ function PrizesPage({
 }) {
   const wins = state?.rounds.filter((round) => address && round.winner.toLowerCase() === address.toLowerCase()) ?? [];
   return (
-    <section className="product-page">
+    <section className="product-page prizes-page" data-guide="prizes">
       <PageHead
         eyebrow="PRIZES"
         title="If you win, the prize finds you."
@@ -1150,7 +1219,9 @@ function HistoryPage({ state }: { state?: PublicState }) {
               </div>
               <div>
                 <span>WINNER</span>
-                <strong>{round.state === 3 ? shortAddress(round.winner) : round.state === 4 ? "PROVEN ZERO" : "SEALED"}</strong>
+                <strong>
+                  {round.state === 3 ? shortAddress(round.winner) : round.state === 4 ? "PROVEN ZERO" : "SEALED"}
+                </strong>
               </div>
               <div>
                 <span>POSITIONS</span>
@@ -1158,7 +1229,9 @@ function HistoryPage({ state }: { state?: PublicState }) {
               </div>
               <div>
                 <span>PRIZE</span>
-                <strong>{round.delivered ? "DELIVERED · AMOUNT PRIVATE" : round.funded ? "FUNDED · PRIVATE" : "PENDING"}</strong>
+                <strong>
+                  {round.delivered ? "DELIVERED · AMOUNT PRIVATE" : round.funded ? "FUNDED · PRIVATE" : "PENDING"}
+                </strong>
               </div>
               <a href={explorerAddress(VEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
                 VERIFY ↗
@@ -1275,10 +1348,10 @@ function ProtocolPage({ navigate }: { navigate: (route: Route) => void }) {
       <section className="protocol-note">
         <strong>YIELD BOUNDARY</strong>
         <p>
-          The Sepolia competition deployment uses Zama's official cUSDC mock wrapper plus a controlled strategy
-          adapter backed by actual confidential cUSDC transfers. After a draw closes the strategy seals that round's
-          encrypted realized-yield bucket; it cannot choose the winner or reroute the bucket. Production can replace
-          the adapter with a reviewed confidential yield venue.
+          The Sepolia competition deployment uses Zama's official cUSDC mock wrapper plus a controlled strategy adapter
+          backed by actual confidential cUSDC transfers. After a draw closes the strategy seals that round's encrypted
+          realized-yield bucket; it cannot choose the winner or reroute the bucket. Production can replace the adapter
+          with a reviewed confidential yield venue.
         </p>
       </section>
     </main>
@@ -1297,16 +1370,66 @@ function Guide({
   navigate: (route: Route) => void;
 }) {
   const current = GUIDE_STEPS[step];
+  const [targetRect, setTargetRect] = useState<{ top: number; left: number; width: number; height: number }>();
+
   useEffect(() => {
     navigate(current[2] as Route);
+    const selector = current[3];
+    let timer = 0;
+
+    const locate = () => {
+      if (!selector) {
+        setTargetRect(undefined);
+        return;
+      }
+      const node = document.querySelector<HTMLElement>(selector);
+      if (!node) {
+        setTargetRect(undefined);
+        return;
+      }
+      node.scrollIntoView({ block: "center", behavior: "smooth" });
+      const rect = node.getBoundingClientRect();
+      setTargetRect({
+        top: Math.max(8, rect.top - 10),
+        left: Math.max(8, rect.left - 10),
+        width: Math.min(window.innerWidth - Math.max(8, rect.left - 10) - 8, rect.width + 20),
+        height: rect.height + 20,
+      });
+    };
+
+    timer = window.setTimeout(locate, 260);
+    window.addEventListener("resize", locate);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", locate);
+    };
   }, [current, navigate]);
+
   const finish = () => {
     localStorage.setItem(GUIDE_KEY, "1");
     close();
   };
+
   return (
-    <div className="guide-backdrop">
-      <div className="guide-card" role="dialog" aria-modal="true" aria-label="UNVEIL guided demo">
+    <div className={`guide-backdrop ${targetRect ? "has-target" : ""}`}>
+      {targetRect && (
+        <div
+          className="guide-spotlight"
+          style={{
+            top: targetRect.top,
+            left: targetRect.left,
+            width: targetRect.width,
+            height: targetRect.height,
+          }}
+          aria-hidden="true"
+        />
+      )}
+      <div
+        className={`guide-card ${targetRect ? "contextual" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="UNVEIL guided demo"
+      >
         <div className="guide-progress">
           {GUIDE_STEPS.map((_, index) => (
             <i className={index <= step ? "active" : ""} key={index} />
@@ -1317,9 +1440,13 @@ function Guide({
         </span>
         <h2>{current[0]}</h2>
         <p>{current[1]}</p>
+        {targetRect && <small className="guide-do-this">DO THIS HERE · THE REAL APP STAYS INTERACTIVE</small>}
         <div className="guide-actions">
           <button onClick={finish}>SKIP</button>
-          <button className="guide-next" onClick={() => (step === GUIDE_STEPS.length - 1 ? finish() : setStep(step + 1))}>
+          <button
+            className="guide-next"
+            onClick={() => (step === GUIDE_STEPS.length - 1 ? finish() : setStep(step + 1))}
+          >
             {step === GUIDE_STEPS.length - 1 ? "FINISH" : "CONTINUE"} →
           </button>
         </div>
@@ -1573,12 +1700,7 @@ export default function App() {
       <>
         <Landing navigate={navigate} publicState={publicState} startGuide={startGuide} />
         {guideOpen && (
-          <Guide
-            step={guideStep}
-            setStep={setGuideStep}
-            close={() => setGuideOpen(false)}
-            navigate={navigate}
-          />
+          <Guide step={guideStep} setStep={setGuideStep} close={() => setGuideOpen(false)} navigate={navigate} />
         )}
       </>
     );
