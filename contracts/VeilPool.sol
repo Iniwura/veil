@@ -76,6 +76,7 @@ contract VeilPool is ZamaEthereumConfig {
     event PlayerJoined(address indexed player);
     event DrawSeatRenewed(address indexed player, uint64 expiresAt);
     event DrawSeatReleased(address indexed player);
+    event DrawSeatUnavailable(address indexed player);
     event DepositRecorded(address indexed player);
     event WithdrawalRecorded(address indexed player);
     event RoundSkipped(uint64 indexed scheduledCloseAt, uint8 eligibleParticipants);
@@ -115,7 +116,10 @@ contract VeilPool is ZamaEthereumConfig {
             emit PlayerJoined(msg.sender);
         }
 
-        _acquireOrRenewSeat(msg.sender);
+        // Saving must never fail merely because the bounded FHE draw roster is full.
+        // A user without a seat keeps a fully functional confidential position and can
+        // acquire draw eligibility later when a slot becomes available.
+        _tryAcquireOrRenewSeat(msg.sender);
 
         Position storage position = positions[msg.sender];
         position.balance = FHE.add(position.balance, transferred);
@@ -132,7 +136,7 @@ contract VeilPool is ZamaEthereumConfig {
     function renewDrawSeat() external {
         _rollExpiredRoundIfNeeded();
         require(joined[msg.sender], "Not joined");
-        _acquireOrRenewSeat(msg.sender);
+        require(_tryAcquireOrRenewSeat(msg.sender), "Draw roster full");
     }
 
     function leaveDrawSeat() external {
@@ -434,10 +438,14 @@ contract VeilPool is ZamaEthereumConfig {
         }
     }
 
-    function _acquireOrRenewSeat(address account) private {
+    function _tryAcquireOrRenewSeat(address account) private returns (bool) {
         if (!seated[account]) {
             _pruneExpiredSeatsAt(uint64(block.timestamp));
-            require(playerCount < MAX_PLAYERS, "Draw roster full");
+            if (playerCount >= MAX_PLAYERS) {
+                emit DrawSeatUnavailable(account);
+                return false;
+            }
+
             players[playerCount] = account;
             playerIndex[account] = playerCount;
             seated[account] = true;
@@ -449,6 +457,7 @@ contract VeilPool is ZamaEthereumConfig {
         uint64 expiresAt = uint64(block.timestamp + SEAT_LEASE);
         seatExpiresAt[account] = expiresAt;
         emit DrawSeatRenewed(account, expiresAt);
+        return true;
     }
 
     function _pruneExpiredSeatsAt(uint64 cutoff) private {
