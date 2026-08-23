@@ -17,8 +17,9 @@ interface IERC7984Asset {
 
 /// @title VeilPool
 /// @notice The FHE prize-savings core behind UNVEIL.
-/// @dev Draw timing is enforced by the contract. Closing, BlindDraw execution, and winner finalization are permissionless.
-///      User financial values remain encrypted and each participant can decrypt only their own position and round stats.
+/// @dev Draw timing is enforced by the contract. Closing, BlindDraw execution,
+///      and winner finalization are permissionless. User financial values remain
+///      encrypted and each participant can decrypt only their own position and round stats.
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
     uint64 public constant SEAT_LEASE = 30 days;
@@ -150,10 +151,12 @@ contract VeilPool is ZamaEthereumConfig {
         require(joined[msg.sender], "Not joined");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        euint64 permitted = FHE.select(
+            FHE.le(requested, positions[msg.sender].balance),
+            requested,
+            FHE.asEuint64(0)
+        );
 
-        // The asset contract sees the pool's aggregate custody. Guard the request against this user's encrypted
-        // principal first so one depositor can never spend another's funds. Oversized requests silently become zero.
-        euint64 permitted = FHE.select(FHE.le(requested, positions[msg.sender].balance), requested, FHE.asEuint64(0));
         FHE.allowTransient(permitted, address(asset));
         euint64 transferred = asset.confidentialTransfer(msg.sender, permitted);
 
@@ -205,19 +208,19 @@ contract VeilPool is ZamaEthereumConfig {
         return players[index];
     }
 
-    /// @notice Permissionlessly closes the elapsed draw period and snapshots the encrypted roster.
-    /// @dev If fewer than two seats were eligible at the scheduled close, the period is skipped and the schedule advances.
+    /// @notice Permissionlessly closes an elapsed draw period and freezes encrypted weights.
+    /// @dev A period with fewer than two eligible seats is skipped and the schedule advances.
     function closeDraw() public returns (uint256 roundId) {
         require(block.timestamp >= nextDrawClosesAt, "Draw still open");
         return _rollExpiredRound();
     }
 
-    /// @notice Backwards-compatible alias used by the existing scripts and tests.
+    /// @notice Backwards-compatible alias used by scripts and tests.
     function snapshotRound() external returns (uint256 roundId) {
         return closeDraw();
     }
 
-    /// @notice Permissionlessly runs the FHE weighted selection for a snapshotted round.
+    /// @notice Permissionlessly runs weighted FHE selection for a snapshotted round.
     function blindDraw(uint256 roundId) external {
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.SNAPSHOTTED, "Round not ready");
@@ -293,7 +296,7 @@ contract VeilPool is ZamaEthereumConfig {
         return drawWeights[roundId][drawPlayerIndex[roundId][msg.sender]];
     }
 
-    /// @notice Lets a participant privately decrypt the denominator needed to compute their exact round odds locally.
+    /// @notice Returns the private denominator a participant needs to compute exact round odds locally.
     function encryptedSnapshotTotalWeight(uint256 roundId) external view returns (euint64) {
         require(drawParticipantIncluded[roundId][msg.sender], "Not in round");
         return draws[roundId].encryptedTotalWeight;
@@ -362,8 +365,7 @@ contract VeilPool is ZamaEthereumConfig {
         uint64 scheduledCloseAt = nextDrawClosesAt;
         require(block.timestamp >= scheduledCloseAt, "Draw still open");
 
-        uint256 elapsedPeriods = ((block.timestamp - uint256(scheduledCloseAt)) / uint256(drawPeriod)) + 1;
-        nextDrawClosesAt = uint64(uint256(scheduledCloseAt) + elapsedPeriods * uint256(drawPeriod));
+        _advanceDrawClock(scheduledCloseAt);
 
         uint8 eligibleParticipants = _eligibleSeatCountAt(scheduledCloseAt);
         if (eligibleParticipants < 2) {
@@ -383,12 +385,26 @@ contract VeilPool is ZamaEthereumConfig {
         draw.participantCount = eligibleParticipants;
         draw.state = DrawState.SNAPSHOTTED;
 
-        euint64 snapshotTotalWeight = FHE.asEuint64(0);
+        draw.encryptedTotalWeight = _snapshotEligiblePlayers(roundId, scheduledCloseAt);
+        FHE.allowThis(draw.encryptedTotalWeight);
+        _allowSnapshotTotalToParticipants(roundId, draw);
+
+        emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock, scheduledCloseAt);
+        _pruneExpiredSeatsAt(uint64(block.timestamp));
+    }
+
+    function _advanceDrawClock(uint64 scheduledCloseAt) private {
+        uint256 elapsedPeriods = ((block.timestamp - uint256(scheduledCloseAt)) / uint256(drawPeriod)) + 1;
+        nextDrawClosesAt = uint64(uint256(scheduledCloseAt) + elapsedPeriods * uint256(drawPeriod));
+    }
+
+    function _snapshotEligiblePlayers(uint256 roundId, uint64 cutoff) private returns (euint64 snapshotTotalWeight) {
+        snapshotTotalWeight = FHE.asEuint64(0);
         uint8 snapshotIndex = 0;
 
         for (uint8 i = 0; i < playerCount; i++) {
             address account = players[i];
-            if (seatExpiresAt[account] <= scheduledCloseAt) continue;
+            if (seatExpiresAt[account] <= cutoff) continue;
 
             euint64 weight = positions[account].balance;
             drawPlayers[roundId][snapshotIndex] = account;
@@ -404,18 +420,12 @@ contract VeilPool is ZamaEthereumConfig {
                 snapshotIndex++;
             }
         }
+    }
 
-        draw.encryptedTotalWeight = snapshotTotalWeight;
-        FHE.allowThis(draw.encryptedTotalWeight);
-
-        // Each included participant may decrypt the aggregate denominator, but no participant receives another
-        // participant's individual weight. Exact odds are therefore locally computable without becoming public.
+    function _allowSnapshotTotalToParticipants(uint256 roundId, Draw storage draw) private {
         for (uint8 i = 0; i < draw.participantCount; i++) {
             FHE.allow(draw.encryptedTotalWeight, drawPlayers[roundId][i]);
         }
-
-        emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock, scheduledCloseAt);
-        _pruneExpiredSeatsAt(uint64(block.timestamp));
     }
 
     function _eligibleSeatCountAt(uint64 cutoff) private view returns (uint8 count) {
