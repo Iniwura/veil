@@ -11,6 +11,46 @@ async function address(name: string, envName: string) {
   return deployment.address;
 }
 
+async function settleYieldCursor(
+  keeper: HardhatEthersSigner,
+  pool: VeilPool,
+  yieldSource: VeilYieldSource,
+  prizeVault: VeilPrizeVault,
+  latestRoundId: bigint,
+) {
+  let cursor = await yieldSource.yieldRoundId();
+
+  while (cursor <= latestRoundId) {
+    const draw = await pool.getDrawInfo(cursor);
+    const state = Number(draw.state);
+
+    if (state === 4) {
+      console.log(`  carrying encrypted yield through cancelled round ${cursor}...`);
+      await (await yieldSource.connect(keeper).carryCancelledYield(cursor)).wait();
+      cursor = await yieldSource.yieldRoundId();
+      continue;
+    }
+
+    if (state !== 3) {
+      console.log(`  yield cursor is waiting for round ${cursor}; current state=${draw.state}`);
+      break;
+    }
+
+    console.log(`  routing the encrypted yield bucket to predetermined round ${cursor}...`);
+    await (await yieldSource.connect(keeper).allocateRoundYield(cursor)).wait();
+
+    const prize = await prizeVault.prizeStatus(cursor);
+    if (prize.funded && !prize.claimed) {
+      console.log(`  delivering round ${cursor} prize to its proof-finalized winner...`);
+      await (await prizeVault.connect(keeper).deliverPrize(cursor)).wait();
+    }
+
+    cursor = await yieldSource.yieldRoundId();
+  }
+
+  return cursor;
+}
+
 async function main() {
   if (network.name !== "sepolia") {
     throw new Error("Run on Sepolia: npx hardhat run scripts/sepolia-next-round.ts --network sepolia");
@@ -33,10 +73,11 @@ async function main() {
   const nextRoundId = await pool.nextRoundId();
 
   console.log("UNVEIL permissionless keeper");
-  console.log(`  keeper:      ${keeper.address}`);
-  console.log(`  pool:        ${poolAddress}`);
-  console.log(`  next round:  ${nextRoundId}`);
-  console.log(`  next close:  ${closesAt}`);
+  console.log(`  keeper:       ${keeper.address}`);
+  console.log(`  pool:         ${poolAddress}`);
+  console.log(`  next round:   ${nextRoundId}`);
+  console.log(`  next close:   ${closesAt}`);
+  console.log(`  yield cursor: ${await yieldSource.yieldRoundId()}`);
 
   if (now >= closesAt) {
     console.log("1/5 Closing elapsed draw and freezing encrypted weights...");
@@ -45,14 +86,17 @@ async function main() {
     const after = await pool.nextRoundId();
     if (after === before) {
       console.log("  period skipped because fewer than two eligible positions were present at the scheduled close");
-      return;
     }
   } else {
     console.log(`1/5 Draw still open for ${closesAt - now}s; no privileged early close is possible.`);
   }
 
   const latestRoundId = (await pool.nextRoundId()) - 1n;
-  if (latestRoundId <= 0n) return;
+  if (latestRoundId <= 0n) {
+    console.log("No snapshotted round exists yet.");
+    return;
+  }
+
   let draw = await pool.getDrawInfo(latestRoundId);
 
   if (Number(draw.state) === 1) {
@@ -60,7 +104,7 @@ async function main() {
     await (await pool.connect(keeper).blindDraw(latestRoundId)).wait();
     draw = await pool.getDrawInfo(latestRoundId);
   } else {
-    console.log(`2/5 BlindDraw already advanced; current state=${draw.state}`);
+    console.log(`2/5 BlindDraw step already advanced; current state=${draw.state}`);
   }
 
   if (Number(draw.state) === 2) {
@@ -75,42 +119,34 @@ async function main() {
     console.log(`3/5 Winner proof step already advanced; current state=${draw.state}`);
   }
 
-  if (Number(draw.state) === 4) {
-    console.log(`Round ${latestRoundId} was proven to have no eligible positive weight and is CANCELLED.`);
-    return;
-  }
-
-  if (Number(draw.state) !== 3) {
-    console.log(`Round ${latestRoundId} is not finalized yet; stopping at state=${draw.state}.`);
-    return;
-  }
-
-  const winner = await pool.getWinner(latestRoundId);
-  console.log(`  winner: ${winner}`);
-
-  let prize = await prizeVault.prizeStatus(latestRoundId);
-  if (!prize.funded) {
-    console.log("4/5 Routing all currently realized confidential strategy yield to the finalized round...");
-    await (await yieldSource.connect(keeper).allocateAllToRound(latestRoundId)).wait();
-    prize = await prizeVault.prizeStatus(latestRoundId);
+  if (Number(draw.state) === 3) {
+    console.log(`  winner: ${await pool.getWinner(latestRoundId)}`);
+  } else if (Number(draw.state) === 4) {
+    console.log(`  round ${latestRoundId} is KMS-proven CANCELLED; its encrypted yield will carry forward.`);
   } else {
-    console.log("4/5 Prize already funded.");
+    console.log(`  round ${latestRoundId} is not settled yet; current state=${draw.state}`);
   }
 
-  if (!prize.claimed) {
-    console.log("5/5 Delivering encrypted prize directly to the finalized winner...");
-    await (await prizeVault.connect(keeper).deliverPrize(latestRoundId)).wait();
+  console.log("4/5 Settling sequential confidential yield without caller-selected round routing...");
+  const nextYieldRound = await settleYieldCursor(keeper, pool, yieldSource, prizeVault, latestRoundId);
+
+  console.log("5/5 Checking latest-round payout state...");
+  if (Number(draw.state) === 3) {
+    const prize = await prizeVault.prizeStatus(latestRoundId);
+    if (prize.funded && !prize.claimed) {
+      await (await prizeVault.connect(keeper).deliverPrize(latestRoundId)).wait();
+    }
+    const finalStatus = await prizeVault.prizeStatus(latestRoundId);
+    console.log(`  funded:    ${finalStatus.funded}`);
+    console.log(`  delivered: ${finalStatus.claimed}`);
   } else {
-    console.log("5/5 Prize already delivered.");
+    console.log("  no payout is created for a cancelled or unfinished round");
   }
 
-  const finalStatus = await prizeVault.prizeStatus(latestRoundId);
   console.log("\nUNVEIL keeper run complete");
-  console.log(`  round:     ${latestRoundId}`);
-  console.log(`  winner:    ${winner}`);
-  console.log(`  funded:    ${finalStatus.funded}`);
-  console.log(`  delivered: ${finalStatus.claimed}`);
-  console.log("  note: prize amount remains encrypted and is revealable only by the winner");
+  console.log(`  latest round:      ${latestRoundId}`);
+  console.log(`  next yield cursor: ${nextYieldRound}`);
+  console.log("  note: the keeper cannot choose a prize beneficiary or decrypt any prize amount");
 }
 
 main().catch((error: unknown) => {
