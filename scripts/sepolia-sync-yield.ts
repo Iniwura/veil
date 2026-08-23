@@ -27,13 +27,24 @@ async function address(name: string, envName: string) {
   return deployment.address;
 }
 
-async function fundDemoYieldAsset(wrapper: Contract, strategy: HardhatEthersSigner, amount: bigint) {
+function wrapperFor(assetAddress: string, signer: HardhatEthersSigner) {
+  return new Contract(assetAddress, WRAPPER_ABI, signer);
+}
+
+function underlyingFor(underlyingAddress: string, signer: HardhatEthersSigner) {
+  return new Contract(underlyingAddress, UNDERLYING_ABI, signer);
+}
+
+async function fundDemoYieldAsset(assetAddress: string, strategy: HardhatEthersSigner, amount: bigint) {
   if (amount === 0n) return;
-  const underlyingAddress = await wrapper.underlying();
-  const underlying = new Contract(underlyingAddress, UNDERLYING_ABI, strategy);
+
+  const wrapper = wrapperFor(assetAddress, strategy);
+  const underlyingAddress = (await wrapper.underlying()) as string;
+  const underlying = underlyingFor(underlyingAddress, strategy);
+
   await (await underlying.mint(strategy.address, amount)).wait();
-  await (await underlying.approve(await wrapper.getAddress(), amount)).wait();
-  await (await wrapper.connect(strategy).wrap(strategy.address, amount)).wait();
+  await (await underlying.approve(assetAddress, amount)).wait();
+  await (await wrapper.wrap(strategy.address, amount)).wait();
 }
 
 async function main() {
@@ -56,7 +67,7 @@ async function main() {
   const pool = (await ethers.getContractAt("VeilPool", poolAddress)) as VeilPool;
   const yieldSource = (await ethers.getContractAt("VeilYieldSource", yieldSourceAddress)) as VeilYieldSource;
   const assetAddress = process.env.UNVEIL_ASSET_ADDRESS?.trim() || (await pool.asset());
-  const wrapper = new Contract(assetAddress, WRAPPER_ABI, strategy);
+  const wrapper = wrapperFor(assetAddress, strategy);
 
   if ((await yieldSource.strategyOperator()).toLowerCase() !== strategy.address.toLowerCase()) {
     throw new Error(`Configured signer ${strategy.address} is not strategy operator ${await yieldSource.strategyOperator()}`);
@@ -81,11 +92,11 @@ async function main() {
 
   if (amount > 0n) {
     console.log("1/4 Minting mock USDC and wrapping it through Zama's official cUSDC wrapper...");
-    await fundDemoYieldAsset(wrapper, strategy, amount);
+    await fundDemoYieldAsset(assetAddress, strategy, amount);
 
     if (!(await wrapper.isOperator(strategy.address, yieldSourceAddress))) {
       console.log("2/4 Authorizing the yield adapter to receive confidential cUSDC...");
-      await (await wrapper.connect(strategy).setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
+      await (await wrapper.setOperator(yieldSourceAddress, MAX_OPERATOR_UNTIL)).wait();
     } else {
       console.log("2/4 Yield adapter already authorized.");
     }
