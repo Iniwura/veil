@@ -135,8 +135,17 @@ contract VeilPool is ZamaEthereumConfig {
         require(joined[msg.sender], "Not joined");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        FHE.allowTransient(requested, address(asset));
-        euint64 transferred = asset.confidentialTransfer(msg.sender, requested);
+
+        // Shared custody can hold enough aggregate assets to satisfy a request that exceeds
+        // this user's private principal. Enforce all-or-zero semantics against the user's
+        // encrypted VEIL position before allowing the asset contract to move anything.
+        euint64 permitted = FHE.select(
+            FHE.le(requested, positions[msg.sender].balance),
+            requested,
+            FHE.asEuint64(0)
+        );
+        FHE.allowTransient(permitted, address(asset));
+        euint64 transferred = asset.confidentialTransfer(msg.sender, permitted);
 
         positions[msg.sender].balance = FHE.sub(positions[msg.sender].balance, transferred);
         encryptedTotalWeight = FHE.sub(encryptedTotalWeight, transferred);
@@ -261,15 +270,12 @@ contract VeilPool is ZamaEthereumConfig {
         return (draw.snapshotBlock, draw.participantCount, draw.state);
     }
 
-    function encryptedSnapshotWeightOf(uint256 roundId) external view returns (euint64) {
-        require(drawParticipantIncluded[roundId][msg.sender], "Not in round");
-        return drawWeights[roundId][drawPlayerIndex[roundId][msg.sender]];
-    }
-
     function getEncryptedWinner(uint256 roundId) external view returns (eaddress) {
         Draw storage draw = draws[roundId];
         require(
-            draw.state == DrawState.DRAWN || draw.state == DrawState.FINALIZED || draw.state == DrawState.CANCELLED,
+            draw.state == DrawState.DRAWN ||
+                draw.state == DrawState.FINALIZED ||
+                draw.state == DrawState.CANCELLED,
             "Winner unavailable"
         );
         return draw.encryptedWinner;
@@ -281,35 +287,45 @@ contract VeilPool is ZamaEthereumConfig {
         return draw.winner;
     }
 
-    function getSnapshotPlayer(uint256 roundId, uint8 index) external view returns (address) {
+    function getSnapshotWeight(uint256 roundId) external view returns (euint64) {
         Draw storage draw = draws[roundId];
         require(draw.state != DrawState.NONE, "Unknown round");
-        require(index < draw.participantCount, "Invalid index");
-        return drawPlayers[roundId][index];
+        require(drawParticipantIncluded[roundId][msg.sender], "Not in round");
+        return drawWeights[roundId][drawPlayerIndex[roundId][msg.sender]];
+    }
+
+    function getSnapshotTotalWeight(uint256 roundId) external view returns (euint64) {
+        Draw storage draw = draws[roundId];
+        require(draw.state != DrawState.NONE, "Unknown round");
+        return draw.encryptedTotalWeight;
     }
 
     function _acquireOrRenewSeat(address account) private {
-        if (!seated[account]) {
-            _pruneExpiredSeats();
-            require(playerCount < MAX_PLAYERS, "Draw roster full");
-            players[playerCount] = account;
-            playerIndex[account] = playerCount;
-            seated[account] = true;
-            unchecked {
-                playerCount++;
-            }
+        if (seated[account]) {
+            seatExpiresAt[account] = uint64(block.timestamp + SEAT_LEASE);
+            emit DrawSeatRenewed(account, seatExpiresAt[account]);
+            return;
         }
 
-        uint64 expiresAt = uint64(block.timestamp + SEAT_LEASE);
-        seatExpiresAt[account] = expiresAt;
-        emit DrawSeatRenewed(account, expiresAt);
+        _pruneExpiredSeats();
+        require(playerCount < MAX_PLAYERS, "Pool full");
+
+        uint8 index = playerCount;
+        players[index] = account;
+        playerIndex[account] = index;
+        seated[account] = true;
+        seatExpiresAt[account] = uint64(block.timestamp + SEAT_LEASE);
+        unchecked {
+            playerCount++;
+        }
+        emit DrawSeatRenewed(account, seatExpiresAt[account]);
     }
 
     function _pruneExpiredSeats() private {
         uint8 i = 0;
         while (i < playerCount) {
             address account = players[i];
-            if (seatExpiresAt[account] < block.timestamp) {
+            if (seatExpiresAt[account] <= block.timestamp) {
                 _removeSeat(account);
             } else {
                 unchecked {
@@ -324,16 +340,15 @@ contract VeilPool is ZamaEthereumConfig {
         uint8 lastIndex = playerCount - 1;
 
         if (index != lastIndex) {
-            address moved = players[lastIndex];
-            players[index] = moved;
-            playerIndex[moved] = index;
+            address last = players[lastIndex];
+            players[index] = last;
+            playerIndex[last] = index;
         }
 
         players[lastIndex] = address(0);
         delete playerIndex[account];
-        seated[account] = false;
-        seatExpiresAt[account] = 0;
-
+        delete seated[account];
+        delete seatExpiresAt[account];
         unchecked {
             playerCount--;
         }
