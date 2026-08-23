@@ -21,6 +21,7 @@ interface IVeilWinnerSource {
 contract VeilPrizeVault is ZamaEthereumConfig {
     struct Prize {
         euint64 amount;
+        euint64 awardedAmount;
         address winner;
         bool funded;
         bool winnerAuthorized;
@@ -62,13 +63,15 @@ contract VeilPrizeVault is ZamaEthereumConfig {
 
         if (!prize.funded) {
             prize.amount = FHE.asEuint64(0);
+            prize.awardedAmount = FHE.asEuint64(0);
             prize.funded = true;
+            FHE.allowThis(prize.awardedAmount);
         }
 
         prize.amount = FHE.add(prize.amount, amount);
         FHE.allowThis(prize.amount);
 
-        // If the winner was authorized before additional prize funding arrived, preserve their ACL on the updated handle.
+        // If the winner was authorized before additional funding arrived, preserve their ACL on the updated handle.
         if (prize.winnerAuthorized) {
             FHE.allow(prize.amount, prize.winner);
         }
@@ -81,15 +84,16 @@ contract VeilPrizeVault is ZamaEthereumConfig {
         _authorizeWinner(roundId);
     }
 
+    /// @notice Returns the encrypted prize to the winner before or after delivery.
     function encryptedPrizeOf(uint256 roundId) external view returns (euint64) {
         Prize storage prize = prizes[roundId];
         require(prize.winnerAuthorized, "Winner not authorized");
         require(msg.sender == prize.winner, "Not winner");
-        return prize.amount;
+        return prize.claimed ? prize.awardedAmount : prize.amount;
     }
 
     /// @notice Permissionlessly sends the confidential prize to the fixed finalized winner.
-    /// @dev The caller never receives the funds and does not need to learn the encrypted amount.
+    /// @dev The caller never receives the funds. The awarded amount remains encrypted and winner-readable afterward.
     function deliverPrize(uint256 roundId) public {
         Prize storage prize = prizes[roundId];
         require(prize.funded, "Prize not funded");
@@ -98,6 +102,10 @@ contract VeilPrizeVault is ZamaEthereumConfig {
         if (!prize.winnerAuthorized) {
             _authorizeWinner(roundId);
         }
+
+        prize.awardedAmount = prize.amount;
+        FHE.allowThis(prize.awardedAmount);
+        FHE.allow(prize.awardedAmount, prize.winner);
 
         FHE.allowTransient(prize.amount, address(asset));
         euint64 transferred = asset.confidentialTransfer(prize.winner, prize.amount);
