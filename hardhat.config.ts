@@ -10,7 +10,6 @@ import { vars } from "hardhat/config";
 import "solidity-coverage";
 
 import "./tasks/accounts";
-import "./tasks/FHECounter";
 
 const LOCAL_TEST_MNEMONIC = "test test test test test test test test test test test junk";
 const LOCAL_MNEMONIC: string = vars.get("MNEMONIC", LOCAL_TEST_MNEMONIC);
@@ -70,12 +69,8 @@ const config: HardhatUserConfig = {
     version: "0.8.27",
     settings: {
       metadata: {
-        // Not including the metadata hash
-        // https://github.com/paulrberg/hardhat-template/issues/31
         bytecodeHash: "none",
       },
-      // Disable the optimizer when debugging
-      // https://hardhat.org/hardhat-network/#solidity-optimizer-support
       optimizer: {
         enabled: true,
         runs: 800,
