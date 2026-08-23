@@ -252,7 +252,8 @@ async function main() {
   console.log("14/14 Winner privately unveils prize amount and verifies principal separation...");
   const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(roundId);
   const clearPrize = await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner);
-  if (clearPrize !== prizeAmount) throw new Error(`Expected encrypted awarded amount ${prizeAmount}, got ${clearPrize}`);
+  if (clearPrize !== prizeAmount)
+    throw new Error(`Expected encrypted awarded amount ${prizeAmount}, got ${clearPrize}`);
 
   const status = await prizeVault.prizeStatus(roundId);
   if (!status.claimed) throw new Error("Prize delivery status was not persisted");

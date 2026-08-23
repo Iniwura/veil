@@ -38,7 +38,11 @@ describe("VeilYieldSource round timing", function () {
     poolAddress = await pool.getAddress();
 
     const yieldFactory = await ethers.getContractFactory("VeilYieldSource");
-    yieldSource = (await yieldFactory.deploy(await token.getAddress(), poolAddress, strategy.address)) as VeilYieldSource;
+    yieldSource = (await yieldFactory.deploy(
+      await token.getAddress(),
+      poolAddress,
+      strategy.address,
+    )) as VeilYieldSource;
     yieldSourceAddress = await yieldSource.getAddress();
 
     for (const participant of [alice, bob]) {

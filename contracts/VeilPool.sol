@@ -151,11 +151,7 @@ contract VeilPool is ZamaEthereumConfig {
         require(joined[msg.sender], "Not joined");
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        euint64 permitted = FHE.select(
-            FHE.le(requested, positions[msg.sender].balance),
-            requested,
-            FHE.asEuint64(0)
-        );
+        euint64 permitted = FHE.select(FHE.le(requested, positions[msg.sender].balance), requested, FHE.asEuint64(0));
 
         FHE.allowTransient(permitted, address(asset));
         euint64 transferred = asset.confidentialTransfer(msg.sender, permitted);

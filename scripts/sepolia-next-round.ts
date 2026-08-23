@@ -161,7 +161,9 @@ async function main() {
   console.log("\nUNVEIL keeper run complete");
   console.log(`  latest round:      ${latestRoundId}`);
   console.log(`  next yield cursor: ${nextYieldRound}`);
-  console.log("  note: the keeper cannot choose a prize beneficiary, choose a yield round, or decrypt any prize amount");
+  console.log(
+    "  note: the keeper cannot choose a prize beneficiary, choose a yield round, or decrypt any prize amount",
+  );
 }
 
 main().catch((error: unknown) => {

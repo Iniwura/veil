@@ -70,7 +70,9 @@ async function main() {
   const wrapper = wrapperFor(assetAddress, strategy);
 
   if ((await yieldSource.strategyOperator()).toLowerCase() !== strategy.address.toLowerCase()) {
-    throw new Error(`Configured signer ${strategy.address} is not strategy operator ${await yieldSource.strategyOperator()}`);
+    throw new Error(
+      `Configured signer ${strategy.address} is not strategy operator ${await yieldSource.strategyOperator()}`,
+    );
   }
 
   const roundId = await yieldSource.yieldRoundId();
@@ -80,7 +82,9 @@ async function main() {
   }
 
   if (roundId >= (await pool.nextRoundId())) {
-    throw new Error(`Round ${roundId} is still open or has not produced an eligible snapshot. Yield cannot be sealed yet.`);
+    throw new Error(
+      `Round ${roundId} is still open or has not produced an eligible snapshot. Yield cannot be sealed yet.`,
+    );
   }
 
   console.log("UNVEIL Sepolia strategy sync");
