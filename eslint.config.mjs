@@ -16,7 +16,9 @@ export default tseslint.config(
       "cache/**",
       "coverage/**",
       "dist/**",
-      "frontend/**",
+      "frontend/dist/**",
+      "frontend/node_modules/**",
+      "frontend/vite.config.ts",
       "node_modules/**",
       "types/**",
       "*.env",
@@ -36,7 +38,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.ts"],
+    files: ["*.ts", "deploy/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
     languageOptions: {
       parserOptions: {
         project: "./tsconfig.json",
@@ -48,6 +50,27 @@ export default tseslint.config(
         { ignoreIIFE: true, ignoreVoid: true },
       ],
       "@typescript-eslint/no-inferrable-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "_", varsIgnorePattern: "_" },
+      ],
+    },
+  },
+  {
+    files: ["frontend/src/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+      parserOptions: {
+        project: "./frontend/tsconfig.json",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        { ignoreIIFE: true, ignoreVoid: true },
+      ],
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "_", varsIgnorePattern: "_" },
