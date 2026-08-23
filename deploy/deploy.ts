@@ -40,7 +40,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const yieldSource = await deploy("VeilYieldSource", {
     from: deployer,
-    args: [assetAddress, deployer],
+    args: [assetAddress, pool.address, deployer],
     log: true,
   });
 
@@ -76,5 +76,5 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 };
 
 export default func;
-func.id = "deploy_unveil_v2";
+func.id = "deploy_unveil_v3";
 func.tags = ["UNVEIL", "VEIL"];
