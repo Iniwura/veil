@@ -24,19 +24,24 @@ async function settleYieldCursor(
     const draw = await pool.getDrawInfo(cursor);
     const state = Number(draw.state);
 
+    if (state !== 3 && state !== 4) {
+      console.log(`  yield cursor is waiting for round ${cursor}; current state=${draw.state}`);
+      break;
+    }
+
+    if (!(await yieldSource.yieldReady())) {
+      console.log(`  round ${cursor} is settled but its confidential yield bucket is not sealed by the strategy yet`);
+      break;
+    }
+
     if (state === 4) {
-      console.log(`  carrying encrypted yield through cancelled round ${cursor}...`);
+      console.log(`  carrying sealed encrypted yield through cancelled round ${cursor}...`);
       await (await yieldSource.connect(keeper).carryCancelledYield(cursor)).wait();
       cursor = await yieldSource.yieldRoundId();
       continue;
     }
 
-    if (state !== 3) {
-      console.log(`  yield cursor is waiting for round ${cursor}; current state=${draw.state}`);
-      break;
-    }
-
-    console.log(`  routing the encrypted yield bucket to predetermined round ${cursor}...`);
+    console.log(`  routing the sealed encrypted yield bucket to predetermined round ${cursor}...`);
     await (await yieldSource.connect(keeper).allocateRoundYield(cursor)).wait();
 
     const prize = await prizeVault.prizeStatus(cursor);
@@ -49,6 +54,25 @@ async function settleYieldCursor(
   }
 
   return cursor;
+}
+
+async function deliverOutstandingPrizes(
+  keeper: HardhatEthersSigner,
+  pool: VeilPool,
+  prizeVault: VeilPrizeVault,
+  latestRoundId: bigint,
+) {
+  const first = latestRoundId > 24n ? latestRoundId - 24n : 1n;
+  for (let roundId = first; roundId <= latestRoundId; roundId++) {
+    const draw = await pool.getDrawInfo(roundId).catch(() => null);
+    if (!draw || Number(draw.state) !== 3) continue;
+
+    const prize = await prizeVault.prizeStatus(roundId);
+    if (prize.funded && !prize.claimed) {
+      console.log(`  sweeping ready prize for round ${roundId} to its finalized winner...`);
+      await (await prizeVault.connect(keeper).deliverPrize(roundId)).wait();
+    }
+  }
 }
 
 async function main() {
@@ -78,6 +102,7 @@ async function main() {
   console.log(`  next round:   ${nextRoundId}`);
   console.log(`  next close:   ${closesAt}`);
   console.log(`  yield cursor: ${await yieldSource.yieldRoundId()}`);
+  console.log(`  yield sealed: ${await yieldSource.yieldReady()}`);
 
   if (now >= closesAt) {
     console.log("1/5 Closing elapsed draw and freezing encrypted weights...");
@@ -122,7 +147,7 @@ async function main() {
   if (Number(draw.state) === 3) {
     console.log(`  winner: ${await pool.getWinner(latestRoundId)}`);
   } else if (Number(draw.state) === 4) {
-    console.log(`  round ${latestRoundId} is KMS-proven CANCELLED; its encrypted yield will carry forward.`);
+    console.log(`  round ${latestRoundId} is KMS-proven CANCELLED; sealed encrypted yield can carry forward.`);
   } else {
     console.log(`  round ${latestRoundId} is not settled yet; current state=${draw.state}`);
   }
@@ -130,23 +155,13 @@ async function main() {
   console.log("4/5 Settling sequential confidential yield without caller-selected round routing...");
   const nextYieldRound = await settleYieldCursor(keeper, pool, yieldSource, prizeVault, latestRoundId);
 
-  console.log("5/5 Checking latest-round payout state...");
-  if (Number(draw.state) === 3) {
-    const prize = await prizeVault.prizeStatus(latestRoundId);
-    if (prize.funded && !prize.claimed) {
-      await (await prizeVault.connect(keeper).deliverPrize(latestRoundId)).wait();
-    }
-    const finalStatus = await prizeVault.prizeStatus(latestRoundId);
-    console.log(`  funded:    ${finalStatus.funded}`);
-    console.log(`  delivered: ${finalStatus.claimed}`);
-  } else {
-    console.log("  no payout is created for a cancelled or unfinished round");
-  }
+  console.log("5/5 Sweeping any already-funded undelivered prizes...");
+  await deliverOutstandingPrizes(keeper, pool, prizeVault, latestRoundId);
 
   console.log("\nUNVEIL keeper run complete");
   console.log(`  latest round:      ${latestRoundId}`);
   console.log(`  next yield cursor: ${nextYieldRound}`);
-  console.log("  note: the keeper cannot choose a prize beneficiary or decrypt any prize amount");
+  console.log("  note: the keeper cannot choose a prize beneficiary, choose a yield round, or decrypt any prize amount");
 }
 
 main().catch((error: unknown) => {
