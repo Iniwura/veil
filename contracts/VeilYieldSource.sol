@@ -80,11 +80,7 @@ contract VeilYieldSource is ZamaEthereumConfig {
 
         // Preserve ERC-7984-style all-or-zero behavior against VEIL's own encrypted
         // yield accounting. Never clamp an oversized request to the remaining yield.
-        euint64 permitted = FHE.select(
-            FHE.le(requested, unallocatedYield),
-            requested,
-            FHE.asEuint64(0)
-        );
+        euint64 permitted = FHE.select(FHE.le(requested, unallocatedYield), requested, FHE.asEuint64(0));
 
         FHE.allowTransient(permitted, address(asset));
         euint64 transferred = asset.confidentialTransfer(prizeVault, permitted);

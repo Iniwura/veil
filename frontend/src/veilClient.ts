@@ -103,14 +103,17 @@ async function initializeSdk() {
 
   if (!sdkPromise) {
     // Match Zama's official browser loader: let the CDN bundle resolve its own WASM/worker assets.
-    sdkPromise = sdk.initSDK().then((result) => {
-      if (!result) throw new Error("Zama Relayer SDK initialization returned false.");
-      sdk.__initialized__ = true;
-      return true;
-    }).catch((error) => {
-      sdkPromise = null;
-      throw error;
-    });
+    sdkPromise = sdk
+      .initSDK()
+      .then((result) => {
+        if (!result) throw new Error("Zama Relayer SDK initialization returned false.");
+        sdk.__initialized__ = true;
+        return true;
+      })
+      .catch((error) => {
+        sdkPromise = null;
+        throw error;
+      });
   }
   return sdkPromise;
 }
@@ -122,9 +125,7 @@ async function relayer() {
     if (!sdk) throw new Error("Zama Relayer SDK browser bundle is unavailable.");
 
     const baseConfig = sdk.SepoliaConfig;
-    const relayerUrl = baseConfig.relayerUrl.endsWith("/v2")
-      ? baseConfig.relayerUrl
-      : baseConfig.relayerUrl + "/v2";
+    const relayerUrl = baseConfig.relayerUrl.endsWith("/v2") ? baseConfig.relayerUrl : baseConfig.relayerUrl + "/v2";
 
     relayerPromise = withTimeout(
       sdk.createInstance({
@@ -165,7 +166,11 @@ function actionError(prefix: string, error: unknown): never {
 
 export async function connectWallet() {
   const ethereum = injectedProvider();
-  await withTimeout(ethereum.request({ method: "eth_requestAccounts" }), 30_000, "Wallet did not respond to the connection request.");
+  await withTimeout(
+    ethereum.request({ method: "eth_requestAccounts" }),
+    30_000,
+    "Wallet did not respond to the connection request.",
+  );
   await ensureSepolia(ethereum);
   relayerPromise = null;
   const provider: EthersBrowserProvider = new BrowserProvider(ethereum);
@@ -181,7 +186,18 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
     await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
   } catch (error) {
     if (rpcErrorCode(error) !== 4902) throw error;
-    await ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: chainIdHex, chainName: "Sepolia", nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 }, rpcUrls: [SEPOLIA_RPC_URL], blockExplorerUrls: ["https://sepolia.etherscan.io"] }] });
+    await ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: chainIdHex,
+          chainName: "Sepolia",
+          nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [SEPOLIA_RPC_URL],
+          blockExplorerUrls: ["https://sepolia.etherscan.io"],
+        },
+      ],
+    });
   }
   const switched = await ethereum.request({ method: "eth_chainId" });
   if (switched !== chainIdHex) throw new Error("VEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
@@ -209,9 +225,19 @@ export async function fundDemoWallet(signer: JsonRpcSigner, amount = 100n) {
   const address = await signer.getAddress();
   const { asset } = contracts(signer);
   try {
-    const tx = await withTimeout(asset.mint(address, amount), 30_000, "Wallet did not respond to the demo funding request. Open MetaMask and check for a pending confirmation.");
-    return await withTimeout(tx.wait(), 120_000, "Demo funding transaction is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.");
-  } catch (error) { actionError("VEIL_DEMO_FUNDING_FAILED:", error); }
+    const tx = await withTimeout(
+      asset.mint(address, amount),
+      30_000,
+      "Wallet did not respond to the demo funding request. Open MetaMask and check for a pending confirmation.",
+    );
+    return await withTimeout(
+      tx.wait(),
+      120_000,
+      "Demo funding transaction is still pending on Sepolia. Check MetaMask activity or Etherscan before retrying.",
+    );
+  } catch (error) {
+    actionError("VEIL_DEMO_FUNDING_FAILED:", error);
+  }
 }
 
 export async function ensurePoolOperator(signer: JsonRpcSigner) {
@@ -243,19 +269,13 @@ export async function ensurePoolOperator(signer: JsonRpcSigner) {
   return true;
 }
 
-export async function sealDeposit(
-  signer: JsonRpcSigner,
-  amount: bigint,
-  onStep?: (message: string) => void,
-) {
+export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?: (message: string) => void) {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
 
   onStep?.("Checking VEIL pool authorization…");
   const operatorAdded = await ensurePoolOperator(signer);
   onStep?.(
-    operatorAdded
-      ? "Pool authorization confirmed. Initializing FHE…"
-      : "Pool already authorized. Initializing FHE…",
+    operatorAdded ? "Pool authorization confirmed. Initializing FHE…" : "Pool already authorized. Initializing FHE…",
   );
 
   const address = await signer.getAddress();
@@ -297,21 +317,47 @@ export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
   let encrypted;
   try {
     const fhe = await relayer();
-    encrypted = await withTimeout(fhe.createEncryptedInput(VEIL_CONTRACTS.pool, address).add64(amount).encrypt(), 60_000, "FHE encryption timed out. Check network connectivity and retry.");
-  } catch (error) { actionError("VEIL_ENCRYPTION_FAILED:", error); }
+    encrypted = await withTimeout(
+      fhe.createEncryptedInput(VEIL_CONTRACTS.pool, address).add64(amount).encrypt(),
+      60_000,
+      "FHE encryption timed out. Check network connectivity and retry.",
+    );
+  } catch (error) {
+    actionError("VEIL_ENCRYPTION_FAILED:", error);
+  }
   const { pool } = contracts(signer);
   try {
-    const tx = await withTimeout(pool.withdraw(encrypted.handles[0], encrypted.inputProof), 30_000, "Wallet did not respond to the withdrawal request.");
-    return await withTimeout(tx.wait(), 120_000, "Withdrawal is still pending on Sepolia. Check your wallet activity before retrying.");
-  } catch (error) { actionError("VEIL_WITHDRAW_FAILED:", error); }
+    const tx = await withTimeout(
+      pool.withdraw(encrypted.handles[0], encrypted.inputProof),
+      30_000,
+      "Wallet did not respond to the withdrawal request.",
+    );
+    return await withTimeout(
+      tx.wait(),
+      120_000,
+      "Withdrawal is still pending on Sepolia. Check your wallet activity before retrying.",
+    );
+  } catch (error) {
+    actionError("VEIL_WITHDRAW_FAILED:", error);
+  }
 }
 
 export async function renewDrawSeat(signer: JsonRpcSigner) {
   const { pool } = contracts(signer);
   try {
-    const tx = await withTimeout(pool.renewDrawSeat(), 30_000, "Wallet did not respond to the draw-seat renewal request.");
-    return await withTimeout(tx.wait(), 120_000, "Draw-seat renewal is still pending on Sepolia. Check wallet activity before retrying.");
-  } catch (error) { actionError("VEIL_SEAT_RENEWAL_FAILED:", error); }
+    const tx = await withTimeout(
+      pool.renewDrawSeat(),
+      30_000,
+      "Wallet did not respond to the draw-seat renewal request.",
+    );
+    return await withTimeout(
+      tx.wait(),
+      120_000,
+      "Draw-seat renewal is still pending on Sepolia. Check wallet activity before retrying.",
+    );
+  } catch (error) {
+    actionError("VEIL_SEAT_RENEWAL_FAILED:", error);
+  }
 }
 
 async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contractAddress: string) {
@@ -322,8 +368,25 @@ async function userDecryptHandle(signer: JsonRpcSigner, handle: string, contract
   const durationDays = 1;
   const contractAddresses = [contractAddress];
   const eip712 = fhe.createEIP712(keypair.publicKey, contractAddresses, startTimestamp, durationDays);
-  const signature = await signer.signTypedData(eip712.domain, { UserDecryptRequestVerification: [...eip712.types.UserDecryptRequestVerification] }, eip712.message);
-  const result = await withTimeout(fhe.userDecrypt([{ handle, contractAddress }], keypair.privateKey, keypair.publicKey, signature.replace("0x", ""), contractAddresses, address, startTimestamp, durationDays), 60_000, "Private decryption timed out. Check network connectivity and retry.");
+  const signature = await signer.signTypedData(
+    eip712.domain,
+    { UserDecryptRequestVerification: [...eip712.types.UserDecryptRequestVerification] },
+    eip712.message,
+  );
+  const result = await withTimeout(
+    fhe.userDecrypt(
+      [{ handle, contractAddress }],
+      keypair.privateKey,
+      keypair.publicKey,
+      signature.replace("0x", ""),
+      contractAddresses,
+      address,
+      startTimestamp,
+      durationDays,
+    ),
+    60_000,
+    "Private decryption timed out. Check network connectivity and retry.",
+  );
   const handleKey = handle as `0x${string}`;
   return BigInt(result[handleKey] as bigint);
 }
@@ -344,29 +407,33 @@ async function readVerifiedRounds(latestRound: bigint): Promise<VerifiedRound[]>
   if (latestRound === 0n) return [];
   const { pool, prizeVault } = readContracts();
   const ids = Array.from({ length: Number(latestRound) }, (_, index) => BigInt(index + 1)).reverse();
-  const rounds = await Promise.all(ids.map(async (id) => {
-    try {
-      const draw = await pool.getDrawInfo(id);
-      const state = Number(draw.state);
-      if (state !== 3 && state !== 4) return null;
-      const cancelled = state === 4;
-      const winner = cancelled ? "0x0000000000000000000000000000000000000000" : (await pool.getWinner(id)) as string;
-      const prize = cancelled ? null : await prizeVault.prizeStatus(id);
-      return {
-        id,
-        snapshotBlock: BigInt(draw.snapshotBlock),
-        participantCount: Number(draw.participantCount),
-        state,
-        cancelled,
-        winner,
-        funded: prize ? Boolean(prize.funded) : false,
-        winnerAuthorized: prize ? Boolean(prize.winnerAuthorized) : false,
-        claimed: prize ? Boolean(prize.claimed) : false,
-      } satisfies VerifiedRound;
-    } catch {
-      return null;
-    }
-  }));
+  const rounds = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const draw = await pool.getDrawInfo(id);
+        const state = Number(draw.state);
+        if (state !== 3 && state !== 4) return null;
+        const cancelled = state === 4;
+        const winner = cancelled
+          ? "0x0000000000000000000000000000000000000000"
+          : ((await pool.getWinner(id)) as string);
+        const prize = cancelled ? null : await prizeVault.prizeStatus(id);
+        return {
+          id,
+          snapshotBlock: BigInt(draw.snapshotBlock),
+          participantCount: Number(draw.participantCount),
+          state,
+          cancelled,
+          winner,
+          funded: prize ? Boolean(prize.funded) : false,
+          winnerAuthorized: prize ? Boolean(prize.winnerAuthorized) : false,
+          claimed: prize ? Boolean(prize.claimed) : false,
+        } satisfies VerifiedRound;
+      } catch {
+        return null;
+      }
+    }),
+  );
   return rounds.filter((round): round is VerifiedRound => round !== null);
 }
 export async function readDashboard(signer: JsonRpcSigner) {

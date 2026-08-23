@@ -71,7 +71,8 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
       this.skip();
     }
 
-    ({ token, pool, poolAddress, yieldSource, yieldSourceAddress, prizeVault, prizeVaultAddress } = await deployFixture());
+    ({ token, pool, poolAddress, yieldSource, yieldSourceAddress, prizeVault, prizeVaultAddress } =
+      await deployFixture());
 
     for (const signer of [signers.alice, signers.bob]) {
       await (await token.mint(signer.address, 1_000)).wait();
@@ -200,9 +201,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
 
     const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(1);
     expect(await fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, winner)).to.equal(150);
-    await expect(
-      fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, loser),
-    ).to.be.rejected;
+    await expect(fhevm.userDecryptEuint(FhevmType.euint64, encryptedPrize, prizeVaultAddress, loser)).to.be.rejected;
   });
 
   it("pays confidential winnings without mutating the winner's principal", async function () {

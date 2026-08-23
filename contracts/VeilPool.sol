@@ -139,11 +139,7 @@ contract VeilPool is ZamaEthereumConfig {
         // The asset contract sees the pool's aggregate custody. Guard the request against
         // this user's encrypted principal first so one depositor can never spend another's funds.
         // Oversized requests remain private and silently become zero.
-        euint64 permitted = FHE.select(
-            FHE.le(requested, positions[msg.sender].balance),
-            requested,
-            FHE.asEuint64(0)
-        );
+        euint64 permitted = FHE.select(FHE.le(requested, positions[msg.sender].balance), requested, FHE.asEuint64(0));
         FHE.allowTransient(permitted, address(asset));
         euint64 transferred = asset.confidentialTransfer(msg.sender, permitted);
 

@@ -104,9 +104,7 @@ describe("VeilPool draw-seat lifecycle", function () {
 
     const encryptedWinner = await pool.getEncryptedWinner(1);
     const publicResult = await fhevm.publicDecrypt([encryptedWinner]);
-    await (
-      await pool.finalizeWinner(1, publicResult.abiEncodedClearValues, publicResult.decryptionProof)
-    ).wait();
+    await (await pool.finalizeWinner(1, publicResult.abiEncodedClearValues, publicResult.decryptionProof)).wait();
 
     const draw = await pool.getDrawInfo(1);
     expect(draw.state).to.equal(4);
