@@ -5,12 +5,7 @@ import { expect } from "chai";
 import { ContractTransactionResponse, HDNodeWallet, Wallet } from "ethers";
 import { ethers, fhevm } from "hardhat";
 
-import {
-  MockConfidentialToken,
-  MockConfidentialToken__factory,
-  VeilPool,
-  VeilPool__factory,
-} from "../types";
+import { MockConfidentialToken, MockConfidentialToken__factory, VeilPool, VeilPool__factory } from "../types";
 
 type Signers = {
   deployer: HardhatEthersSigner;
@@ -118,12 +113,7 @@ describe("VeilPool", function () {
 
     // The mock relayer maintains a single event cursor. Keep these decryptions sequential
     // so parallel reads of handles created in the same block cannot race that cursor on Windows CI.
-    const balance = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      encrypted.balance,
-      veilPoolContractAddress,
-      signer,
-    );
+    const balance = await fhevm.userDecryptEuint(FhevmType.euint64, encrypted.balance, veilPoolContractAddress, signer);
     const totalDeposited = await fhevm.userDecryptEuint(
       FhevmType.euint64,
       encrypted.totalDeposited,

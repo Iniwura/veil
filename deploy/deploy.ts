@@ -7,7 +7,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const isSepolia = hre.network.config.chainId === 11155111;
   const configuredAsset = process.env.UNVEIL_ASSET_ADDRESS?.trim() || process.env.VEIL_ASSET_ADDRESS?.trim();
-  const deployDemoAsset = process.env.UNVEIL_DEPLOY_DEMO_ASSET === "true" || process.env.VEIL_DEPLOY_DEMO_ASSET === "true";
+  const deployDemoAsset =
+    process.env.UNVEIL_DEPLOY_DEMO_ASSET === "true" || process.env.VEIL_DEPLOY_DEMO_ASSET === "true";
   const configuredDrawPeriod = process.env.UNVEIL_DRAW_PERIOD_SECONDS?.trim();
   const drawPeriod = BigInt(configuredDrawPeriod || (isSepolia ? "900" : "86400"));
 

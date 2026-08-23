@@ -68,9 +68,7 @@ async function main() {
     const encryptedWinner = await pool.getEncryptedWinner(latestRoundId);
     const result = await fhevm.publicDecrypt([encryptedWinner]);
     await (
-      await pool
-        .connect(keeper)
-        .finalizeWinner(latestRoundId, result.abiEncodedClearValues, result.decryptionProof)
+      await pool.connect(keeper).finalizeWinner(latestRoundId, result.abiEncodedClearValues, result.decryptionProof)
     ).wait();
     draw = await pool.getDrawInfo(latestRoundId);
   } else {

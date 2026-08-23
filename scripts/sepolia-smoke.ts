@@ -71,24 +71,35 @@ async function main() {
   console.log(`  prizeVault:  ${prizeVaultAddress}`);
   console.log(`  drawPeriod:  ${(await pool.drawPeriod()).toString()} seconds`);
 
-  for (const [label, contractAddress] of Object.entries({ asset: assetAddress, pool: poolAddress, yieldSource: yieldSourceAddress, prizeVault: prizeVaultAddress })) {
-    if ((await ethers.provider.getCode(contractAddress)) === "0x") throw new Error(`${label} has no deployed bytecode at ${contractAddress}`);
+  for (const [label, contractAddress] of Object.entries({
+    asset: assetAddress,
+    pool: poolAddress,
+    yieldSource: yieldSourceAddress,
+    prizeVault: prizeVaultAddress,
+  })) {
+    if ((await ethers.provider.getCode(contractAddress)) === "0x")
+      throw new Error(`${label} has no deployed bytecode at ${contractAddress}`);
   }
 
   if ((await pool.asset()).toLowerCase() !== assetAddress.toLowerCase()) throw new Error("Pool asset wiring mismatch");
-  if ((await yieldSource.asset()).toLowerCase() !== assetAddress.toLowerCase()) throw new Error("Yield source asset wiring mismatch");
+  if ((await yieldSource.asset()).toLowerCase() !== assetAddress.toLowerCase())
+    throw new Error("Yield source asset wiring mismatch");
   if ((await yieldSource.strategyOperator()).toLowerCase() !== deployer.address.toLowerCase()) {
     throw new Error("Unexpected strategy operator");
   }
   if ((await yieldSource.prizeVault()).toLowerCase() !== prizeVaultAddress.toLowerCase()) {
     throw new Error("Yield source prize vault wiring mismatch");
   }
-  if ((await prizeVault.pool()).toLowerCase() !== poolAddress.toLowerCase()) throw new Error("Prize vault pool mismatch");
-  if ((await prizeVault.yieldSource()).toLowerCase() !== yieldSourceAddress.toLowerCase()) throw new Error("Prize vault yield source mismatch");
+  if ((await prizeVault.pool()).toLowerCase() !== poolAddress.toLowerCase())
+    throw new Error("Prize vault pool mismatch");
+  if ((await prizeVault.yieldSource()).toLowerCase() !== yieldSourceAddress.toLowerCase())
+    throw new Error("Prize vault yield source mismatch");
 
   const existingPlayers = await pool.playerCount();
   if (existingPlayers !== 0n && process.env.UNVEIL_SMOKE_ALLOW_DIRTY !== "true") {
-    throw new Error(`Pool already has ${existingPlayers} active positions. Set UNVEIL_SMOKE_ALLOW_DIRTY=true only intentionally.`);
+    throw new Error(
+      `Pool already has ${existingPlayers} active positions. Set UNVEIL_SMOKE_ALLOW_DIRTY=true only intentionally.`,
+    );
   }
 
   await ensureGas(deployer, alice);
@@ -114,7 +125,8 @@ async function main() {
   const alicePrincipal = await fhevm.userDecryptEuint(FhevmType.euint64, alicePosition.balance, poolAddress, alice);
   const bobBalanceHandle = await pool.connect(bob).encryptedBalanceOf();
   const bobPrincipal = await fhevm.userDecryptEuint(FhevmType.euint64, bobBalanceHandle, poolAddress, bob);
-  if (alicePrincipal !== 10n || bobPrincipal !== 30n) throw new Error(`Unexpected principal: Alice=${alicePrincipal}, Bob=${bobPrincipal}`);
+  if (alicePrincipal !== 10n || bobPrincipal !== 30n)
+    throw new Error(`Unexpected principal: Alice=${alicePrincipal}, Bob=${bobPrincipal}`);
 
   console.log("4/12 Waiting for the onchain draw deadline...");
   const roundId = await pool.nextRoundId();
@@ -138,7 +150,9 @@ async function main() {
   console.log("7/12 Publicly decrypting and proving the encrypted winner...");
   const encryptedWinner = await pool.getEncryptedWinner(roundId);
   const publicResult = await fhevm.publicDecrypt([encryptedWinner]);
-  await (await pool.connect(alice).finalizeWinner(roundId, publicResult.abiEncodedClearValues, publicResult.decryptionProof)).wait();
+  await (
+    await pool.connect(alice).finalizeWinner(roundId, publicResult.abiEncodedClearValues, publicResult.decryptionProof)
+  ).wait();
   const winnerAddress = await pool.getWinner(roundId);
   const winner = [alice, bob].find((signer) => signer.address.toLowerCase() === winnerAddress.toLowerCase());
   if (!winner) throw new Error(`Unexpected winner ${winnerAddress}`);

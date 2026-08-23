@@ -65,7 +65,10 @@ const ASSET_ABI = [
   "function confidentialBalanceOf(address account) view returns (bytes32)",
 ] as const;
 
-const YIELD_ABI = ["function allocateAllToRound(uint256 roundId)", "function strategyOperator() view returns (address)"] as const;
+const YIELD_ABI = [
+  "function allocateAllToRound(uint256 roundId)",
+  "function strategyOperator() view returns (address)",
+] as const;
 
 const PRIZE_ABI = [
   "function prizeStatus(uint256 roundId) view returns (bool funded,bool winnerAuthorized,bool claimed,address winner)",
@@ -505,9 +508,7 @@ async function readRounds(latestRound: bigint): Promise<RoundRecord[]> {
         const [draw, timing] = await Promise.all([pool.getDrawInfo(id), pool.getDrawTiming(id)]);
         const state = Number(draw.state) as DrawState;
         const winner =
-          state === 3
-            ? ((await pool.getWinner(id)) as string)
-            : "0x0000000000000000000000000000000000000000";
+          state === 3 ? ((await pool.getWinner(id)) as string) : "0x0000000000000000000000000000000000000000";
         const prize = state === 3 ? await prizeVault.prizeStatus(id).catch(() => null) : null;
         return {
           id,
