@@ -81,10 +81,12 @@ async function main() {
     return;
   }
 
-  if (roundId >= (await pool.nextRoundId())) {
-    throw new Error(
-      `Round ${roundId} is still open or has not produced an eligible snapshot. Yield cannot be sealed yet.`,
+  const nextRoundId = await pool.nextRoundId();
+  if (roundId >= nextRoundId) {
+    console.log(
+      `UNVEIL strategy is caught up. Round ${roundId} is still open or no eligible snapshot exists yet; nothing to seal.`,
     );
+    return;
   }
 
   console.log("UNVEIL Sepolia strategy sync");
