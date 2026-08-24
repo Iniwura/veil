@@ -16,8 +16,9 @@ integration, change the frontend, deploy contracts, or replace the current demo 
    not let `VeilPool` directly own strategy shares.
 4. Use one route-specific `BatcherConfidential` deposit batcher for cUSDC → csteakcUSDC and one withdrawal batcher for
    csteakcUSDC → cUSDC.
-5. Implement both batchers as thin, route-specific contracts with access controls around joins, while leaving dispatch,
-   callbacks, and claims permissionless and state-gated.
+5. Implement both batchers as thin, route-specific contracts inheriting the audited v0.5.2 primitive. Treat the manager
+   as the only participant recognized by UNVEIL accounting, while leaving dispatch, callbacks, and claims permissionless
+   and state-gated.
 6. Pay prizes in encrypted `csteakcUSDC` shares. This preserves confidential yield-bearing ownership and avoids a second
    public redemption step at prize claim time.
 7. Make withdrawals synchronous only when the encrypted cUSDC buffer can satisfy the request; otherwise create an
@@ -53,6 +54,13 @@ integration, change the frontend, deploy contracts, or replace the current demo 
   These are the authoritative address sources used below.
 - [OpenZeppelin BatcherConfidential and diff-audit report](https://www.openzeppelin.com/news/openzeppelin-confidential-contracts-batcherconfidential-and-diff-audit).
   This is relevant to route correctness, wrapper capacity, partial-route invariants, and the public permission model.
+
+The exact v0.5.2 source behavior matters for the proposed boundary: `onConfidentialTransferReceived(...)` is external
+and not virtual, so a normal subclass cannot override it to enforce `from == VeilStrategyManager`. `dispatchBatch()` is
+virtual, permissionless, and has no built-in minimum age. `quit(batchId)` is available only while a batch is `Pending`
+or `Canceled`; there is no generic post-dispatch `forceCancel(batchId)` or callback-deadline recovery function in the
+base primitive. The architecture below therefore uses inheritance without forking the primitive and treats
+dispatched-batch liveness as an external Zama wrapper/KMS dependency.
 
 ### Current VEIL dependency and contract baseline
 
@@ -114,8 +122,8 @@ The current `VeilYieldSource` is a useful demo boundary but not a production yie
 2. The owner calls `allocateToRound` and chooses the amount and target round.
 3. The contract checks that the requested amount fits its own encrypted `unallocatedYield`, but that balance was
    populated by the same owner-controlled path.
-4. There is no strategy share balance, public vault exchange-rate observation, pending route state, callback deadline,
-   or automated recovery path.
+4. There is no strategy share balance, public vault exchange-rate observation, pending asynchronous wrapper state, or
+   automated recovery path.
 
 The current prize vault is physically separated from pool principal, which is a good invariant to preserve. The
 replacement must preserve that separation while making prize funding a consequence of strategy assets and encrypted
@@ -150,6 +158,25 @@ state, but records and transfers confidential shares rather than cUSDC.
 
 The wrappers and batchers are route-specific and immutable per strategy. A future second strategy requires a second
 explicitly configured pair; it must not be selectable through a mutable owner-controlled route address.
+
+### Participant boundary and accounting
+
+The v0.5.2 callback cannot be gated by a normal subclass override. UNVEIL must not fork or copy `BatcherConfidential`
+merely to add a manager-only callback. The inherited route may technically accept third-party participants. That is an
+acknowledged public and griefing surface, not a source of UNVEIL credit:
+
+- `VeilStrategyManager` is the only account whose `deposits(batchId, manager)` balance is recognized by UNVEIL
+  accounting.
+- Only outputs claimed to the manager are added to the manager's encrypted strategy-share balance.
+- A direct third-party participant receives no UNVEIL principal, draw weight, prize entitlement, withdrawal claim, or
+  protocol accounting rights.
+- Direct participants can still consume batch capacity, affect aggregate totals and timing, and create operational or
+  privacy pressure for the route. The manager and keepers must monitor capacity and pause new manager joins before the
+  route becomes unavailable.
+
+“Dedicated route” therefore means a fixed token/vault route and accounting boundary; it does not mean cryptographic
+manager exclusivity. A future audited primitive with a hook before the non-virtual callback could provide that stronger
+property, but this design does not assume one.
 
 ### Why a liquidity buffer is required
 
@@ -203,7 +230,8 @@ VeilStrategyManager ── encrypted surplus csteakcUSDC ──► VeilPrizeVaul
 4. The manager marks the new principal liability before any investment decision. It may keep the funds in the buffer or
    include an aggregate excess amount in the next strategy deposit batch.
 5. The manager never sends a user's individual amount to the batcher. It sends a pooled encrypted amount, so the batcher
-   observes the manager as the participant and does not create a second user-level public join record.
+   normally observes the manager as the UNVEIL participant and does not create a second user-level public join record.
+   Direct third-party participants remain technically possible and are outside UNVEIL accounting and privacy guarantees.
 
 ### Deposit batch
 
@@ -216,9 +244,11 @@ The official BatcherConfidential API is:
 - `claim(batchId, account)` is permissionless and returns the encrypted pro-rata output to the account;
 - `quit(batchId)` returns the original encrypted deposit while a batch is pending or canceled.
 
-The manager-specific batcher must constrain the callback/join path so arbitrary users cannot bypass UNVEIL's accounting
-and enter the route directly. Dispatch, callback, and claim remain callable by keepers and relayers. The base contract's
-route has no owner access control, so the concrete implementation must make the manager boundary explicit.
+The manager-specific batcher cannot constrain the callback/join path through a normal subclass override because the
+inherited callback is external and non-virtual. Dispatch, callback, and claim remain callable by keepers and relayers.
+The concrete route must instead make the manager boundary explicit in accounting: only `deposits(batchId, manager)` and
+outputs claimed to the manager affect UNVEIL state. Direct users do not receive UNVEIL rights, but they can still grief
+capacity or affect public batch data.
 
 The batch lifecycle is:
 
@@ -230,6 +260,21 @@ The batch lifecycle is:
    the base batcher wraps the vault shares and records a public batch exchange rate.
 5. The manager claims the batch output. The output is confidential csteakcUSDC shares and is added to the manager's
    encrypted strategy balance.
+
+### UNVEIL dispatch-age policy
+
+The base `BatcherConfidential` does not provide a privacy accumulation window. Its `dispatchBatch()` is permissionless
+and has no minimum-age check. Because `dispatchBatch()` is virtual, each concrete UNVEIL batcher may override it without
+forking the primitive:
+
+1. Store an immutable or deployment-configured `minimumBatchAge` and a public `currentBatchOpenedAt` timestamp.
+2. Revert before `block.timestamp >= currentBatchOpenedAt + minimumBatchAge`.
+3. After the age is reached, allow any caller to call `super.dispatchBatch()`.
+4. After successful dispatch advances `currentBatchId`, initialize the next batch's opening timestamp.
+
+No privileged keeper is required. For production, target a privacy-oriented cadence informed by Zama's current 24-hour
+Steakhouse batching. Sepolia should use a much shorter explicitly labelled demo cadence; it must not be described as the
+production privacy parameter.
 
 `Partial` routes are not needed for a single vault `deposit`/`redeem` call. If a future route uses `Partial`, it must
 obey OpenZeppelin's invariant that no `toToken` underlying balance changes during an intermediate step, or a concurrent
@@ -333,7 +378,7 @@ Costs:
 
 - invested surplus must first be redeemed through the asynchronous withdrawal batcher;
 - the redemption exposes a public aggregate batch total and timing;
-- prize funding can be delayed by vault liquidity, callback deadlines, or KMS availability;
+- prize funding can be delayed by vault liquidity, asynchronous wrapper settlement, or KMS availability;
 - converting shares to cUSDC creates another public/plaintext boundary and removes the winner from yield.
 
 ### B. Pay prizes in csteakcUSDC shares
@@ -390,52 +435,83 @@ Implementation rules:
 This is an asset-solvency invariant, not a promise that an external strategy can never lose money. Governance may pause
 new investment, but it must not be able to mint a prize or write down a user's encrypted liability arbitrarily.
 
+### Arithmetic implementation gate
+
+The invariant is only a design requirement until the implementation proves the exact arithmetic. No prize-extraction
+implementation may be accepted until tests demonstrate that principal backing cannot be overestimated across:
+
+- the cUSDC wrapper rate;
+- the csteakcUSDC wrapper rate;
+- ERC-4626 decimals;
+- `convertToAssets` and `previewRedeem` rounding;
+- the conservative haircut applied to public strategy value;
+- `euint64` bounds and overflow behavior;
+- `euint128` intermediates where multiplication requires them;
+- the direction of every ceil/floor conversion;
+- pending deposit batches;
+- pending withdrawal batches; and
+- claimed versus unclaimed batch outputs.
+
+The test oracle should calculate the same conversion in a high-precision reference model and prove that every encrypted
+amount selected for a prize is no larger than the conservatively backed surplus.
+
 ## Failure recovery
 
-| Failure                                      | Required behavior                                                                                                                                                     |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vault `deposit` or `redeem` reverts          | `_executeRoute` catches the failure and returns `ExecuteOutcome.Cancel`; the batcher rewraps the original from-token and users/manager recover through `quit`.        |
-| Callback deadline expires                    | A permissionless force-cancel path returns the batch to the recoverable state after `callbackDeadline`; no owner rescue is needed for normal recovery.                |
-| Zero aggregate batch                         | The batch auto-cancels rather than reaching a division by zero. Keep the v0.5.1+ behavior and test both no-join and zero-join cases.                                  |
-| KMS proof is invalid                         | Callback/finalization reverts without advancing the batch. A valid proof remains required.                                                                            |
-| Strategy is paused or capped                 | New deposit routes cancel; the manager keeps funds in the buffer and stops calling `investExcess`. Withdrawals use the buffer or the withdrawal route when available. |
-| User withdraws while capital is pending      | The encrypted request is queued against liability; it is not silently destroyed and it does not spend another user's liquid balance.                                  |
-| Strategy shares are received but not claimed | Any keeper may claim for the manager; the batch output is credited only after the claim succeeds.                                                                     |
-| Wrapper capacity is near exhaustion          | Pause new joins before capacity is reached. The OpenZeppelin documentation warns that wrapper capacity exhaustion can brick both completion and cancellation.         |
-| Partial route receives intermediate output   | Do not transfer `toToken` underlying during `Partial`; otherwise a concurrent batch can sweep another batch's output. Prefer a single-step route for v1.              |
-| Draw KMS outage                              | Draw settlement remains independent of strategy settlement. A delayed prize harvest cannot alter principal or the fixed draw schedule.                                |
+The recovery invariant is: **UNVEIL never intentionally forfeits principal, and protocol-controlled route failures
+return recoverable assets where the underlying `BatcherConfidential` lifecycle supports cancellation. Capital already
+committed to an external asynchronous unwrap remains subject to Zama KMS/wrapper liveness.**
 
-Failure tests must prove that every dispatched route reaches `Complete` or `Cancel`, and that every user principal path
-remains withdrawable or explicitly queued.
+| Failure                                                  | Required behavior                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vault `deposit` or `redeem` reverts after a valid unwrap | `_executeRoute` returns `ExecuteOutcome.Cancel` before irreversible route logic completes. `BatcherConfidential` rewraps the from-token underlying, and the participant later recovers through `quit()` while the batch is `Canceled`.                                                                                                                                             |
+| KMS/decryption outage after dispatch                     | The batch remains `Dispatched`. There is no generic base `forceCancel` or callback-deadline recovery path. No false accounting transition occurs, pending principal remains reserved, no prize counts pending output as realized yield, new investment may be paused, buffer-covered withdrawals may continue, and the asynchronous capital waits for valid callback availability. |
+| Invalid KMS proof                                        | The callback reverts without advancing the batch. A valid proof remains required.                                                                                                                                                                                                                                                                                                  |
+| Zero aggregate batch                                     | The batch auto-cancels rather than reaching a division by zero. Keep the v0.5.1+ behavior and test both no-join and zero-join cases.                                                                                                                                                                                                                                               |
+| Strategy is paused or capped                             | New deposit routes may cancel; the manager keeps funds in the buffer and stops calling `investExcess`. Withdrawals use the buffer or the withdrawal route when available.                                                                                                                                                                                                          |
+| User withdraws while capital is pending                  | The encrypted request is queued against liability; it is not silently destroyed and it does not spend another user's liquid balance.                                                                                                                                                                                                                                               |
+| Strategy shares are received but not claimed             | Any keeper may claim for the manager; the batch output is credited only after the claim succeeds.                                                                                                                                                                                                                                                                                  |
+| Wrapper capacity is near exhaustion                      | Pause new joins before capacity is reached. The OpenZeppelin documentation warns that wrapper capacity exhaustion can brick both completion and cancellation.                                                                                                                                                                                                                      |
+| Partial route receives intermediate output               | Do not transfer `toToken` underlying during `Partial`; otherwise a concurrent batch can sweep another batch's output. Prefer a single-step route for v1.                                                                                                                                                                                                                           |
+| Draw KMS outage                                          | Draw settlement remains independent of strategy settlement. A delayed prize harvest cannot alter principal or the fixed draw schedule.                                                                                                                                                                                                                                             |
+
+Failure tests must distinguish a route failure after a valid callback, which supports `Cancel` and `quit()`, from a
+dispatched batch waiting on KMS/wrapper liveness. They must prove that neither case creates false yield or loses UNVEIL
+principal, while acknowledging that capital in the latter state may remain temporarily unavailable.
 
 ## Privacy boundary
 
-| Data                                                                         | Public or confidential                                | Notes                                                                                                                                                                                                 |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Wallet addresses joining UNVEIL                                              | Public                                                | Ethereum transaction participants and draw-seat membership are public in the current design.                                                                                                          |
-| Individual cUSDC deposit amount                                              | Confidential                                          | Encrypted input and pool ledger; do not emit a plaintext amount.                                                                                                                                      |
-| Pool's aggregate strategy deposit                                            | Public aggregate                                      | Batcher dispatch necessarily decrypts the batch total to cross into the public ERC-4626 vault. The recommended manager-only join keeps this as a strategy-level total rather than a user-level total. |
-| Individual strategy share balance                                            | Confidential                                          | Held as csteakcUSDC and accessed through FHE ACLs.                                                                                                                                                    |
-| Vault address, vault exchange rate, total assets, and public strategy events | Public                                                | This is inherent in routing to a public ERC-4626/Morpho vault.                                                                                                                                        |
-| Individual withdrawal amount                                                 | Confidential                                          | Input and per-user queue remain encrypted; batch-level withdrawal totals and timing are public.                                                                                                       |
-| Batch membership                                                             | Public at the adapter level                           | With manager-only joining, the public participant is the manager. Direct user joining must be prohibited for the UNVEIL route.                                                                        |
-| Draw weights and balances                                                    | Confidential values; addresses and round state public | Preserve the existing FHE snapshot guarantees.                                                                                                                                                        |
-| Prize amount and winner's csteakcUSDC balance                                | Confidential                                          | Winner-only ACL and user decryption; public share price can be combined with a user-revealed value by that user, not by the chain.                                                                    |
-| Winner address and claim transaction                                         | Public                                                | Existing finalization and custody model already exposes these facts.                                                                                                                                  |
+For `BatcherConfidential`, joined amounts are encrypted handles rather than plaintext values. Participant accounts,
+batch membership, lifecycle transitions, timing, and the aggregate cleartext amount used for the public ERC-4626
+operation remain observable. UNVEIL's manager aggregation prevents an individual pool user's amount from becoming a
+route-level plaintext join, but it does not make the route manager-exclusive or provide anonymity against public
+transaction analysis.
+
+| Data                                                                         | Public or confidential                                | Notes                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wallet addresses joining UNVEIL                                              | Public                                                | Ethereum transaction participants and draw-seat membership are public in the current design.                                                                                                                                        |
+| Individual cUSDC deposit amount                                              | Confidential                                          | Encrypted input and pool ledger; do not emit a plaintext amount.                                                                                                                                                                    |
+| Pool's aggregate strategy deposit                                            | Public aggregate                                      | Batcher dispatch necessarily decrypts the batch total to cross into the public ERC-4626 vault. Manager aggregation keeps an individual UNVEIL user's amount out of the route-level plaintext aggregate.                             |
+| Individual strategy share balance                                            | Confidential                                          | Held as csteakcUSDC and accessed through FHE ACLs.                                                                                                                                                                                  |
+| Vault address, vault exchange rate, total assets, and public strategy events | Public                                                | This is inherent in routing to a public ERC-4626/Morpho vault.                                                                                                                                                                      |
+| Individual withdrawal amount                                                 | Confidential                                          | Input and per-user queue remain encrypted; batch-level withdrawal totals and timing are public.                                                                                                                                     |
+| Batch membership                                                             | Public at the adapter level                           | Addresses/accounts and lifecycle are public. The manager is the recognized UNVEIL participant; direct third-party participants are outside UNVEIL's privacy and accounting guarantees and can affect route capacity and aggregates. |
+| Draw weights and balances                                                    | Confidential values; addresses and round state public | Preserve the existing FHE snapshot guarantees.                                                                                                                                                                                      |
+| Prize amount and winner's csteakcUSDC balance                                | Confidential                                          | Winner-only ACL and user decryption; public share price can be combined with a user-revealed value by that user, not by the chain.                                                                                                  |
+| Winner address and claim transaction                                         | Public                                                | Existing finalization and custody model already exposes these facts.                                                                                                                                                                |
 
 The correct claim is not “everything is private.” The stack hides amounts and ownership balances where ERC-7984 permits
 it, while public vault state, aggregate batches, addresses, timing, and final winners remain observable.
 
 ## Permission model and automation
 
-| Actor                 | Permission                                                                                                                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| User                  | Deposit, immediate withdrawal, queue/cancel withdrawal under the documented state rules, and claim their own prize.                                                                                     |
-| Keeper/relayer        | Dispatch deposit/withdrawal batches, submit valid KMS callbacks, claim completed batch outputs, rebalance, settle queued withdrawals, and harvest a safe prize. All are permissionless and state-gated. |
-| `VeilPoolV2`          | Update the manager's encrypted principal liability and authorize only protocol-scoped custody movements.                                                                                                |
-| `VeilStrategyManager` | Move only configured cUSDC/csteakcUSDC assets and invoke only the configured batchers/vault.                                                                                                            |
-| Governance/guardian   | Configure risk parameters at deployment; pause new investment or new prizes through a delayed, observable path. It cannot set yield, transfer arbitrary principal, or select a winner.                  |
-| Zama KMS/coprocessor  | Produce proofs for encrypted unwraps and draw/winner decryptions; onchain contracts validate the proofs.                                                                                                |
+| Actor                 | Permission                                                                                                                                                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User                  | Deposit, immediate withdrawal, queue/cancel withdrawal under the documented state rules, and claim their own prize.                                                                                                         |
+| Keeper/relayer        | Dispatch deposit/withdrawal batches after the route age, submit valid KMS callbacks, claim completed batch outputs, rebalance, settle queued withdrawals, and harvest a safe prize. All are permissionless and state-gated. |
+| `VeilPoolV2`          | Update the manager's encrypted principal liability and authorize only protocol-scoped custody movements.                                                                                                                    |
+| `VeilStrategyManager` | Move only configured cUSDC/csteakcUSDC assets and invoke only the configured batchers/vault.                                                                                                                                |
+| Governance/guardian   | Configure risk parameters at deployment; pause new investment or new prizes through a delayed, observable path. It cannot set yield, transfer arbitrary principal, or select a winner.                                      |
+| Zama KMS/coprocessor  | Produce proofs for encrypted unwraps and draw/winner decryptions; onchain contracts validate the proofs.                                                                                                                    |
 
 The manager should emit operational events for batch IDs, route states, public exchange rates, deadlines, and failure
 outcomes, but never event plaintext individual amounts.
@@ -501,7 +577,7 @@ Concrete batcher routes need:
 - configured `IERC7984ERC20Wrapper fromToken` and `toToken`;
 - verified underlying vault address and ERC-4626 calls;
 - `routeDescription()`;
-- a manager-only join/receipt boundary;
+- a manager-recognized accounting boundary; the inherited callback is not manager-exclusive;
 - public route/batch recovery state;
 - no owner-only economic settlement path.
 
@@ -527,8 +603,8 @@ Concrete batcher routes need:
 - Compile against the selected `@openzeppelin/confidential-contracts` and `@fhevm/solidity` versions.
 - Assert wrapper `underlying`, `rate`, `decimals`, ERC-165 support, and all unwrap request methods.
 - Assert both batchers reject unsupported wrapper versions and duplicate underlying tokens.
-- Test transfer-and-call callback input, manager-only joining, permissionless dispatch, callback proof validation,
-  claim, and quit.
+- Test transfer-and-call callback input, manager-recognized accounting, direct third-party participation/griefing,
+  minimum-age dispatch, callback proof validation, claim, and quit.
 - Test wrapper capacity limits and the v0.5.1+ zero-contribution path.
 
 ### Strategy accounting
@@ -547,7 +623,8 @@ Concrete batcher routes need:
 - Insufficient liquidity creates a recoverable encrypted queue entry.
 - Queued requests remain safe across dispatch, callback delay, route cancel, and strategy pause.
 - A user cannot withdraw another user's principal or make a queued request spend the buffer twice.
-- Timeout cancellation and KMS outage paths preserve principal.
+- Route cancellation after a valid callback and KMS-outage-dispatched state both preserve accounting; only the former
+  supports the base batcher's recoverable `Canceled`/`quit()` path.
 - Share output is claimable after a complete deposit batch even if the original keeper disappears.
 
 ### UNVEIL regression suite
@@ -569,9 +646,11 @@ Concrete batcher routes need:
 
 1. The current registry verifies the production token pairing, but the exact ERC-4626 ABI and route behavior at the
    Steakhouse vault must be fork-tested before deployment.
-2. Batcher aggregate privacy is not unconditional. A participant controlling most of a batch can infer another
-   participant's amount from the public aggregate; a manager-only join reduces user-level exposure but does not hide
-   strategy-level totals.
+2. BatcherConfidential provides no confidentiality guarantee by default. Joined amounts are encrypted handles, but
+   addresses/accounts and lifecycle are public, and the aggregate unwrap amount becomes public. Manager aggregation
+   keeps an individual UNVEIL user's amount out of the route-level plaintext aggregate; direct third-party participants
+   remain outside UNVEIL's privacy/accounting guarantees and can grief capacity or affect public aggregates. A
+   participant controlling most of a batch can still infer another participant's amount.
 3. Public ERC-4626 share prices, vault liquidity, fees, caps, and pauses remain public and can change the value or
    availability of a prize.
 4. A public share-rate snapshot is not itself a solvency oracle. The implementation needs conservative rounding,
@@ -579,7 +658,8 @@ Concrete batcher routes need:
 5. Wrapper capacity exhaustion can brick completion or cancellation. Capacity monitoring and a pause-before-capacity
    policy are mandatory.
 6. Asynchronous withdrawal and KMS failures mean universal instant withdrawal is impossible without holding a
-   sufficiently large buffer.
+   sufficiently large buffer. Capital already committed to a dispatched external unwrap remains subject to Zama
+   KMS/wrapper liveness; the buffer mitigates this risk but does not prove universal availability.
 7. csteakcUSDC prizes improve privacy but impose a share-based UX and continued strategy risk on winners.
 8. OpenZeppelin Confidential Contracts is evolving and documents no backward-compatibility guarantee; the selected
    release must be pinned and re-audited against its exact source commit.
