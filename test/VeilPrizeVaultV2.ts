@@ -218,6 +218,8 @@ async function exposeManager(system: System, signer: HardhatEthersSigner) {
     buffer: await decrypt64(managerAddress, await system.manager.lastBuffer(), signer),
     shareBalance: await decrypt64(managerAddress, await system.manager.lastShareBalance(), signer),
     safeSurplus: await decrypt64(managerAddress, await system.manager.lastSafeSurplusShares(), signer),
+    conservativeValue: await system.manager.lastConservativeValue(),
+    shareScale: await system.manager.lastShareScale(),
   };
 }
 
@@ -551,6 +553,63 @@ describe("VeilPrizeVaultV2", function () {
     expect(await system.manager.nextPrizeRoundId()).to.equal(1n);
     const after = await exposeManager(system, signers.alice);
     expect(after.shareBalance).to.equal(before.shareBalance);
+  });
+
+  it("separates supplied safe-surplus arithmetic from live valuation queries", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice, 100);
+    await fundAndApprove(system, signers.bob, 100);
+    await deposit(system, signers.alice, 100);
+    await deposit(system, signers.bob, 100);
+    await investAndResolve(system);
+    await (await system.asset.mint(signers.deployer.address, 50n)).wait();
+    await (await system.asset.connect(signers.deployer).approve(await system.vault.getAddress(), 50n)).wait();
+    await (await system.vault.connect(signers.deployer).donate(50n)).wait();
+    await createDraw(system, 1);
+    await finalizeDraw(system, 1);
+
+    const before = await exposeManager(system, signers.alice);
+    expect(before.conservativeValue).to.be.greaterThan(0n);
+    expect(before.shareScale).to.be.greaterThan(0n);
+    expect(before.safeSurplus).to.be.greaterThan(0n);
+
+    await (
+      await system.manager
+        .connect(signers.alice)
+        .exposeSafeSurplusFromValuationForTest(before.conservativeValue, before.shareScale)
+    ).wait();
+    const suppliedBeforeFailure = await decrypt64(
+      await system.manager.getAddress(),
+      await system.manager.lastSafeSurplusShares(),
+      signers.alice,
+    );
+    expect(suppliedBeforeFailure).to.equal(before.safeSurplus);
+
+    await (await system.vault.setPreviewRedeemFailure(true)).wait();
+    await (
+      await system.manager
+        .connect(signers.alice)
+        .exposeSafeSurplusFromValuationForTest(before.conservativeValue, before.shareScale)
+    ).wait();
+    const suppliedAfterFailure = await decrypt64(
+      await system.manager.getAddress(),
+      await system.manager.lastSafeSurplusShares(),
+      signers.alice,
+    );
+    expect(suppliedAfterFailure).to.equal(before.safeSurplus);
+
+    const liveAfterFailure = await exposeManager(system, signers.alice);
+    expect(liveAfterFailure.conservativeValue).to.equal(0n);
+    expect(liveAfterFailure.safeSurplus).to.equal(0n);
+
+    const shareBalanceBefore = liveAfterFailure.shareBalance;
+    await expect(system.manager.processNextPrizeRound()).to.be.revertedWithCustomError(
+      system.manager,
+      "InvalidValuation",
+    );
+    expect(await system.manager.nextPrizeRoundId()).to.equal(1n);
+    expect((await system.prizeVault.prizeStatus(1)).processed).to.equal(false);
+    expect((await exposeManager(system, signers.alice)).shareBalance).to.equal(shareBalanceBefore);
   });
 
   it("does not prize strategy shares while a deposit batch is finalized but unclaimed", async function () {

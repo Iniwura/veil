@@ -105,6 +105,14 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         FHE.allow(lastQueuedWithdrawalTotal, msg.sender);
     }
 
+    /// @dev Computes safe surplus from caller-supplied public valuation parameters without querying live sources.
+    function exposeSafeSurplusFromValuationForTest(uint256 conservativeValue, uint256 shareScale) external {
+        euint64 safeSurplus = _safeSurplusSharesFromValuation(conservativeValue, shareScale);
+        lastSafeSurplusShares = safeSurplus;
+        FHE.allowThis(safeSurplus);
+        FHE.allow(safeSurplus, msg.sender);
+    }
+
     function exposeManagerBatchDepositForTest(uint256 batchId) external {
         euint64 deposit = depositBatcher.deposits(batchId, address(this));
         lastManagerBatchDeposit = deposit;

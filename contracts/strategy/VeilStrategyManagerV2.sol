@@ -541,7 +541,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         (uint256 conservativeValue, uint256 shareScale) = _conservativeValuation();
         if (conservativeValue == 0 || shareScale == 0) revert InvalidValuation();
 
-        euint64 prizeShares = _safeSurplusShares();
+        euint64 prizeShares = _safeSurplusSharesFromValuation(conservativeValue, shareScale);
         FHE.allowThis(prizeShares);
         FHE.allowTransient(prizeShares, address(strategyShareAsset));
         euint64 actualFunded = strategyShareAsset.confidentialTransfer(address(prizeVault), prizeShares);
@@ -758,15 +758,18 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         return FHE.div(roundedNumerator, uint128(conservativeValue));
     }
 
-    function _safeSurplusShares() internal returns (euint64) {
-        (uint256 conservativeValue, uint256 shareScale) = _conservativeValuation();
-        if (conservativeValue == 0) return FHE.asEuint64(0);
-
+    function _safeSurplusSharesFromValuation(uint256 conservativeValue, uint256 shareScale) internal returns (euint64) {
         euint64 buffer = _principalBuffer();
         euint64 uncovered = _uncoveredPrincipal(buffer);
         euint128 required = _requiredShares(uncovered, shareScale, conservativeValue);
         euint128 shareBalance = FHE.asEuint128(_strategyShareBalance());
         euint128 reserved = FHE.min(shareBalance, required);
         return FHE.asEuint64(FHE.sub(shareBalance, reserved));
+    }
+
+    function _safeSurplusShares() internal returns (euint64) {
+        (uint256 conservativeValue, uint256 shareScale) = _conservativeValuation();
+        if (conservativeValue == 0 || shareScale == 0) return FHE.asEuint64(0);
+        return _safeSurplusSharesFromValuation(conservativeValue, shareScale);
     }
 }
