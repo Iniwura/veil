@@ -18,6 +18,7 @@ contract MockYieldVault4626 is ERC4626 {
 
     bool public depositFailure;
     bool public redeemFailure;
+    bool public previewRedeemFailure;
 
     constructor(IERC20 asset_) ERC20("TEST Mock Yield Vault Share", "tMYVS") ERC4626(asset_) {}
 
@@ -31,6 +32,20 @@ contract MockYieldVault4626 is ERC4626 {
 
     function setRedeemFailure(bool enabled) external {
         redeemFailure = enabled;
+    }
+
+    function setPreviewRedeemFailure(bool enabled) external {
+        previewRedeemFailure = enabled;
+    }
+
+    /// @dev TEST/DEMO ONLY simulated loss control.
+    function simulateLoss(uint256 amount) external {
+        IERC20(asset()).safeTransfer(msg.sender, amount);
+    }
+
+    function previewRedeem(uint256 shares) public view override returns (uint256) {
+        require(!previewRedeemFailure, "TEST preview redeem failure");
+        return super.previewRedeem(shares);
     }
 
     function deposit(uint256 assets, address receiver) public override returns (uint256) {

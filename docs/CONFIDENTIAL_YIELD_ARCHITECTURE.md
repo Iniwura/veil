@@ -618,6 +618,18 @@ operation cannot be misreported as a recoverable cancel. Direct third-party batc
 possible, as required by the v0.5.2 callback boundary; Slice 1 has no `VeilStrategyManagerV2` and grants no UNVEIL
 accounting rights to those participants.
 
+## Slice 2A implementation note
+
+Slice 2A adds VeilStrategyManagerV2 without changing VeilPool, withdrawals, prizes, deployment, or the frontend. The
+immutable pool is the only principal-liability writer and records the exact encrypted amount returned by the
+confidential asset transfer; the manager reads its live ERC7984 principal and share balances rather than maintaining
+shadow balances.
+
+The manager values one whole confidential share-token unit using `10 ** strategyShareAsset.decimals()` multiplied by the
+wrapper rate, `vault.previewRedeem`, principal-wrapper conversion, and an immutable haircut. Required shares use
+encrypted ceil division, and pending, dispatched, finalized-unclaimed, and canceled-unquit batch assets remain excluded
+because they have not returned to a manager balance. This slice exposes no prize transfer or harvest path.
+
 ## Tests required before production integration
 
 ### OpenZeppelin and route compatibility
