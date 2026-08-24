@@ -11,6 +11,7 @@ import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfa
 import {VeilDepositBatcher} from "../strategy/VeilDepositBatcher.sol";
 import {VeilWithdrawalBatcher} from "../strategy/VeilWithdrawalBatcher.sol";
 import {VeilStrategyManagerV2} from "../strategy/VeilStrategyManagerV2.sol";
+import {VeilPrizeVaultV2} from "../VeilPrizeVaultV2.sol";
 
 /// @title VeilStrategyManagerV2TestHarness
 /// @notice Test-only manager exposing selected encrypted handles to the caller for assertions.
@@ -38,6 +39,7 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         VeilDepositBatcher depositBatcher_,
         VeilWithdrawalBatcher withdrawalBatcher_,
         IERC4626 vault_,
+        VeilPrizeVaultV2 prizeVault_,
         uint16 bufferReserveBps_,
         uint16 valuationHaircutBps_
     )
@@ -48,6 +50,7 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
             depositBatcher_,
             withdrawalBatcher_,
             vault_,
+            prizeVault_,
             bufferReserveBps_,
             valuationHaircutBps_
         )

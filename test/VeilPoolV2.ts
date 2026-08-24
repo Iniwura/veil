@@ -10,6 +10,7 @@ import {
   MockUSDCConfidentialWrapper,
   MockYieldVault4626,
   MockYieldVaultShareConfidentialWrapper,
+  VeilPrizeVaultV2,
   VeilDepositBatcher,
   VeilPoolV2,
   VeilStrategyManagerV2TestHarness,
@@ -34,6 +35,7 @@ type System = {
   withdrawals: VeilWithdrawalBatcher;
   pool: VeilPoolV2;
   manager: VeilStrategyManagerV2TestHarness;
+  prizeVault: VeilPrizeVaultV2;
 };
 
 const MAX_OPERATOR_UNTIL = 2n ** 48n - 1n;
@@ -83,6 +85,9 @@ async function deploySystem(drawPeriod = DRAW_PERIOD): Promise<System> {
   const pool = (await (
     await ethers.getContractFactory("VeilPoolV2")
   ).deploy(await source.getAddress(), drawPeriod)) as VeilPoolV2;
+  const prizeVault = (await (
+    await ethers.getContractFactory("VeilPrizeVaultV2")
+  ).deploy(await pool.getAddress(), await shares.getAddress())) as VeilPrizeVaultV2;
   const manager = (await (
     await ethers.getContractFactory("VeilStrategyManagerV2TestHarness")
   ).deploy(
@@ -92,12 +97,13 @@ async function deploySystem(drawPeriod = DRAW_PERIOD): Promise<System> {
     await deposits.getAddress(),
     await withdrawals.getAddress(),
     await vault.getAddress(),
+    await prizeVault.getAddress(),
     2_000,
     0,
   )) as VeilStrategyManagerV2TestHarness;
 
   await (await pool.configureStrategyManager(await manager.getAddress())).wait();
-  return { asset, source, vault, shares, deposits, withdrawals, pool, manager };
+  return { asset, source, vault, shares, deposits, withdrawals, pool, manager, prizeVault };
 }
 
 async function fundAndApprove(system: System, signer: TestSigner, amount = 10_000n) {
@@ -138,6 +144,8 @@ async function exposeManager(system: System, signer: HardhatEthersSigner) {
     liability: await decrypt64(managerAddress, await system.manager.lastPrincipalLiability(), signer),
     buffer: await decrypt64(managerAddress, await system.manager.lastBuffer(), signer),
     queued: await decrypt64(managerAddress, await system.manager.lastQueuedWithdrawalTotal(), signer),
+    shareBalance: await decrypt64(managerAddress, await system.manager.lastShareBalance(), signer),
+    safeSurplusShares: await decrypt64(managerAddress, await system.manager.lastSafeSurplusShares(), signer),
   };
 }
 

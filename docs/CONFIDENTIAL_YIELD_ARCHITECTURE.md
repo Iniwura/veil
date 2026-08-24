@@ -154,8 +154,8 @@ received vault shares into csteakcUSDC.
 Its route unwraps aggregate csteakcUSDC, calls the underlying vault's `redeem`, and lets the base batcher wrap the
 received USDC into cUSDC.
 
-`VeilPrizeVaultV2` is configured with `csteakcUSDC` as its prize asset. It preserves winner-only FHE ACLs and claim
-state, but records and transfers confidential shares rather than cUSDC.
+`VeilPrizeVaultV2` is configured with `csteakcUSDC` as its prize asset. It preserves winner-only FHE ACLs and processed
+round state, but records and transfers confidential shares rather than cUSDC; the winner does not claim separately.
 
 The wrappers and batchers are route-specific and immutable per strategy. A future second strategy requires a second
 explicitly configured pair; it must not be selectable through a mutable owner-controlled route address.
@@ -218,7 +218,7 @@ VeilPoolV2 ── encrypted principal liability / draw state ──► VeilStrat
 
 VeilStrategyManager ── encrypted surplus csteakcUSDC ──► VeilPrizeVaultV2
                                                             │
-                                                            └─ winner-only encrypted claim
+                                                            └─ direct confidential delivery to finalized winner
 ```
 
 ## Deposit lifecycle
@@ -321,10 +321,10 @@ amount is safe.
 
 ### Harvest and prize funding
 
-`harvestSurplus(roundId)` is permissionless and can only fund a finalized draw. It computes the encrypted csteakcUSDC
-amount that can be removed while preserving the principal reserve, then transfers that encrypted share amount to
-`VeilPrizeVaultV2`. The prize vault records the received shares and authorizes only the public winner to decrypt and
-claim.
+`processNextPrizeRound()` is permissionless and can only fund the earliest finalized draw. It computes the encrypted
+csteakcUSDC amount that can be removed while preserving the principal reserve, then transfers that encrypted share
+amount to `VeilPrizeVaultV2`. The prize vault records the received shares and delivers them directly to the public
+winner; no winner claim transaction is required.
 
 There is no `onlyOwner accrueYield` and no owner-selected `allocateToRound`. If strategy value is below principal
 liability, the masked amount is zero and no prize is funded. If the public share rate later falls, future harvests stop;
@@ -599,21 +599,21 @@ transaction analysis.
 | Batch membership                                                             | Public at the adapter level                           | Addresses/accounts and lifecycle are public. The manager is the recognized UNVEIL participant; direct third-party participants are outside UNVEIL's privacy and accounting guarantees and can affect route capacity and aggregates. |
 | Draw weights and balances                                                    | Confidential values; addresses and round state public | Preserve the existing FHE snapshot guarantees.                                                                                                                                                                                      |
 | Prize amount and winner's csteakcUSDC balance                                | Confidential                                          | Winner-only ACL and user decryption; public share price can be combined with a user-revealed value by that user, not by the chain.                                                                                                  |
-| Winner address and claim transaction                                         | Public                                                | Existing finalization and custody model already exposes these facts.                                                                                                                                                                |
+| Winner address and prize-processing transaction                              | Public                                                | Existing finalization and keeper-processing calls expose these facts; the winner does not need to transact.                                                                                                                         |
 
 The correct claim is not “everything is private.” The stack hides amounts and ownership balances where ERC-7984 permits
 it, while public vault state, aggregate batches, addresses, timing, and final winners remain observable.
 
 ## Permission model and automation
 
-| Actor                 | Permission                                                                                                                                                                                                                  |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| User                  | Deposit, immediate withdrawal, queue/cancel withdrawal under the documented state rules, and claim their own prize.                                                                                                         |
-| Keeper/relayer        | Dispatch deposit/withdrawal batches after the route age, submit valid KMS callbacks, claim completed batch outputs, rebalance, settle queued withdrawals, and harvest a safe prize. All are permissionless and state-gated. |
-| `VeilPoolV2`          | Hold encrypted active/reserved user positions and draw weights; authorize only the configured manager callbacks and one-time deployment wiring. It does not custody principal.                                              |
-| `VeilStrategyManager` | Move only configured cUSDC/csteakcUSDC assets and invoke only the configured batchers/vault.                                                                                                                                |
-| Governance/guardian   | Configure risk parameters at deployment; pause new investment or new prizes through a delayed, observable path. It cannot set yield, transfer arbitrary principal, or select a winner.                                      |
-| Zama KMS/coprocessor  | Produce proofs for encrypted unwraps and draw/winner decryptions; onchain contracts validate the proofs.                                                                                                                    |
+| Actor                 | Permission                                                                                                                                                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User                  | Deposit and immediate/queued withdrawal under the documented state rules; a finalized winner receives a processed prize automatically and only decrypts it locally.                                                                |
+| Keeper/relayer        | Dispatch deposit/withdrawal batches after the route age, submit valid KMS callbacks, claim completed batch outputs, rebalance, settle queued withdrawals, and process the next safe prize. All are permissionless and state-gated. |
+| `VeilPoolV2`          | Hold encrypted active/reserved user positions and draw weights; authorize only the configured manager callbacks and one-time deployment wiring. It does not custody principal.                                                     |
+| `VeilStrategyManager` | Move only configured cUSDC/csteakcUSDC assets and invoke only the configured batchers/vault.                                                                                                                                       |
+| Governance/guardian   | Configure risk parameters at deployment; pause new investment or new prizes through a delayed, observable path. It cannot set yield, transfer arbitrary principal, or select a winner.                                             |
+| Zama KMS/coprocessor  | Produce proofs for encrypted unwraps and draw/winner decryptions; onchain contracts validate the proofs.                                                                                                                           |
 
 The manager should emit operational events for batch IDs, route states, public exchange rates, deadlines, and failure
 outcomes, but never event plaintext individual amounts.
@@ -667,7 +667,7 @@ interface IVeilStrategyManager {
   function classifyWithdrawal(uint256 requestId, bool completed, bytes calldata decryptionProof) external;
   function investExcess() external;
   function settleWithdrawal(uint256 requestId) external;
-  function harvestSurplus(uint256 roundId) external;
+  function processNextPrizeRound() external;
   function strategyStatus() external view returns (uint8 mode, uint256 depositBatchId, uint256 withdrawalBatchId);
 }
 ```
@@ -764,7 +764,81 @@ reserved position only. A manager cancellation callback seals closed state first
 active weight, and never reacquires an expired draw seat. Request ownership is public metadata; all amounts and
 positions remain encrypted and user-ACL protected.
 
-Slice 3A deliberately adds no prize vault, surplus harvest, deployment execution, frontend, or yield-policy redesign.
+Slice 3A deliberately adds no surplus harvest, deployment execution, frontend, or yield-policy redesign. Slice 3B adds
+the versioned prize-vault and manager processing boundary described below; the legacy `VeilPrizeVault.sol`,
+`VeilYieldSource.sol`, and `VeilPool.sol` remain historical contracts and are not modified.
+
+## Slice 3B implementation note
+
+`VeilPrizeVaultV2` is pinned to `VeilPoolV2` and the confidential strategy-share wrapper. It does not accept a mutable
+owner, caller-supplied winner, or caller-supplied prize amount. Its authorized caller is resolved dynamically from
+`VeilPoolV2.strategyManager()` when a prize is delivered. The manager's immutable `prizeVault` reference is accepted
+only when:
+
+```text
+prizeVault.pool()  == VeilPoolV2
+prizeVault.asset() == strategyShareAsset
+```
+
+The intended fresh deployment ordering is:
+
+1. Deploy the underlying ERC-20, confidential wrappers, and the controlled ERC-4626 strategy (mock/demo only on local or
+   Sepolia until an official confidential strategy route is verified).
+2. Deploy `VeilDepositBatcher` and `VeilWithdrawalBatcher` for the immutable wrapper/vault route.
+3. Deploy `VeilPoolV2(principalAsset, drawPeriod)`.
+4. Deploy `VeilPrizeVaultV2(pool, strategyShareAsset)`.
+5. Deploy
+   `VeilStrategyManagerV2(pool, principalAsset, strategyShareAsset, depositBatcher, withdrawalBatcher, vault, prizeVault, bufferReserveBps, valuationHaircutBps)`.
+6. Call `VeilPoolV2.configureStrategyManager(manager)` once.
+
+The production conceptual principal remains confidential cUSDC and the prize asset is confidential csteakcUSDC strategy
+shares. The prize is not redeemed back into cUSDC. Local/Sepolia strategy-share prizes use the explicitly labelled test
+wrapper and simulated ERC-4626 strategy; no canonical deployment addresses are changed here.
+
+`VeilStrategyManagerV2.processNextPrizeRound()` is permissionless and accepts no round ID, winner, or amount. It
+processes exactly `nextPrizeRoundId` in O(1):
+
+- `NONE`, `SNAPSHOTTED`, and `DRAWN` revert, so a later finalized round cannot bypass an earlier unresolved round;
+- `FINALIZED` computes and transfers the current live safe surplus;
+- `SKIPPED` and `CANCELLED` advance the pointer without a transfer.
+
+For a finalized round, the manager recomputes the live safe surplus in the same transaction as funding:
+
+```text
+buffer = live confidential principal-asset balance
+uncoveredPrincipal = max(principalLiability - buffer, 0)
+requiredShares = ceil(uncoveredPrincipal * shareScale / conservativeAssetsForProbe)
+safeSurplusShares = max(liveStrategyShareBalance - requiredShares, 0)
+```
+
+The public ERC-4626 probe uses the configured wrapper rates, `previewRedeem`, and the immutable valuation haircut. A
+valid valuation that produces encrypted zero still processes the round, stores a winner-readable zero prize, and
+advances the pointer. If the valuation path fails or returns an invalid zero sentinel, processing reverts with
+`InvalidValuation`; the pointer and strategy balances remain unchanged. Pending, dispatched, finalized-unclaimed, and
+other in-flight batch assets are not included in the manager balance used for surplus.
+
+The atomic transfer flow is:
+
+```text
+manager computes safeSurplusShares()
+  → manager confidential-transfers the actual returned ciphertext to VeilPrizeVaultV2
+  → manager transiently authorizes that actual ciphertext to the prize vault
+  → prize vault derives pool.getWinner(roundId)
+  → prize vault confidential-transfers the received shares directly to winner
+  → prize vault stores the actual returned delivery ciphertext and grants winner-only ACL
+  → manager advances nextPrizeRoundId
+```
+
+If vault delivery fails, the manager-to-vault transfer and all state changes revert atomically. No winner claim
+transaction is required. `encryptedPrizeOf(roundId)` is available only to the finalized winner after processing; no
+generic public decryption permission is granted. Prize lifecycle events expose round and winner identifiers only, not
+prize amount, safe surplus, strategy balance, or principal liability.
+
+Keeper timing is intentionally part of the economics: a finalized round receives all conservative realized surplus
+available when the earliest eligible finalized round is processed. Processing time can affect which already-finalized
+round captures subsequently realized yield, but keepers cannot select a later round, choose the amount, choose the
+winner, or spend principal. Principal liability, queued withdrawal liability, pool positions, draw snapshots, and pool
+cUSDC custody remain independent of prize processing.
 
 ## Tests required before production integration
 
@@ -803,7 +877,7 @@ Slice 3A deliberately adds no prize vault, surplus harvest, deployment execution
 - Verify principal independence from old draw snapshots after strategy movement.
 - Verify silent-zero oversized requests for both direct pool custody and strategy-manager custody.
 - Verify all current draw privacy, seat lease, fixed schedule, SKIPPED/CANCELLED, and winner-proof tests.
-- Verify winner-only decryption and claim with csteakcUSDC prize shares.
+- Verify direct csteakcUSDC delivery, winner-only decryption, and no winner claim transaction.
 
 ### Environment tests
 

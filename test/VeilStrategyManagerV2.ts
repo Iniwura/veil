@@ -16,6 +16,7 @@ import {
   MockYieldVaultShareConfidentialWrapper,
   MockYieldVaultShareConfidentialWrapper__factory,
   MockZeroRateConfidentialWrapper__factory,
+  VeilPrizeVaultV2,
   VeilDepositBatcher,
   VeilDepositBatcher__factory,
   VeilStrategyManagerV2,
@@ -49,6 +50,7 @@ type ManagerSystem = {
   withdrawalBatcher: VeilWithdrawalBatcher;
   pool: VeilStrategyPoolHarness;
   manager: VeilStrategyManagerV2TestHarness;
+  prizeVault: VeilPrizeVaultV2;
 };
 
 const MINIMUM_BATCH_AGE = 60 * 60;
@@ -110,6 +112,9 @@ async function deployManagerSystem(
 
   const poolFactory = (await ethers.getContractFactory("VeilStrategyPoolHarness")) as VeilStrategyPoolHarness__factory;
   const pool = await poolFactory.deploy(await fromWrapper.getAddress());
+  const prizeVault = (await (
+    await ethers.getContractFactory("VeilPrizeVaultV2")
+  ).deploy(await pool.getAddress(), await shareWrapper.getAddress())) as VeilPrizeVaultV2;
   const managerFactory = (await ethers.getContractFactory(
     "VeilStrategyManagerV2TestHarness",
   )) as VeilStrategyManagerV2TestHarness__factory;
@@ -120,12 +125,13 @@ async function deployManagerSystem(
     await depositBatcher.getAddress(),
     await withdrawalBatcher.getAddress(),
     await vault.getAddress(),
+    await prizeVault.getAddress(),
     options.bufferReserveBps ?? STANDARD_RESERVE_BPS,
     options.valuationHaircutBps ?? 0,
   );
   await (await pool.configureManager(await manager.getAddress())).wait();
 
-  return { asset, vault, fromWrapper, shareWrapper, depositBatcher, withdrawalBatcher, pool, manager };
+  return { asset, vault, fromWrapper, shareWrapper, depositBatcher, withdrawalBatcher, pool, manager, prizeVault };
 }
 
 async function mintAsset(system: ManagerSystem, signer: HardhatEthersSigner, amount: bigint) {
@@ -397,6 +403,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(await system.manager.depositBatcher()).to.equal(await system.depositBatcher.getAddress());
     expect(await system.manager.withdrawalBatcher()).to.equal(await system.withdrawalBatcher.getAddress());
     expect(await system.manager.vault()).to.equal(await system.vault.getAddress());
+    expect(await system.manager.prizeVault()).to.equal(await system.prizeVault.getAddress());
     expect(await system.manager.bufferReserveBps()).to.equal(STANDARD_RESERVE_BPS);
     expect(await system.manager.valuationHaircutBps()).to.equal(0);
 
@@ -411,6 +418,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
         await system.depositBatcher.getAddress(),
         await system.withdrawalBatcher.getAddress(),
         await system.vault.getAddress(),
+        await system.prizeVault.getAddress(),
         STANDARD_RESERVE_BPS,
         0,
       ),
@@ -423,6 +431,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
         await system.depositBatcher.getAddress(),
         await system.withdrawalBatcher.getAddress(),
         await system.vault.getAddress(),
+        await system.prizeVault.getAddress(),
         10_001,
         0,
       ),
@@ -435,10 +444,28 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
         await system.depositBatcher.getAddress(),
         await system.withdrawalBatcher.getAddress(),
         await system.vault.getAddress(),
+        await system.prizeVault.getAddress(),
         STANDARD_RESERVE_BPS,
         10_000,
       ),
     ).to.be.revertedWithCustomError(system.manager, "InvalidHaircut");
+
+    const wrongPrizeVault = (await (
+      await ethers.getContractFactory("VeilPrizeVaultV2")
+    ).deploy(await system.pool.getAddress(), await system.fromWrapper.getAddress())) as VeilPrizeVaultV2;
+    await expect(
+      managerFactory.deploy(
+        await system.pool.getAddress(),
+        await system.fromWrapper.getAddress(),
+        await system.shareWrapper.getAddress(),
+        await system.depositBatcher.getAddress(),
+        await system.withdrawalBatcher.getAddress(),
+        await system.vault.getAddress(),
+        await wrongPrizeVault.getAddress(),
+        STANDARD_RESERVE_BPS,
+        0,
+      ),
+    ).to.be.revertedWithCustomError(system.manager, "InvalidRoute");
     expect(
       system.manager.interface.fragments.some(
         (fragment) => fragment.type === "function" && "name" in fragment && fragment.name === "increasePrincipal",
@@ -455,6 +482,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
       await system.depositBatcher.getAddress(),
       await system.withdrawalBatcher.getAddress(),
       await system.vault.getAddress(),
+      await system.prizeVault.getAddress(),
       STANDARD_RESERVE_BPS,
       0,
     )) as VeilStrategyManagerV2;
@@ -775,6 +803,9 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
       "VeilStrategyPoolHarness",
     )) as VeilStrategyPoolHarness__factory;
     const zeroPool = await zeroPoolFactory.deploy(await zeroRateSystem.fromWrapper.getAddress());
+    const zeroPrizeVault = (await (
+      await ethers.getContractFactory("VeilPrizeVaultV2")
+    ).deploy(await zeroPool.getAddress(), await zeroWrapper.getAddress())) as VeilPrizeVaultV2;
     const zeroManager = await (
       (await ethers.getContractFactory("VeilStrategyManagerV2TestHarness")) as VeilStrategyManagerV2TestHarness__factory
     ).deploy(
@@ -784,6 +815,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
       await zeroDeposit.getAddress(),
       await zeroWithdrawal.getAddress(),
       await zeroRateSystem.vault.getAddress(),
+      await zeroPrizeVault.getAddress(),
       STANDARD_RESERVE_BPS,
       0,
     );

@@ -16,11 +16,16 @@ import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMat
 
 import {VeilDepositBatcher} from "./VeilDepositBatcher.sol";
 import {VeilWithdrawalBatcher} from "./VeilWithdrawalBatcher.sol";
+import {VeilPrizeVaultV2} from "../VeilPrizeVaultV2.sol";
 
 interface IVeilStrategyWithdrawalPool {
     function onManagerWithdrawalPaid(uint256 requestId, euint64 amount) external;
 
     function onManagerWithdrawalCanceled(uint256 requestId, euint64 amount) external;
+}
+
+interface IVeilStrategyPrizePool {
+    function getDrawState(uint256 roundId) external view returns (uint8);
 }
 
 /// @title VeilStrategyManagerV2
@@ -53,6 +58,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     error ManagerWithdrawalBatchAlreadyResolved(uint256 batchId);
     error WithdrawalBatchNotResolvable(uint256 batchId, uint8 state);
     error WithdrawalBatchOutstanding(uint256 batchId);
+    error PrizeRoundNotReady(uint256 roundId, uint8 state);
 
     address public immutable pool;
     IERC7984ERC20Wrapper public immutable principalAsset;
@@ -60,6 +66,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     VeilDepositBatcher public immutable depositBatcher;
     VeilWithdrawalBatcher public immutable withdrawalBatcher;
     IERC4626 public immutable vault;
+    VeilPrizeVaultV2 public immutable prizeVault;
     uint16 public immutable bufferReserveBps;
     uint16 public immutable valuationHaircutBps;
 
@@ -94,6 +101,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     uint256 public nextWithdrawalQueueSequenceToSettle;
     uint256 private _lastManagerWithdrawalBatchId;
     uint256 private _withdrawalFundingNonce;
+    uint256 public nextPrizeRoundId;
 
     event PrincipalDepositRecorded(address indexed account);
     event DepositBatchInvested(uint256 indexed batchId);
@@ -107,6 +115,8 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     event WithdrawalQueueAdvanced(uint256 indexed requestId);
     event WithdrawalBatchFunded(uint256 indexed batchId);
     event WithdrawalBatchResolved(uint256 indexed batchId, uint8 indexed state);
+    event PrizeRoundProcessed(uint256 indexed roundId);
+    event PrizeRoundSkipped(uint256 indexed roundId, uint8 indexed state);
 
     constructor(
         address pool_,
@@ -115,6 +125,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         VeilDepositBatcher depositBatcher_,
         VeilWithdrawalBatcher withdrawalBatcher_,
         IERC4626 vault_,
+        VeilPrizeVaultV2 prizeVault_,
         uint16 bufferReserveBps_,
         uint16 valuationHaircutBps_
     ) ZamaEthereumConfig() {
@@ -124,7 +135,8 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             address(strategyShareAsset_) == address(0) ||
             address(depositBatcher_) == address(0) ||
             address(withdrawalBatcher_) == address(0) ||
-            address(vault_) == address(0)
+            address(vault_) == address(0) ||
+            address(prizeVault_) == address(0)
         ) {
             revert InvalidAddress();
         }
@@ -139,7 +151,9 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             address(depositBatcher_.vault()) != address(vault_) ||
             address(withdrawalBatcher_.vault()) != address(vault_) ||
             principalAsset_.underlying() != vault_.asset() ||
-            strategyShareAsset_.underlying() != address(vault_)
+            strategyShareAsset_.underlying() != address(vault_) ||
+            address(prizeVault_.pool()) != pool_ ||
+            address(prizeVault_.asset()) != address(strategyShareAsset_)
         ) {
             revert InvalidRoute();
         }
@@ -150,6 +164,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         depositBatcher = depositBatcher_;
         withdrawalBatcher = withdrawalBatcher_;
         vault = vault_;
+        prizeVault = prizeVault_;
         bufferReserveBps = bufferReserveBps_;
         valuationHaircutBps = valuationHaircutBps_;
 
@@ -160,6 +175,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         nextWithdrawalRequestId = 1;
         nextWithdrawalQueueSequence = 1;
         nextWithdrawalQueueSequenceToSettle = 1;
+        nextPrizeRoundId = 1;
     }
 
     /// @notice Returns the encrypted aggregate principal liability handle.
@@ -502,6 +518,40 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         FHE.allowTransient(actualTransferred, pool);
         IVeilStrategyWithdrawalPool(pool).onManagerWithdrawalPaid(requestId, actualTransferred);
         emit WithdrawalSettlementAttempted(requestId, request.account);
+    }
+
+    /// @notice Processes exactly the earliest unprocessed draw round.
+    /// @dev No caller-selected round, winner, or amount is accepted. A finalized round consumes
+    ///      the current live safe surplus; skipped/cancelled rounds advance without transferring.
+    function processNextPrizeRound() external nonReentrant {
+        uint256 roundId = nextPrizeRoundId;
+        uint8 state = IVeilStrategyPrizePool(pool).getDrawState(roundId);
+
+        if (state == 4 || state == 5) {
+            unchecked {
+                nextPrizeRoundId = roundId + 1;
+            }
+            emit PrizeRoundSkipped(roundId, state);
+            return;
+        }
+        if (state != 3) revert PrizeRoundNotReady(roundId, state);
+
+        // Invalid public valuation is distinct from a valid valuation yielding encrypted zero.
+        // Fail before any token transfer or pointer advancement.
+        (uint256 conservativeValue, uint256 shareScale) = _conservativeValuation();
+        if (conservativeValue == 0 || shareScale == 0) revert InvalidValuation();
+
+        euint64 prizeShares = _safeSurplusShares();
+        FHE.allowThis(prizeShares);
+        FHE.allowTransient(prizeShares, address(strategyShareAsset));
+        euint64 actualFunded = strategyShareAsset.confidentialTransfer(address(prizeVault), prizeShares);
+        FHE.allowTransient(actualFunded, address(prizeVault));
+        prizeVault.recordAndDeliverPrize(roundId, actualFunded);
+
+        unchecked {
+            nextPrizeRoundId = roundId + 1;
+        }
+        emit PrizeRoundProcessed(roundId);
     }
 
     /// @notice Proof-gated FIFO advancement that reveals only the encrypted completion boolean.

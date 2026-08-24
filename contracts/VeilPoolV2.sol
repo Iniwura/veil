@@ -482,6 +482,10 @@ contract VeilPoolV2 is ZamaEthereumConfig {
         return (draw.snapshotBlock, draw.participantCount, draw.state);
     }
 
+    function getDrawState(uint256 roundId) external view returns (DrawState) {
+        return draws[roundId].state;
+    }
+
     function encryptedSnapshotWeightOf(uint256 roundId) external view returns (euint64) {
         require(drawParticipantIncluded[roundId][msg.sender], "Not in round");
         return drawWeights[roundId][drawPlayerIndex[roundId][msg.sender]];
