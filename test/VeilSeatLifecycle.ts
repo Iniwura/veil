@@ -6,6 +6,7 @@ import { ethers, fhevm } from "hardhat";
 import { MockConfidentialToken, VeilPool } from "../types";
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const TEST_DRAW_PERIOD = 60 * 60;
 
 async function encrypted64(contractAddress: string, signer: HardhatEthersSigner, amount: bigint | number) {
   return fhevm.createEncryptedInput(contractAddress, signer.address).add64(amount).encrypt();
@@ -29,7 +30,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     token = (await tokenFactory.deploy()) as MockConfidentialToken;
 
     const poolFactory = await ethers.getContractFactory("VeilPool");
-    pool = (await poolFactory.deploy(await token.getAddress())) as VeilPool;
+    pool = (await poolFactory.deploy(await token.getAddress(), TEST_DRAW_PERIOD)) as VeilPool;
     poolAddress = await pool.getAddress();
 
     for (const signer of [alice, bob]) {

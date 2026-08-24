@@ -14,6 +14,7 @@ type Signers = {
 };
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const TEST_DRAW_PERIOD = 60 * 60;
 
 async function deployFixture() {
   const tokenFactory = (await ethers.getContractFactory("MockConfidentialToken")) as MockConfidentialToken__factory;
@@ -21,7 +22,7 @@ async function deployFixture() {
   const tokenAddress = await token.getAddress();
 
   const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-  const veilPoolContract = (await poolFactory.deploy(tokenAddress)) as VeilPool;
+  const veilPoolContract = (await poolFactory.deploy(tokenAddress, TEST_DRAW_PERIOD)) as VeilPool;
   const veilPoolContractAddress = await veilPoolContract.getAddress();
 
   return { token, tokenAddress, veilPoolContract, veilPoolContractAddress };
@@ -104,14 +105,33 @@ describe("VeilPool", function () {
     await ethers.provider.send("evm_mine", []);
   }
 
+  async function mineAt(timestamp: number) {
+    await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+    await ethers.provider.send("evm_mine", []);
+  }
+
   it("starts with zero players, the configured asset, and an open scheduled round", async function () {
     expect(await veilPoolContract.playerCount()).to.equal(0);
     expect(await veilPoolContract.nextRoundId()).to.equal(1);
     expect(await veilPoolContract.activeRoundId()).to.equal(0);
     expect(await veilPoolContract.owner()).to.equal(signers.deployer.address);
     expect(await veilPoolContract.asset()).to.equal(await token.getAddress());
-    expect(await veilPoolContract.drawPeriod()).to.equal(86_400);
-    expect(await veilPoolContract.nextDrawClosesAt()).to.be.greaterThan(0);
+    expect(await veilPoolContract.drawPeriod()).to.equal(TEST_DRAW_PERIOD);
+    expect(await veilPoolContract.firstDrawOpensAt()).to.equal(await veilPoolContract.nextDrawOpensAt());
+    const schedule = await veilPoolContract.getDrawSchedule();
+    expect(schedule.currentRoundId).to.equal(1);
+    expect(schedule.activeRoundId_).to.equal(0);
+    expect(schedule.opensAt).to.be.greaterThan(0);
+    expect(schedule.closesAt - schedule.opensAt).to.equal(BigInt(TEST_DRAW_PERIOD));
+    expect(schedule.ready).to.equal(false);
+    expect(schedule.blocked).to.equal(false);
+    expect(schedule.overdue).to.equal(false);
+    expect(await veilPoolContract.isDrawReady()).to.equal(false);
+  });
+
+  it("rejects a zero draw period", async function () {
+    const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
+    await expect(poolFactory.deploy(await token.getAddress(), 0)).to.be.revertedWith("Invalid draw period");
   });
 
   it("requires the pool to be an authorized confidential-token operator", async function () {
@@ -283,7 +303,7 @@ describe("VeilPool", function () {
       await expect(veilPoolContract.blindDraw(1)).to.be.revertedWith("Round not ready");
     });
 
-    it("permissionlessly finalizes only the KMS-proven public winner and opens the next window", async function () {
+    it("permissionlessly finalizes only the KMS-proven public winner", async function () {
       await advanceToDrawClose();
       await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
       await (await veilPoolContract.connect(signers.alice).blindDraw(1)).wait();
@@ -346,6 +366,86 @@ describe("VeilPool", function () {
 
       await (await veilPoolContract.connect(signers.alice).blindDraw(1)).wait();
       expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(2);
+    });
+
+    it("rejects one second before the deadline and snapshots exactly at the deadline", async function () {
+      const closesAt = Number(await veilPoolContract.nextDrawClosesAt());
+      await ethers.provider.send("evm_setNextBlockTimestamp", [closesAt - 1]);
+
+      expect(await veilPoolContract.isDrawReady()).to.equal(false);
+      await expect(veilPoolContract.connect(signers.outsider).snapshotRound()).to.be.revertedWith("Draw still open");
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [closesAt]);
+      const snapshotReceipt = await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      if (!snapshotReceipt) throw new Error("Snapshot receipt unavailable");
+      const snapshotBlock = await ethers.provider.getBlock(snapshotReceipt.blockNumber);
+      if (!snapshotBlock) throw new Error("Snapshot block unavailable");
+      expect(snapshotBlock.timestamp).to.equal(closesAt);
+      expect(await veilPoolContract.activeRoundId()).to.equal(1);
+    });
+
+    it("does not allow a duplicate snapshot or BlindDraw", async function () {
+      await advanceToDrawClose();
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith(
+        "Previous round unsettled",
+      );
+
+      await (await veilPoolContract.connect(signers.outsider).blindDraw(1)).wait();
+      await expect(veilPoolContract.connect(signers.bob).blindDraw(1)).to.be.revertedWith("Round not ready");
+    });
+
+    it("keeps the next scheduled window fixed when finalization is delayed", async function () {
+      await advanceToDrawClose();
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      await (await veilPoolContract.connect(signers.alice).blindDraw(1)).wait();
+
+      const firstDrawSchedule = await veilPoolContract.getDrawSchedule();
+      expect(firstDrawSchedule.currentRoundId).to.equal(2);
+      expect(firstDrawSchedule.activeRoundId_).to.equal(1);
+      expect(firstDrawSchedule.blocked).to.equal(true);
+      expect(firstDrawSchedule.overdue).to.equal(false);
+
+      const firstDrawOpensAt = await veilPoolContract.firstDrawOpensAt();
+      const expectedRoundTwoOpensAt = firstDrawOpensAt + BigInt(TEST_DRAW_PERIOD);
+      const expectedRoundTwoClosesAt = expectedRoundTwoOpensAt + BigInt(TEST_DRAW_PERIOD);
+      expect(firstDrawSchedule.opensAt).to.equal(expectedRoundTwoOpensAt);
+      expect(firstDrawSchedule.closesAt).to.equal(expectedRoundTwoClosesAt);
+
+      await mineAt(Number(expectedRoundTwoClosesAt) + 20 * 60);
+      expect(await veilPoolContract.isDrawReady()).to.equal(false);
+      expect(await veilPoolContract.isDrawBlocked()).to.equal(true);
+      expect(await veilPoolContract.isDrawOverdue()).to.equal(true);
+      expect((await veilPoolContract.getDrawSchedule()).overdue).to.equal(true);
+
+      const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
+      const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
+      const finalizeTx = await veilPoolContract
+        .connect(signers.outsider)
+        .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof);
+      const finalizeReceipt = await finalizeTx.wait();
+      if (!finalizeReceipt) throw new Error("Finalization receipt unavailable");
+      const finalizeBlock = await ethers.provider.getBlock(finalizeReceipt.blockNumber);
+      if (!finalizeBlock) throw new Error("Finalization block unavailable");
+
+      const schedule = await veilPoolContract.getDrawSchedule();
+      expect(schedule.currentRoundId).to.equal(2);
+      expect(schedule.activeRoundId_).to.equal(0);
+      expect(schedule.opensAt).to.equal(expectedRoundTwoOpensAt);
+      expect(schedule.closesAt).to.equal(expectedRoundTwoClosesAt);
+      expect(schedule.opensAt).to.not.equal(BigInt(finalizeBlock.timestamp));
+      expect(schedule.ready).to.equal(true);
+      expect(schedule.blocked).to.equal(false);
+      expect(schedule.overdue).to.equal(false);
+      expect(await veilPoolContract.isDrawReady()).to.equal(true);
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      expect(await veilPoolContract.activeRoundId()).to.equal(2);
+
+      const nextSchedule = await veilPoolContract.getDrawSchedule();
+      expect(nextSchedule.currentRoundId).to.equal(3);
+      expect(nextSchedule.opensAt).to.equal(firstDrawOpensAt + 2n * BigInt(TEST_DRAW_PERIOD));
+      expect(nextSchedule.closesAt).to.equal(firstDrawOpensAt + 3n * BigInt(TEST_DRAW_PERIOD));
     });
   });
 });

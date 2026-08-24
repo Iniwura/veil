@@ -89,6 +89,10 @@ Private positions and BlindDraw roster membership are separate concepts.
 - The active roster is bounded to 32 seats.
 - All-zero encrypted rounds can be proven and finalized as `CANCELLED` instead of becoming stuck.
 
+Draw windows use an immutable `firstDrawOpensAt` anchor and the configured `drawPeriod`. Future windows are derived
+from that anchor, so delayed BlindDraw or winner finalization never shifts the protocol schedule. Snapshot, BlindDraw,
+and proof finalization are permissionless when their state and timing requirements are satisfied.
+
 ## Architecture
 
 ```text

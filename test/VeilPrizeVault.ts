@@ -22,6 +22,7 @@ type Signers = {
 };
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const TEST_DRAW_PERIOD = 60 * 60;
 
 async function deployFixture() {
   const tokenFactory = (await ethers.getContractFactory("MockConfidentialToken")) as MockConfidentialToken__factory;
@@ -29,7 +30,7 @@ async function deployFixture() {
   const tokenAddress = await token.getAddress();
 
   const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-  const pool = (await poolFactory.deploy(tokenAddress)) as VeilPool;
+  const pool = (await poolFactory.deploy(tokenAddress, TEST_DRAW_PERIOD)) as VeilPool;
   const poolAddress = await pool.getAddress();
 
   const yieldFactory = (await ethers.getContractFactory("VeilYieldSource")) as VeilYieldSource__factory;

@@ -2,7 +2,7 @@ plugins:
   - "prettier-plugin-solidity"
 printWidth: 120
 trailingComma: "all"
-endOfLine: "lf"
+endOfLine: "auto"
 
 overrides:
   - files: "*.md"

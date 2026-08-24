@@ -126,6 +126,10 @@ async function main() {
 
   console.log("4/10 Snapshotting the encrypted pool...");
   const roundId = await pool.nextRoundId();
+  const schedule = await pool.getDrawSchedule();
+  if (!schedule.ready) {
+    throw new Error(`Draw ${roundId} is not ready. Its window closes at Unix timestamp ${schedule.closesAt}.`);
+  }
   await (await pool.snapshotRound()).wait();
 
   console.log(`5/10 Running BlindDraw for round ${roundId}...`);

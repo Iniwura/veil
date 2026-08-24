@@ -34,9 +34,11 @@ async function main() {
   const yieldSource = (await ethers.getContractAt("VeilYieldSource", ADDRESSES.yieldSource)) as VeilYieldSource;
   const prizeVault = (await ethers.getContractAt("VeilPrizeVault", ADDRESSES.prizeVault)) as VeilPrizeVault;
 
-  const owner = await pool.owner();
-  if (owner.toLowerCase() !== deployer.address.toLowerCase()) {
-    throw new Error(`Configured deployer ${deployer.address} is not pool owner ${owner}`);
+  // Draw progression is permissionless. The deployer still needs to own the demo yield adapter
+  // because the prize-funding portion of this script intentionally remains owner-controlled.
+  const yieldOwner = await yieldSource.owner();
+  if (yieldOwner.toLowerCase() !== deployer.address.toLowerCase()) {
+    throw new Error(`Configured deployer ${deployer.address} is not yield-source owner ${yieldOwner}`);
   }
 
   const playerCount = await pool.playerCount();
@@ -44,9 +46,15 @@ async function main() {
 
   const roundId = await pool.nextRoundId();
   console.log("VEIL Sepolia next-round runner");
-  console.log(`  owner:       ${deployer.address}`);
+  console.log(`  draw caller: ${deployer.address} (permissionless)`);
+  console.log(`  yield owner: ${deployer.address}`);
   console.log(`  participants:${playerCount}`);
   console.log(`  round:       ${roundId}`);
+
+  const schedule = await pool.getDrawSchedule();
+  if (!schedule.ready) {
+    throw new Error(`Draw ${roundId} is not ready. Its window closes at Unix timestamp ${schedule.closesAt}.`);
+  }
 
   console.log("1/7 Snapshotting current encrypted pool...");
   await (await pool.snapshotRound()).wait();

@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 // Revisit these before production hardening.
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
 // solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping, gas-struct-packing
+// solhint-disable max-states-count
 
 import {FHE, ebool, eaddress, euint64, euint128, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
@@ -23,8 +24,6 @@ interface IERC7984Asset {
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
     uint64 public constant SEAT_LEASE = 1 days;
-    uint64 public constant DEFAULT_DRAW_PERIOD = 1 days;
-    uint64 public constant SEPOLIA_DRAW_PERIOD = 15 minutes;
 
     enum DrawState {
         NONE,
@@ -51,6 +50,7 @@ contract VeilPool is ZamaEthereumConfig {
     address public immutable owner;
     IERC7984Asset public immutable asset;
     uint64 public immutable drawPeriod;
+    uint64 public immutable firstDrawOpensAt;
 
     mapping(address => Position) private positions;
     mapping(address => bool) public joined;
@@ -64,6 +64,7 @@ contract VeilPool is ZamaEthereumConfig {
     euint64 private encryptedTotalWeight;
     uint256 public nextRoundId = 1;
     uint256 public activeRoundId;
+    uint64 public nextDrawOpensAt;
     uint64 public nextDrawClosesAt;
 
     mapping(uint256 => Draw) private draws;
@@ -77,26 +78,27 @@ contract VeilPool is ZamaEthereumConfig {
     event DrawSeatReleased(address indexed player);
     event DepositRecorded(address indexed player);
     event WithdrawalRecorded(address indexed player);
-    event DrawWindowOpened(uint256 indexed roundId, uint64 closesAt);
+    event DrawWindowOpened(uint256 indexed roundId, uint64 opensAt, uint64 closesAt);
     event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
     event BlindDrawCompleted(uint256 indexed roundId, eaddress encryptedWinner);
     event WinnerFinalized(uint256 indexed roundId, address indexed winner);
     event RoundCancelled(uint256 indexed roundId);
 
-    constructor(address asset_) {
+    constructor(address asset_, uint64 drawPeriod_) {
         require(asset_ != address(0), "Invalid asset");
+        require(drawPeriod_ > 0, "Invalid draw period");
+        require(block.timestamp <= type(uint64).max - drawPeriod_, "Schedule overflow");
         owner = msg.sender;
         asset = IERC7984Asset(asset_);
+        drawPeriod = drawPeriod_;
+        firstDrawOpensAt = uint64(block.timestamp);
 
-        // Mainnet/default cadence mirrors PoolTogether's daily prize rhythm. Sepolia is deliberately
-        // accelerated so reviewers can experience a complete autonomous round during a demo session.
-        drawPeriod = block.chainid == 11155111 ? SEPOLIA_DRAW_PERIOD : DEFAULT_DRAW_PERIOD;
-        nextDrawClosesAt = uint64(block.timestamp + drawPeriod);
+        _updateNextDrawWindow();
 
         encryptedTotalWeight = FHE.asEuint64(0);
         FHE.allowThis(encryptedTotalWeight);
 
-        emit DrawWindowOpened(nextRoundId, nextDrawClosesAt);
+        emit DrawWindowOpened(nextRoundId, nextDrawOpensAt, nextDrawClosesAt);
     }
 
     function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
@@ -190,6 +192,7 @@ contract VeilPool is ZamaEthereumConfig {
             nextRoundId++;
         }
         activeRoundId = roundId;
+        _updateNextDrawWindow();
 
         Draw storage draw = draws[roundId];
         draw.snapshotBlock = uint64(block.number);
@@ -216,6 +219,49 @@ contract VeilPool is ZamaEthereumConfig {
         FHE.allowThis(draw.encryptedTotalWeight);
 
         emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
+    }
+
+    /// @notice Returns whether the scheduled draw window can be advanced by any caller.
+    /// @dev A timestamp alone is not enough: an unsettled round must block a second snapshot.
+    function isDrawReady() public view returns (bool) {
+        return activeRoundId == 0 && block.timestamp >= nextDrawClosesAt;
+    }
+
+    /// @notice Returns whether a snapshotted round is still preventing the next snapshot.
+    function isDrawBlocked() public view returns (bool) {
+        return activeRoundId != 0;
+    }
+
+    /// @notice Returns whether the fixed schedule has passed while a prior round remains unsettled.
+    function isDrawOverdue() public view returns (bool) {
+        return isDrawBlocked() && block.timestamp >= nextDrawClosesAt;
+    }
+
+    /// @notice Returns the public schedule needed to render the current draw lifecycle.
+    /// @dev `currentRoundId` is the scheduled round awaiting snapshot. `activeRoundId_` is the
+    ///      separate snapshotted/drawn round that must settle before another snapshot can occur.
+    function getDrawSchedule()
+        external
+        view
+        returns (
+            uint256 currentRoundId,
+            uint256 activeRoundId_,
+            uint64 opensAt,
+            uint64 closesAt,
+            bool ready,
+            bool blocked,
+            bool overdue
+        )
+    {
+        return (
+            nextRoundId,
+            activeRoundId,
+            nextDrawOpensAt,
+            nextDrawClosesAt,
+            isDrawReady(),
+            isDrawBlocked(),
+            isDrawOverdue()
+        );
     }
 
     /// @notice Runs the FHE weighted selection against an already frozen round.
@@ -271,14 +317,14 @@ contract VeilPool is ZamaEthereumConfig {
         if (clearWinner == address(0)) {
             draw.state = DrawState.CANCELLED;
             emit RoundCancelled(roundId);
-            _openNextDrawWindow();
+            _clearActiveRound();
             return;
         }
 
         draw.winner = clearWinner;
         draw.state = DrawState.FINALIZED;
         emit WinnerFinalized(roundId, clearWinner);
-        _openNextDrawWindow();
+        _clearActiveRound();
     }
 
     function getDrawInfo(
@@ -316,10 +362,22 @@ contract VeilPool is ZamaEthereumConfig {
         return drawPlayers[roundId][index];
     }
 
-    function _openNextDrawWindow() private {
+    function _clearActiveRound() private {
         activeRoundId = 0;
-        nextDrawClosesAt = uint64(block.timestamp + drawPeriod);
-        emit DrawWindowOpened(nextRoundId, nextDrawClosesAt);
+    }
+
+    function _updateNextDrawWindow() private {
+        nextDrawOpensAt = _scheduledDrawOpensAt(nextRoundId);
+        nextDrawClosesAt = nextDrawOpensAt + drawPeriod;
+        emit DrawWindowOpened(nextRoundId, nextDrawOpensAt, nextDrawClosesAt);
+    }
+
+    function _scheduledDrawOpensAt(uint256 roundId) private view returns (uint64) {
+        require(roundId > 0, "Invalid round");
+
+        uint256 opensAt = uint256(firstDrawOpensAt) + ((roundId - 1) * uint256(drawPeriod));
+        require(opensAt <= type(uint64).max - uint256(drawPeriod), "Schedule overflow");
+        return uint64(opensAt);
     }
 
     function _acquireOrRenewSeat(address account) private {

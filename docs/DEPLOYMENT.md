@@ -17,7 +17,23 @@ npx hardhat vars set ETHERSCAN_API_KEY
 
 The deployer must have Sepolia ETH before deployment.
 
-## 2. Choose the confidential asset
+## 2. Configure the autonomous draw cadence
+
+`VeilPool` receives its draw period as an immutable constructor argument. The deployment script uses a 15-minute default
+on Sepolia for demos and a 1-day default on other networks, but the cadence can be explicitly overridden in any
+environment:
+
+```bash
+export VEIL_DRAW_PERIOD_SECONDS=259200 # three days, for example
+```
+
+The value must be a positive integer number of seconds. The selected cadence is printed in the deployment output and is
+available onchain through `drawPeriod`, `firstDrawOpensAt`, `nextDrawOpensAt`, `nextDrawClosesAt`, and
+`getDrawSchedule()`. All future windows derive from `firstDrawOpensAt + (roundId - 1) * drawPeriod`; delayed settlement
+never shifts the schedule. If settlement is delayed past the next close, the schedule reports the active, blocked, and
+overdue state until the old round settles.
+
+## 3. Choose the confidential asset
 
 For a real deployment, provide an existing compatible confidential asset address:
 
@@ -39,12 +55,12 @@ A Sepolia deployment will refuse to deploy it unless the choice is explicit:
 VEIL_DEPLOY_DEMO_ASSET=true npm run deploy:sepolia
 ```
 
-## 3. Deployment wiring
+## 4. Deployment wiring
 
 The deployment script performs these steps in order:
 
 1. Uses `VEIL_ASSET_ADDRESS`, or deploys the explicitly requested test-only asset.
-2. Deploys `VeilPool(asset)`.
+2. Deploys `VeilPool(asset, drawPeriod)`.
 3. Deploys `VeilYieldSource(asset)`.
 4. Deploys `VeilPrizeVault(pool, asset, yieldSource)`.
 5. Configures `VeilYieldSource` to point to the deployed prize vault.
@@ -52,7 +68,7 @@ The deployment script performs these steps in order:
 
 The final console output prints the four addresses needed by the demo frontend.
 
-## 4. Verification
+## 5. Verification
 
 Compile and test locally before any network deployment:
 

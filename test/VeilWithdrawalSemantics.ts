@@ -6,6 +6,7 @@ import { ethers, fhevm } from "hardhat";
 import { MockConfidentialToken, MockConfidentialToken__factory, VeilPool, VeilPool__factory } from "../types";
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const TEST_DRAW_PERIOD = 60 * 60;
 
 describe("VeilPool withdrawal semantics", function () {
   let alice: HardhatEthersSigner;
@@ -25,7 +26,7 @@ describe("VeilPool withdrawal semantics", function () {
     token = (await tokenFactory.deploy()) as MockConfidentialToken;
 
     const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-    pool = (await poolFactory.deploy(await token.getAddress())) as VeilPool;
+    pool = (await poolFactory.deploy(await token.getAddress(), TEST_DRAW_PERIOD)) as VeilPool;
     poolAddress = await pool.getAddress();
 
     await (await token.mint(alice.address, 1_000)).wait();
