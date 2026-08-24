@@ -316,6 +316,29 @@ async function exposeWithdrawalRequest(
   };
 }
 
+async function classifyWithdrawalRequest(
+  system: ManagerSystem,
+  requestId: bigint,
+  signer: HardhatEthersSigner = signers.outsider,
+) {
+  const completion = await getWithdrawalCompletionProof(system, requestId);
+  await (
+    await system.manager.connect(signer).classifyWithdrawal(requestId, completion.completed, completion.decryptionProof)
+  ).wait();
+  return completion.completed;
+}
+
+async function getWithdrawalCompletionProof(system: ManagerSystem, requestId: bigint) {
+  await (await system.manager.connect(signers.manager).exposeWithdrawalRequestForTest(requestId)).wait();
+  const completion = await fhevm.publicDecrypt([await system.manager.lastWithdrawalCompleted()]);
+  return {
+    completed: completion.clearValues[
+      Object.keys(completion.clearValues)[0] as keyof typeof completion.clearValues
+    ] as boolean,
+    decryptionProof: completion.decryptionProof,
+  };
+}
+
 async function finalizeWithdrawalRequest(
   system: ManagerSystem,
   requestId: bigint,
@@ -995,8 +1018,11 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(accounting.queuedWithdrawalTotal).to.equal(0n);
     expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 90n, reserved: 0n });
     expect((await exposeWithdrawalRequest(system, instantId)).remaining).to.equal(0n);
-    await finalizeWithdrawalRequest(system, instantId);
-    expect(await system.manager.nextWithdrawalRequestIdToSettle()).to.equal(2);
+    expect(await classifyWithdrawalRequest(system, instantId)).to.equal(true);
+    expect(await system.manager.withdrawalRequestQueueState(instantId)).to.deep.equal([true, false, 0n]);
+    expect((await system.manager.withdrawalRequest(instantId))[9]).to.equal(true);
+    expect(await system.manager.nextWithdrawalQueueSequence()).to.equal(1n);
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(1n);
 
     const oversizedId = await requestWithdrawalThroughPool(system, signers.manager, 1_000n);
     accounting = await expose(system);
@@ -1004,7 +1030,58 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(accounting.queuedWithdrawalTotal).to.equal(0n);
     expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 90n, reserved: 0n });
     expect((await exposeWithdrawalRequest(system, oversizedId)).remaining).to.equal(0n);
-    await finalizeWithdrawalRequest(system, oversizedId);
+    expect(await classifyWithdrawalRequest(system, oversizedId)).to.equal(true);
+    expect(await system.manager.withdrawalRequestQueueState(oversizedId)).to.deep.equal([true, false, 0n]);
+  });
+
+  it("settles a real queued withdrawal without processing 100 silent-zero requests", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+
+    for (let index = 0; index < 100; ++index) {
+      await requestWithdrawalThroughPool(system, signers.manager, 1_000n);
+    }
+    expect(await system.manager.nextWithdrawalRequestId()).to.equal(101n);
+    let accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(100n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 100n, reserved: 0n });
+    expect(await system.manager.withdrawalRequestQueueState(1)).to.deep.equal([false, false, 0n]);
+    expect(await system.manager.withdrawalRequestQueueState(100)).to.deep.equal([false, false, 0n]);
+
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+
+    const realRequest = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    expect(realRequest).to.equal(101n);
+    const beforeClassification = await expose(system);
+    expect(await classifyWithdrawalRequest(system, realRequest)).to.equal(false);
+    const afterClassification = await expose(system);
+    expect(afterClassification.principalLiability).to.equal(beforeClassification.principalLiability);
+    expect(afterClassification.queuedWithdrawalTotal).to.equal(beforeClassification.queuedWithdrawalTotal);
+    expect(await system.manager.withdrawalQueueRequest(1)).to.equal(realRequest);
+    expect(await system.manager.withdrawalRequestQueueState(realRequest)).to.deep.equal([true, true, 1n]);
+    expect(await system.manager.nextWithdrawalQueueSequence()).to.equal(2n);
+
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProveWithdrawal(system.withdrawalBatcher, system.shareWrapper, signers.outsider);
+    await (await system.manager.resolveWithdrawalBatch(1)).wait();
+    await (await system.manager.connect(signers.outsider).settleWithdrawal(realRequest)).wait();
+    await finalizeWithdrawalRequest(system, realRequest);
+
+    accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(50n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 50n, reserved: 0n });
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(2n);
+    expect(await system.manager.withdrawalQueueRequest(2)).to.equal(0n);
   });
 
   it("moves a valid insufficient request into reserved encrypted queue liability", async function () {
@@ -1027,6 +1104,130 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 50n, reserved: 50n });
   });
 
+  it("assigns FIFO order only to permissionlessly classified real withdrawals", async function () {
+    const system = await deployManagerSystem();
+    for (const signer of [signers.manager, signers.outsider, signers.thirdParty]) {
+      await mintAsset(system, signer, 100n);
+      await wrap(system.asset, system.fromWrapper, signer, 100n);
+      await depositThroughPool(system, signer, 100n);
+    }
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+
+    const aliceRequest = await requestWithdrawalThroughPool(system, signers.manager, 80n);
+    for (let index = 0; index < 3; ++index) {
+      await requestWithdrawalThroughPool(system, signers.manager, 1_000n);
+    }
+    const bobRequest = await requestWithdrawalThroughPool(system, signers.outsider, 80n);
+    for (let index = 0; index < 2; ++index) {
+      await requestWithdrawalThroughPool(system, signers.outsider, 1_000n);
+    }
+    const carolRequest = await requestWithdrawalThroughPool(system, signers.thirdParty, 80n);
+    for (let index = 0; index < 4; ++index) {
+      await requestWithdrawalThroughPool(system, signers.thirdParty, 1_000n);
+    }
+
+    expect((await expose(system)).queuedWithdrawalTotal).to.equal(240n);
+    expect(await classifyWithdrawalRequest(system, aliceRequest)).to.equal(false);
+    expect(await classifyWithdrawalRequest(system, bobRequest)).to.equal(false);
+    expect(await classifyWithdrawalRequest(system, carolRequest)).to.equal(false);
+    expect(await system.manager.withdrawalQueueRequest(1)).to.equal(aliceRequest);
+    expect(await system.manager.withdrawalQueueRequest(2)).to.equal(bobRequest);
+    expect(await system.manager.withdrawalQueueRequest(3)).to.equal(carolRequest);
+    expect(await system.manager.nextWithdrawalQueueSequence()).to.equal(4n);
+
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.thirdParty).dispatchBatch()).wait();
+    await dispatchAndProveWithdrawal(system.withdrawalBatcher, system.shareWrapper, signers.thirdParty);
+    await (await system.manager.resolveWithdrawalBatch(1)).wait();
+    for (const requestId of [aliceRequest, bobRequest, carolRequest]) {
+      await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
+      await finalizeWithdrawalRequest(system, requestId);
+    }
+
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(4n);
+    expect((await expose(system)).queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 20n, reserved: 0n });
+    expect(await exposePositions(system, signers.outsider)).to.deep.equal({ active: 20n, reserved: 0n });
+    expect(await exposePositions(system, signers.thirdParty)).to.deep.equal({ active: 20n, reserved: 0n });
+  });
+
+  it("rejects classification and finalization proof replay across request state changes", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+
+    const firstRequest = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    const oldIncompleteProof = await getWithdrawalCompletionProof(system, firstRequest);
+    expect(oldIncompleteProof.completed).to.equal(false);
+    await expect(system.manager.settleWithdrawal(firstRequest)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestNotClassified",
+    );
+    await expect(system.manager.classifyWithdrawal(firstRequest, true, oldIncompleteProof.decryptionProof)).to.be
+      .reverted;
+    await (await system.manager.classifyWithdrawal(firstRequest, false, oldIncompleteProof.decryptionProof)).wait();
+    await expect(
+      system.manager.classifyWithdrawal(firstRequest, false, oldIncompleteProof.decryptionProof),
+    ).to.be.revertedWithCustomError(system.manager, "WithdrawalRequestAlreadyClassified");
+
+    const secondRequest = await requestWithdrawalThroughPool(system, signers.manager, 30n);
+    const secondProof = await getWithdrawalCompletionProof(system, secondRequest);
+    await expect(system.manager.classifyWithdrawal(secondRequest, false, oldIncompleteProof.decryptionProof)).to.be
+      .reverted;
+    await (await system.manager.classifyWithdrawal(secondRequest, false, secondProof.decryptionProof)).wait();
+
+    await (await system.manager.reclaimPendingDepositBatch(1)).wait();
+    await (await system.manager.settleWithdrawal(firstRequest)).wait();
+    await expect(system.manager.finalizeWithdrawal(firstRequest, true, oldIncompleteProof.decryptionProof)).to.be
+      .reverted;
+
+    const completedProof = await getWithdrawalCompletionProof(system, firstRequest);
+    expect(completedProof.completed).to.equal(true);
+    await (await system.manager.finalizeWithdrawal(firstRequest, true, completedProof.decryptionProof)).wait();
+    await expect(
+      system.manager.finalizeWithdrawal(firstRequest, true, completedProof.decryptionProof),
+    ).to.be.revertedWithCustomError(system.manager, "WithdrawalRequestClosed");
+
+    await (await system.pool.connect(signers.manager).cancelWithdrawal(secondRequest)).wait();
+    await expect(system.manager.settleWithdrawal(secondRequest)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestClosed",
+    );
+  });
+
+  it("skips a later canceled classified queue slot in one bounded advance", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+
+    const firstRequest = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    const laterRequest = await requestWithdrawalThroughPool(system, signers.manager, 30n);
+    await classifyWithdrawalRequest(system, firstRequest);
+    await classifyWithdrawalRequest(system, laterRequest);
+    await (await system.pool.connect(signers.manager).cancelWithdrawal(laterRequest)).wait();
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(1n);
+
+    await (await system.manager.reclaimPendingDepositBatch(1)).wait();
+    await (await system.manager.settleWithdrawal(firstRequest)).wait();
+    await finalizeWithdrawalRequest(system, firstRequest);
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(2n);
+    await (await system.manager.connect(signers.outsider).advanceWithdrawalQueue()).wait();
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(3n);
+    await expect(system.manager.settleWithdrawal(laterRequest)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestClosed",
+    );
+  });
+
   it("allows only the request owner to cancel before strategy commitment", async function () {
     const system = await deployManagerSystem();
     await mintAsset(system, signers.manager, 100n);
@@ -1047,7 +1248,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
       system.manager,
       "WithdrawalRequestClosed",
     );
-    await expect(system.manager.settleWithdrawal(requestId)).to.be.revertedWithCustomError(
+    await expect(system.manager.classifyWithdrawal(requestId, true, "0x")).to.be.revertedWithCustomError(
       system.manager,
       "WithdrawalRequestClosed",
     );
@@ -1067,6 +1268,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(accounting.buffer).to.equal(100n);
     expect(accounting.shareBalance).to.equal(0n);
     expect(accounting.principalLiability).to.equal(100n);
+    expect(await classifyWithdrawalRequest(system, requestId)).to.equal(false);
     await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
     accounting = await expose(system);
     expect(accounting.buffer).to.equal(50n);
@@ -1088,6 +1290,15 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     await (await system.manager.resolveDepositBatch(1)).wait();
 
     const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    const beforeClassification = await expose(system);
+    const beforePosition = await exposePositions(system, signers.manager);
+    expect(await classifyWithdrawalRequest(system, requestId)).to.equal(false);
+    const afterClassification = await expose(system);
+    expect(afterClassification.principalLiability).to.equal(beforeClassification.principalLiability);
+    expect(afterClassification.queuedWithdrawalTotal).to.equal(beforeClassification.queuedWithdrawalTotal);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal(beforePosition);
+    expect(await system.manager.withdrawalQueueRequest(1)).to.equal(requestId);
+    expect(await system.manager.withdrawalRequestQueueState(requestId)).to.deep.equal([true, true, 1n]);
     await (await system.manager.connect(signers.outsider).fundWithdrawalLiquidity()).wait();
     expect(await system.manager.managerWithdrawalBatch(1)).to.equal(true);
     let accounting = await expose(system);
@@ -1215,10 +1426,13 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     const aliceRequest = await requestWithdrawalThroughPool(system, signers.manager, 40n);
     const bobRequest = await requestWithdrawalThroughPool(system, signers.outsider, 40n);
     const carolRequest = await requestWithdrawalThroughPool(system, signers.thirdParty, 40n);
+    expect(await classifyWithdrawalRequest(system, aliceRequest)).to.equal(false);
+    expect(await classifyWithdrawalRequest(system, bobRequest)).to.equal(false);
     await expect(system.manager.settleWithdrawal(bobRequest)).to.be.revertedWithCustomError(
       system.manager,
       "WithdrawalRequestNotHead",
     );
+    expect(await classifyWithdrawalRequest(system, carolRequest)).to.equal(false);
 
     await (await system.manager.fundWithdrawalLiquidity()).wait();
     await advanceBatchAge(system.withdrawalBatcher);
@@ -1254,6 +1468,7 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(afterQueue.principalLiability).to.equal(100n);
     expect(afterQueue.queuedWithdrawalTotal).to.equal(50n);
     expect(afterQueue.safeSurplusShares).to.equal(before);
+    expect(await classifyWithdrawalRequest(system, requestId)).to.equal(false);
     await (await system.manager.fundWithdrawalLiquidity()).wait();
     expect((await expose(system)).safeSurplusShares).to.equal(0n);
     await expect(system.manager.settleWithdrawal(requestId)).to.not.be.reverted;
@@ -1272,22 +1487,28 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     );
   });
 
-  it("makes repeated settlement and batch resolution economically idempotent", async function () {
+  it("closes an instant withdrawal without mutating accounting during classification", async function () {
     const system = await deployManagerSystem({ bufferReserveBps: 10_000 });
     await mintAsset(system, signers.manager, 100n);
     await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
     await depositThroughPool(system, signers.manager, 100n);
     const requestId = await requestWithdrawalThroughPool(system, signers.manager, 10n);
-    await (await system.manager.settleWithdrawal(requestId)).wait();
-    const afterFirst = await expose(system);
-    await (await system.manager.settleWithdrawal(requestId)).wait();
-    const afterSecond = await expose(system);
-    expect(afterSecond.principalLiability).to.equal(afterFirst.principalLiability);
-    expect(afterSecond.queuedWithdrawalTotal).to.equal(afterFirst.queuedWithdrawalTotal);
-    await finalizeWithdrawalRequest(system, requestId);
+    const beforeClassification = await expose(system);
+    expect(await classifyWithdrawalRequest(system, requestId)).to.equal(true);
+    const afterClassification = await expose(system);
+    expect(afterClassification.principalLiability).to.equal(beforeClassification.principalLiability);
+    expect(afterClassification.queuedWithdrawalTotal).to.equal(beforeClassification.queuedWithdrawalTotal);
     await expect(system.manager.settleWithdrawal(requestId)).to.be.revertedWithCustomError(
       system.manager,
       "WithdrawalRequestClosed",
+    );
+    await expect(system.manager.settleWithdrawal(requestId)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestClosed",
+    );
+    await expect(system.manager.classifyWithdrawal(requestId, true, "0x")).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestAlreadyClassified",
     );
   });
 });

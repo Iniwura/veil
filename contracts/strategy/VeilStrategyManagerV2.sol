@@ -42,6 +42,9 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     error InvalidValuation();
     error WithdrawalRequestNotFound(uint256 requestId);
     error WithdrawalRequestClosed(uint256 requestId);
+    error WithdrawalRequestAlreadyClassified(uint256 requestId);
+    error WithdrawalRequestNotClassified(uint256 requestId);
+    error WithdrawalRequestNotQueued(uint256 requestId);
     error WithdrawalRequestNotHead(uint256 requestId, uint256 expectedRequestId);
     error WithdrawalRequestCommitted(uint256 requestId);
     error WithdrawalNotComplete(uint256 requestId);
@@ -67,6 +70,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     mapping(uint256 batchId => bool recognized) private _managerWithdrawalBatches;
     mapping(uint256 batchId => bool resolved) private _managerWithdrawalBatchResolved;
     mapping(uint256 batchId => uint256 fundingNonce) private _withdrawalBatchFundingNonce;
+    mapping(uint256 queueSequence => uint256 requestId) private _withdrawalQueueRequests;
 
     struct WithdrawalRequest {
         address account;
@@ -79,11 +83,15 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         bool exists;
         bool canceled;
         bool settled;
+        bool classified;
+        bool queued;
+        uint256 queueSequence;
     }
 
     mapping(uint256 requestId => WithdrawalRequest request) private _withdrawalRequests;
     uint256 public nextWithdrawalRequestId;
-    uint256 public nextWithdrawalRequestIdToSettle;
+    uint256 public nextWithdrawalQueueSequence;
+    uint256 public nextWithdrawalQueueSequenceToSettle;
     uint256 private _lastManagerWithdrawalBatchId;
     uint256 private _withdrawalFundingNonce;
 
@@ -92,6 +100,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     event DepositBatchResolved(uint256 indexed batchId, uint8 indexed state);
     event DepositBatchReclaimed(uint256 indexed batchId);
     event PrincipalWithdrawalRequested(uint256 indexed requestId, address indexed account);
+    event WithdrawalRequestClassified(uint256 indexed requestId, bool indexed completed, uint256 indexed queueSequence);
     event WithdrawalSettlementAttempted(uint256 indexed requestId, address indexed account);
     event WithdrawalRequestSettled(uint256 indexed requestId, address indexed account);
     event WithdrawalRequestCanceled(uint256 indexed requestId, address indexed account);
@@ -149,7 +158,8 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         FHE.allowThis(_principalLiability);
         FHE.allowThis(_queuedWithdrawalTotal);
         nextWithdrawalRequestId = 1;
-        nextWithdrawalRequestIdToSettle = 1;
+        nextWithdrawalQueueSequence = 1;
+        nextWithdrawalQueueSequenceToSettle = 1;
     }
 
     /// @notice Returns the encrypted aggregate principal liability handle.
@@ -187,6 +197,10 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         return _withdrawalBatchFundingNonce[batchId];
     }
 
+    function withdrawalQueueRequest(uint256 queueSequence) external view returns (uint256) {
+        return _withdrawalQueueRequests[queueSequence];
+    }
+
     function withdrawalRequest(
         uint256 requestId
     )
@@ -218,6 +232,13 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             request.canceled,
             request.settled
         );
+    }
+
+    function withdrawalRequestQueueState(
+        uint256 requestId
+    ) external view returns (bool classified, bool queued, uint256 queueSequence) {
+        WithdrawalRequest storage request = _withdrawalRequests[requestId];
+        return (request.classified, request.queued, request.queueSequence);
     }
 
     /// @notice Returns whether a request is committed to a dispatched or completed strategy batch.
@@ -289,13 +310,43 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             createdWithdrawalFundingNonce: _withdrawalFundingNonce,
             exists: true,
             canceled: false,
-            settled: false
+            settled: false,
+            classified: false,
+            queued: false,
+            queueSequence: 0
         });
 
         FHE.allowTransient(acceptedAmount, pool);
         FHE.allowTransient(actualTransferred, pool);
         FHE.allowTransient(queuedAmount, pool);
         emit PrincipalWithdrawalRequested(requestId, account);
+    }
+
+    /// @notice Permissionlessly classifies the public completion predicate for a withdrawal.
+    /// @dev Only a proven unpaid request receives a FIFO queue slot. Classification has no
+    ///      financial effect and does not reveal the encrypted withdrawal amount.
+    function classifyWithdrawal(uint256 requestId, bool completed, bytes calldata decryptionProof) external {
+        WithdrawalRequest storage request = _withdrawalRequests[requestId];
+        if (!request.exists) revert WithdrawalRequestNotFound(requestId);
+        if (request.classified) revert WithdrawalRequestAlreadyClassified(requestId);
+        if (request.canceled || request.settled) revert WithdrawalRequestClosed(requestId);
+
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = ebool.unwrap(request.completed);
+        FHE.checkSignatures(handles, abi.encode(completed), decryptionProof);
+
+        request.classified = true;
+        if (completed) {
+            request.settled = true;
+            emit WithdrawalRequestClassified(requestId, true, 0);
+            return;
+        }
+
+        request.queued = true;
+        request.queueSequence = nextWithdrawalQueueSequence;
+        _withdrawalQueueRequests[nextWithdrawalQueueSequence] = requestId;
+        ++nextWithdrawalQueueSequence;
+        emit WithdrawalRequestClassified(requestId, false, request.queueSequence);
     }
 
     /// @notice Invests the encrypted excess above the immutable buffer reserve.
@@ -416,15 +467,13 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         emit WithdrawalBatchResolved(batchId, uint8(state));
     }
 
-    /// @notice Attempts an all-or-zero payout for the FIFO head request.
-    /// @dev The encrypted completion predicate is public-decryptable, not the amount. A separate
-    ///      proof-gated finalize call advances the pointer only after the predicate proves true.
+    /// @notice Attempts an all-or-zero payout for the classified FIFO head request.
+    /// @dev FIFO order is the order in which permissionless proofs classify genuinely unpaid
+    ///      requests, not the order of public request IDs.
     function settleWithdrawal(uint256 requestId) external nonReentrant {
         WithdrawalRequest storage request = _withdrawalRequests[requestId];
         _requireOpenWithdrawalRequest(requestId, request);
-        if (requestId != nextWithdrawalRequestIdToSettle) {
-            revert WithdrawalRequestNotHead(requestId, nextWithdrawalRequestIdToSettle);
-        }
+        _requireQueuedWithdrawalHead(requestId, request);
 
         euint64 buffer = _principalBuffer();
         euint64 outstanding = request.remaining;
@@ -459,9 +508,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     function finalizeWithdrawal(uint256 requestId, bool completed, bytes calldata decryptionProof) external {
         WithdrawalRequest storage request = _withdrawalRequests[requestId];
         _requireOpenWithdrawalRequest(requestId, request);
-        if (requestId != nextWithdrawalRequestIdToSettle) {
-            revert WithdrawalRequestNotHead(requestId, nextWithdrawalRequestIdToSettle);
-        }
+        _requireQueuedWithdrawalHead(requestId, request);
         if (!completed) revert WithdrawalNotComplete(requestId);
 
         bytes32[] memory handles = new bytes32[](1);
@@ -469,17 +516,18 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         FHE.checkSignatures(handles, abi.encode(completed), decryptionProof);
 
         request.settled = true;
-        nextWithdrawalRequestIdToSettle = requestId + 1;
+        ++nextWithdrawalQueueSequenceToSettle;
         emit WithdrawalRequestSettled(requestId, request.account);
     }
 
-    /// @notice Advances over one already-canceled FIFO head without scanning history.
+    /// @notice Advances over one already-canceled FIFO entry without scanning history.
     /// @dev One request per call keeps queue maintenance bounded even after many cancellations.
     function advanceWithdrawalQueue() external {
-        uint256 requestId = nextWithdrawalRequestIdToSettle;
+        uint256 queueSequence = nextWithdrawalQueueSequenceToSettle;
+        uint256 requestId = _withdrawalQueueRequests[queueSequence];
         WithdrawalRequest storage request = _withdrawalRequests[requestId];
-        if (!request.exists || !request.canceled) revert WithdrawalQueueNotBlocked(requestId);
-        nextWithdrawalRequestIdToSettle = requestId + 1;
+        if (!request.exists || !request.queued || !request.canceled) revert WithdrawalQueueNotBlocked(queueSequence);
+        ++nextWithdrawalQueueSequenceToSettle;
         emit WithdrawalQueueAdvanced(requestId);
     }
 
@@ -501,8 +549,8 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
 
         _queuedWithdrawalTotal = FHESafeMath.saturatingSub(_queuedWithdrawalTotal, canceledAmount);
         FHE.allowThis(_queuedWithdrawalTotal);
-        if (requestId == nextWithdrawalRequestIdToSettle) {
-            nextWithdrawalRequestIdToSettle = requestId + 1;
+        if (request.classified && request.queued && request.queueSequence == nextWithdrawalQueueSequenceToSettle) {
+            ++nextWithdrawalQueueSequenceToSettle;
         }
         IVeilStrategyWithdrawalPool(pool).onManagerWithdrawalCanceled(requestId, canceledAmount);
         emit WithdrawalRequestCanceled(requestId, request.account);
@@ -541,6 +589,15 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     function _requireOpenWithdrawalRequest(uint256 requestId, WithdrawalRequest storage request) internal view {
         if (!request.exists) revert WithdrawalRequestNotFound(requestId);
         if (request.canceled || request.settled) revert WithdrawalRequestClosed(requestId);
+    }
+
+    function _requireQueuedWithdrawalHead(uint256 requestId, WithdrawalRequest storage request) internal view {
+        if (!request.classified) revert WithdrawalRequestNotClassified(requestId);
+        if (!request.queued) revert WithdrawalRequestNotQueued(requestId);
+        uint256 expectedRequestId = _withdrawalQueueRequests[nextWithdrawalQueueSequenceToSettle];
+        if (request.queueSequence != nextWithdrawalQueueSequenceToSettle) {
+            revert WithdrawalRequestNotHead(requestId, expectedRequestId);
+        }
     }
 
     function _withdrawalRequestIsCommitted(WithdrawalRequest storage request) internal view returns (bool) {

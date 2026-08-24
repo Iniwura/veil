@@ -356,12 +356,14 @@ discarding the request or spending another user's principal:
 5. A permissionless settlement call uses encrypted queue state to pay eligible users from the replenished cUSDC buffer,
    with all-or-zero per user.
 
-The implemented queue is FIFO. Settlement attempts are all-or-zero against the FIFO head. Because Solidity cannot branch
-on an encrypted transfer result, the manager exposes only an encrypted `remaining == 0` completion predicate; anyone
-submits a valid proof of that boolean before the public FIFO pointer advances. This avoids revealing the amount while
-preventing a zero/failed payout from being treated as settled. A user may cancel only before their request is committed
-to a dispatched withdrawal batch; a canceled request restores the reserved amount to the active pool position. The queue
-state survives keeper changes and KMS delays.
+The implemented classified queue is FIFO. Settlement attempts are all-or-zero against the classified FIFO head. Because
+Solidity cannot branch on an encrypted transfer result, the manager exposes only an encrypted `remaining == 0`
+completion predicate. Anyone submits a valid proof of the current predicate to classify a request: a proven unpaid
+request enters the FIFO, while a proven complete request closes without a queue slot. After an unpaid request's payout
+attempt, another proof advances the queue only when the current predicate proves complete. This avoids revealing the
+amount while preventing a zero/failed payout from being treated as settled. A user may cancel only before their request
+is committed to a dispatched withdrawal batch; a canceled request restores the reserved amount to the active pool
+position. The queue state survives keeper changes and KMS delays.
 
 ### Can withdrawal remain instant?
 
@@ -475,6 +477,29 @@ The queue is FIFO and bounded per call: one request is attempted per settlement 
 advanced per `advanceWithdrawalQueue` call. A completion proof verifies only an encrypted boolean predicate, not the
 withdrawal amount. This extra permissionless proof step is required by the FHE constraint that a contract cannot branch
 on whether an encrypted payout was nonzero.
+
+Public withdrawal history and FIFO ordering are separate state machines. Every withdrawal call receives a monotonically
+increasing request ID for history, but creation does not allocate a FIFO slot. A permissionless proof of the current
+publicly decryptable `completed` predicate classifies the request: a proven `true` request is marked settled without a
+queue entry, while a proven `false` request receives the next queue sequence and becomes the next eligible FIFO entry.
+Silent-zero, oversized, and successful instant withdrawals therefore never occupy queue slots. FIFO order is the order
+in which genuine unpaid requests are permissionlessly classified, not raw request-ID order.
+
+Classification has no financial effect. An unclassified unpaid request is already included in `queuedWithdrawalTotal`,
+the liquid floor, withdrawal-liquidity need, and solvency accounting before it receives a queue sequence. It may be
+canceled under the existing commitment rules, in which case it never enters the FIFO. A classified queued cancellation
+advances a canceled head immediately or leaves one bounded, skippable queue slot for `advanceWithdrawalQueue`.
+
+The resulting operation bounds are:
+
+```text
+request creation:       O(1)
+classification:         O(1)
+settlement attempt:     O(1)
+FIFO advancement:       O(1) per queue entry
+```
+
+Settling a real queued withdrawal is therefore independent of the number of historical silent-zero request records.
 
 Pending manager deposit batches can be permissionlessly reclaimed through `quit`, returning principal to the live buffer
 without changing liability or shares. Since the encrypted liquidity deficit cannot be used as a Solidity branch, the
@@ -636,6 +661,7 @@ interface IVeilStrategyManager {
   function increasePrincipal(address account, externalEuint64 amount, bytes calldata proof) external;
   function decreasePrincipal(address account, externalEuint64 amount, bytes calldata proof) external;
   function requestWithdrawal(externalEuint64 amount, bytes calldata proof) external returns (uint256 requestId);
+  function classifyWithdrawal(uint256 requestId, bool completed, bytes calldata decryptionProof) external;
   function investExcess() external;
   function settleWithdrawal(uint256 requestId) external;
   function harvestSurplus(uint256 roundId) external;
