@@ -82,6 +82,62 @@ The deployment script performs these steps in order:
 
 The final console output prints the four addresses needed by the demo frontend.
 
+## UNVEIL V2 — pending fresh deployment
+
+The V2 deployment path is versioned separately from the legacy V1 `deploy/deploy.ts` and `scripts/sepolia-smoke.ts`
+paths. It uses the hardhat-deploy tag `UNVEIL_V2` and deployment records prefixed with `UNVEIL_V2_`; it does not read or
+overwrite V1 records or canonical addresses.
+
+V2 is explicitly a TEST/DEMO simulated strategy deployment. `MockYieldVault4626.donate()` simulates ERC-4626
+appreciation only. It is not Steakhouse yield, Morpho yield, or production yield. The route is intended to exercise real
+Zama/FHE execution, public decryption/KMS callbacks, ERC-7984 wrappers, V2 custody/accounting, autonomous draws,
+withdrawal settlement, and direct confidential prize delivery.
+
+The exact V2 deployment order is:
+
+1. `MockUSDC`
+2. `MockUSDCConfidentialWrapper`
+3. `MockYieldVault4626`
+4. `MockYieldVaultShareConfidentialWrapper`
+5. `VeilDepositBatcher`
+6. `VeilWithdrawalBatcher`
+7. `VeilPoolV2`
+8. `VeilPrizeVaultV2`
+9. `VeilStrategyManagerV2`
+10. one-time `pool.configureStrategyManager(manager)`
+
+The V2 parameters are strict decimal-integer environment settings:
+
+```bash
+UNVEIL_V2_DRAW_PERIOD_SECONDS=900
+UNVEIL_V2_BATCH_AGE_SECONDS=120
+UNVEIL_V2_BUFFER_RESERVE_BPS=2000
+UNVEIL_V2_VALUATION_HAIRCUT_BPS=0
+```
+
+Sepolia defaults are a 900-second draw period and 120-second batch age. Local/default values are 86,400 seconds and
+3,600 seconds. Reserve BPS must be 0–10,000; valuation haircut BPS must be 0–9,999. Invalid timing or BPS values fail
+before deployment.
+
+Use the new commands only after reviewing the printed addresses and wiring checks:
+
+```bash
+npm run deploy:v2:localhost
+npm run deploy:v2:sepolia
+npm run smoke:v2:sepolia
+```
+
+Do not run the Sepolia command as part of ordinary tests. This repository currently contains no official Sepolia
+csteakcUSDC or Steakhouse confidential-yield route, so the V2 deployment remains pending and must not be described as a
+production strategy deployment.
+
+The V2 smoke script accepts explicit `UNVEIL_V2_*_ADDRESS` variables or the new hardhat-deploy records only; it never
+falls back to V1 addresses. It checks bytecode and all immutable wiring, uses `fhevm.initializeCLIApi()`, and is
+resumable at the current batch/draw/prize state. It never uses `evm_increaseTime` on Sepolia. When a real-time draw or
+batch age is not ready, it prints the exact timestamp and exits cleanly unless `UNVEIL_V2_SMOKE_WAIT=true` is set to
+poll until ready. The smoke flow's simulated appreciation phase prints
+`TEST/DEMO ONLY: simulating ERC4626 appreciation`.
+
 ## 5. Verification
 
 Compile and test locally before any network deployment:

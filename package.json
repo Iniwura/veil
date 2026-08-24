@@ -85,6 +85,9 @@
     "chain": "hardhat node --network hardhat --no-deploy",
     "deploy:localhost": "hardhat deploy --network localhost",
     "deploy:sepolia": "hardhat deploy --network sepolia",
+    "deploy:v2:localhost": "hardhat deploy --network localhost --tags UNVEIL_V2 --reset",
+    "deploy:v2:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V2",
+    "smoke:v2:sepolia": "hardhat run scripts/sepolia-v2-smoke.ts --network sepolia",
     "verify:sepolia": "hardhat verify --network sepolia"
   },
   "overrides": {
