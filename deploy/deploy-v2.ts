@@ -74,22 +74,66 @@ function requireAddress(label: string, actual: string, expected: string): void {
   }
 }
 
+function canonicalDeploymentValue(value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "number") return value.toString();
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^0x[0-9a-fA-F]{40}$/.test(trimmed)) return trimmed.toLowerCase();
+    if (/^\d+$/.test(trimmed)) return BigInt(trimmed).toString();
+    return trimmed;
+  }
+  if (Array.isArray(value)) return value.map(canonicalDeploymentValue);
+  return value;
+}
+
+export function deploymentArgumentsMatch(existingArgs: unknown[] | undefined, requestedArgs: unknown[]): boolean {
+  if (!existingArgs || existingArgs.length !== requestedArgs.length) return false;
+  return (
+    JSON.stringify(canonicalDeploymentValue(existingArgs)) === JSON.stringify(canonicalDeploymentValue(requestedArgs))
+  );
+}
+
+export function assertDeploymentArgumentsMatch(
+  name: string,
+  existingArgs: unknown[] | undefined,
+  requestedArgs: unknown[],
+): void {
+  if (!deploymentArgumentsMatch(existingArgs, requestedArgs)) {
+    throw new Error(`UNVEIL_V2 deployment mismatch for ${name}: constructor arguments differ; refusing reuse`);
+  }
+}
+
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
-  const { deploy, execute, get } = hre.deployments;
+  const { deploy, execute, fetchIfDifferent, get, getOrNull } = hre.deployments;
   const isSepolia = hre.network.config.chainId === SEPOLIA_CHAIN_ID;
   const drawPeriod = drawPeriodForV2Deployment(isSepolia);
   const batchAge = batchAgeForV2Deployment(isSepolia);
   const bufferReserveBps = bufferReserveBpsForV2Deployment();
   const valuationHaircutBps = valuationHaircutBpsForV2Deployment();
-  const deployment = async (name: string, contract: string, args: unknown[]) =>
-    deploy(name, {
-      contract,
-      from: deployer,
-      args,
-      log: true,
-      skipIfAlreadyDeployed: true,
-    });
+  const deployment = async (name: string, contract: string, args: unknown[]) => {
+    const options = { contract, from: deployer, args, log: true };
+    const existing = await getOrNull(name);
+    if (!existing) return deploy(name, options);
+
+    assertDeploymentArgumentsMatch(name, existing.args, args);
+
+    const transactionHash = existing.transactionHash ?? existing.receipt?.transactionHash;
+    if (!transactionHash) {
+      throw new Error(
+        `UNVEIL_V2 deployment mismatch for ${name}: existing record has no verifiable deployment transaction`,
+      );
+    }
+
+    const comparison = await fetchIfDifferent(name, options);
+    if (comparison.differences) {
+      throw new Error(
+        `UNVEIL_V2 deployment mismatch for ${name}: artifact or constructor arguments differ; refusing redeploy`,
+      );
+    }
+    return { ...existing, newlyDeployed: false };
+  };
 
   // This is intentionally a fresh test/demo strategy route. No V1 deployment record or canonical
   // address is read by this script.
@@ -169,6 +213,22 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   requireAddress("withdrawalBatcher.toToken", await withdrawalBatcherContract.toToken(), principal.address);
   requireAddress("withdrawalBatcher.vault", await withdrawalBatcherContract.vault(), vault.address);
   requireAddress("pool.strategyManager", await poolContract.strategyManager(), manager.address);
+
+  if ((await poolContract.drawPeriod()) !== BigInt(drawPeriod)) {
+    throw new Error(`UNVEIL_V2 runtime mismatch: pool.drawPeriod is not ${drawPeriod}`);
+  }
+  if ((await depositBatcherContract.minimumBatchAge()) !== BigInt(batchAge)) {
+    throw new Error(`UNVEIL_V2 runtime mismatch: deposit batch age is not ${batchAge}`);
+  }
+  if ((await withdrawalBatcherContract.minimumBatchAge()) !== BigInt(batchAge)) {
+    throw new Error(`UNVEIL_V2 runtime mismatch: withdrawal batch age is not ${batchAge}`);
+  }
+  if ((await managerContract.bufferReserveBps()) !== BigInt(bufferReserveBps)) {
+    throw new Error(`UNVEIL_V2 runtime mismatch: buffer reserve BPS is not ${bufferReserveBps}`);
+  }
+  if ((await managerContract.valuationHaircutBps()) !== BigInt(valuationHaircutBps)) {
+    throw new Error(`UNVEIL_V2 runtime mismatch: valuation haircut BPS is not ${valuationHaircutBps}`);
+  }
 
   const records = [
     ["underlying MockUSDC", asset.address],

@@ -3,8 +3,10 @@ import { deployments, ethers } from "hardhat";
 
 import {
   V2_DEPLOYMENT_NAMES,
+  assertDeploymentArgumentsMatch,
   batchAgeForV2Deployment,
   bufferReserveBpsForV2Deployment,
+  deploymentArgumentsMatch,
   drawPeriodForV2Deployment,
   valuationHaircutBpsForV2Deployment,
 } from "../deploy/deploy-v2";
@@ -86,6 +88,14 @@ describe("UNVEIL V2 deployment", function () {
     expect(
       await (
         await ethers.getContractAt(
+          "VeilWithdrawalBatcher",
+          (await deployments.get(V2_DEPLOYMENT_NAMES.withdrawalBatcher)).address,
+        )
+      ).minimumBatchAge(),
+    ).to.equal(BigInt(batchAgeForV2Deployment(false)));
+    expect(
+      await (
+        await ethers.getContractAt(
           "VeilStrategyManagerV2",
           (await deployments.get(V2_DEPLOYMENT_NAMES.manager)).address,
         )
@@ -140,6 +150,30 @@ describe("UNVEIL V2 deployment", function () {
       else process.env.UNVEIL_V2_BUFFER_RESERVE_BPS = original.reserve;
       if (original.haircut === undefined) delete process.env.UNVEIL_V2_VALUATION_HAIRCUT_BPS;
       else process.env.UNVEIL_V2_VALUATION_HAIRCUT_BPS = original.haircut;
+    }
+  });
+
+  it("reuses matching V2 records and rejects constructor argument mismatches", async function () {
+    const first = await deployments.get(V2_DEPLOYMENT_NAMES.pool);
+    await deployments.fixture(["UNVEIL_V2"]);
+    const second = await deployments.get(V2_DEPLOYMENT_NAMES.pool);
+
+    expect(second.address).to.equal(first.address);
+    expect(second.transactionHash ?? second.receipt?.transactionHash).to.equal(
+      first.transactionHash ?? first.receipt?.transactionHash,
+    );
+    expect(deploymentArgumentsMatch(second.args, first.args ?? [])).to.equal(true);
+    expect(deploymentArgumentsMatch(second.args, [...(first.args ?? []), 1])).to.equal(false);
+    expect(() =>
+      assertDeploymentArgumentsMatch(V2_DEPLOYMENT_NAMES.pool, second.args, [...(first.args ?? []), 1]),
+    ).to.throw("constructor arguments differ");
+    if (first.args && first.args.length > 1) {
+      const mismatched = [...first.args];
+      mismatched[1] = BigInt(mismatched[1].toString()) + 1n;
+      expect(deploymentArgumentsMatch(second.args, mismatched)).to.equal(false);
+      expect(() => assertDeploymentArgumentsMatch(V2_DEPLOYMENT_NAMES.pool, second.args, mismatched)).to.throw(
+        "constructor arguments differ",
+      );
     }
   });
 });

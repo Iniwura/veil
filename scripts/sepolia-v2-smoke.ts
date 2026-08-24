@@ -14,6 +14,15 @@ import {
   VeilWithdrawalBatcher,
 } from "../types";
 import { V2_DEPLOYMENT_NAMES } from "../deploy/deploy-v2";
+import {
+  SMOKE_ROUND_ID,
+  SMOKE_WITHDRAWAL_REQUEST_ID,
+  demoPositionStage,
+  drawResumeAction,
+  prizeResumeAction,
+  withdrawalBatchResumeAction,
+  withdrawalResumeAction,
+} from "./v2-smoke-state";
 
 const MAX_OPERATOR_UNTIL = 2n ** 48n - 1n;
 const DEMO_DEPOSIT = 100n;
@@ -120,29 +129,128 @@ async function ensureDeposit(
   amount: bigint,
 ): Promise<void> {
   const poolAddress = await pool.getAddress();
-  if (!(await pool.joined(account.address))) {
-    const currentPrincipal = await decrypt64(
-      await principal.getAddress(),
-      await principal.confidentialBalanceOf(account.address),
-      account,
-    );
-    if (currentPrincipal > amount) throw new Error(`${account.address} has more than the expected demo principal`);
-    const needed = amount - currentPrincipal;
-    if (needed > 0n) {
-      const underlyingBalance = await token.balanceOf(account.address);
-      if (underlyingBalance < needed) {
-        await (await token.mint(account.address, needed - underlyingBalance)).wait();
-      }
-      await (await token.connect(account).approve(await principal.getAddress(), needed)).wait();
-      await (await principal.connect(account).wrap(account.address, needed)).wait();
-    }
-    const input = await encryptedInput(poolAddress, account, amount);
-    await (await pool.connect(account).deposit(input.handles[0], input.inputProof)).wait();
+  if (await pool.joined(account.address)) {
+    await ensureOperator(principal, account, poolAddress);
+    return;
   }
 
+  const currentPrincipal = await decrypt64(
+    await principal.getAddress(),
+    await principal.confidentialBalanceOf(account.address),
+    account,
+  );
+  if (currentPrincipal > amount) throw new Error(`${account.address} has more than the expected demo principal`);
+  const needed = amount - currentPrincipal;
+  if (needed > 0n) {
+    const underlyingBalance = await token.balanceOf(account.address);
+    if (underlyingBalance < needed) {
+      await (await token.mint(account.address, needed - underlyingBalance)).wait();
+    }
+    await (await token.connect(account).approve(await principal.getAddress(), needed)).wait();
+    await (await principal.connect(account).wrap(account.address, needed)).wait();
+  }
   await ensureOperator(principal, account, poolAddress);
+  const input = await encryptedInput(poolAddress, account, amount);
+  await (await pool.connect(account).deposit(input.handles[0], input.inputProof)).wait();
+
   const balance = await decrypt64(poolAddress, await pool.connect(account).encryptedBalanceOf(), account);
   if (balance !== amount) throw new Error(`Unexpected private ${account.address} pool balance`);
+}
+
+async function privatePosition(
+  pool: VeilPoolV2,
+  account: HardhatEthersSigner,
+): Promise<{ active: bigint; reserved: bigint }> {
+  const poolAddress = await pool.getAddress();
+  return {
+    active: await decrypt64(poolAddress, await pool.connect(account).encryptedBalanceOf(), account),
+    reserved: await decrypt64(poolAddress, await pool.connect(account).encryptedReservedWithdrawalOf(), account),
+  };
+}
+
+async function validateDemoPositions(
+  pool: VeilPoolV2,
+  manager: VeilStrategyManagerV2,
+  alice: HardhatEthersSigner,
+  bob: HardhatEthersSigner,
+): Promise<void> {
+  const alicePosition = await privatePosition(pool, alice);
+  const bobPosition = await privatePosition(pool, bob);
+  const bobStage = demoPositionStage(bobPosition.active, bobPosition.reserved);
+  if (bobStage !== "FRESH") {
+    throw new Error("Bob private position is not the expected active 100/reserved 0 demo position");
+  }
+
+  const request = await manager.withdrawalRequest(SMOKE_WITHDRAWAL_REQUEST_ID);
+  if (!request.exists) {
+    if (alicePosition.active !== DEMO_DEPOSIT || alicePosition.reserved !== 0n) {
+      throw new Error("Fresh Alice private position is not active 100/reserved 0");
+    }
+    return;
+  }
+  if (request.account.toLowerCase() !== alice.address.toLowerCase()) {
+    throw new Error("Smoke withdrawal request 1 belongs to a different account");
+  }
+  if (request.canceled) throw new Error("Smoke withdrawal request 1 is canceled; refusing to create request 2");
+
+  if (request.settled) {
+    if (demoPositionStage(alicePosition.active, alicePosition.reserved) !== "PAID") {
+      throw new Error("Settled Alice request does not have active 0/reserved 0 private position");
+    }
+    return;
+  }
+
+  const queueState = await manager.withdrawalRequestQueueState(SMOKE_WITHDRAWAL_REQUEST_ID);
+  if (!queueState.classified) {
+    if (demoPositionStage(alicePosition.active, alicePosition.reserved) !== "QUEUED") {
+      throw new Error("Unclassified Alice request is not in the expected queued private position");
+    }
+    return;
+  }
+  if (!queueState.queued) throw new Error("Smoke withdrawal request 1 is classified but not queued");
+  const aliceStage = demoPositionStage(alicePosition.active, alicePosition.reserved);
+  if (aliceStage !== "QUEUED" && aliceStage !== "PAID") {
+    throw new Error("Queued Alice request has an unexpected private position");
+  }
+}
+
+const drawStateNames = ["NONE", "SNAPSHOTTED", "DRAWN", "FINALIZED", "CANCELLED", "SKIPPED"];
+const batchStateNames = ["PENDING", "DISPATCHED", "FINALIZED", "CANCELED"];
+
+function namedState(names: string[], state: number): string {
+  return names[state] ?? `UNKNOWN(${state})`;
+}
+
+async function printStartupSummary(
+  pool: VeilPoolV2,
+  prizeVault: VeilPrizeVaultV2,
+  manager: VeilStrategyManagerV2,
+  deposits: VeilDepositBatcher,
+  withdrawals: VeilWithdrawalBatcher,
+): Promise<void> {
+  const roundState = Number(await pool.getDrawState(SMOKE_ROUND_ID));
+  const prize = await prizeVault.prizeStatus(SMOKE_ROUND_ID);
+  const request = await manager.withdrawalRequest(SMOKE_WITHDRAWAL_REQUEST_ID);
+  const queueState = request.exists
+    ? await manager.withdrawalRequestQueueState(SMOKE_WITHDRAWAL_REQUEST_ID)
+    : undefined;
+  const depositBatchId = await deposits.currentBatchId();
+  const withdrawalBatchId = await manager.lastManagerWithdrawalBatchId();
+  const withdrawalBatch =
+    withdrawalBatchId === 0n
+      ? "none"
+      : `${withdrawalBatchId}/${namedState(batchStateNames, Number(await withdrawals.batchState(withdrawalBatchId)))}`;
+
+  console.log("  resume summary:");
+  console.log(`    round 1: ${namedState(drawStateNames, roundState)}`);
+  console.log(`    prize 1 processed: ${prize.processed}`);
+  console.log(
+    `    request 1: exists=${request.exists} classified=${queueState?.classified ?? false} settled=${request.settled}`,
+  );
+  console.log(
+    `    deposit batch: ${depositBatchId}/${namedState(batchStateNames, Number(await deposits.batchState(depositBatchId)))}`,
+  );
+  console.log(`    withdrawal batch: ${withdrawalBatch}`);
 }
 
 async function proveAndCallbackDeposit(
@@ -223,28 +331,77 @@ async function settleQueuedWithdrawal(
   batcher: VeilWithdrawalBatcher,
   shares: MockYieldVaultShareConfidentialWrapper,
   requestId: bigint,
-): Promise<boolean> {
+): Promise<"completed" | "waiting" | "canceled"> {
   const batchId = await manager.lastManagerWithdrawalBatchId();
+  if (batchId === 0n || !(await manager.managerWithdrawalBatch(batchId))) return "waiting";
+
   const state = Number(await batcher.batchState(batchId));
-  if (state === 1) await proveAndCallbackWithdrawal(batcher, shares, batchId);
+  if (state === 0) {
+    if ((await batcher.currentBatchId()) !== batchId) {
+      throw new Error(`Withdrawal batch ${batchId} is pending but is not the current batch`);
+    }
+    const openedAt = Number(await batcher.currentBatchOpenedAt());
+    const age = Number(await batcher.minimumBatchAge());
+    if (!(await waitForRealTime(`withdrawal batch ${batchId}`, openedAt + age))) return "waiting";
+    await (await batcher.dispatchBatch()).wait();
+  }
+
+  const dispatchedAction = withdrawalBatchResumeAction(
+    Number(await batcher.batchState(batchId)),
+    await manager.managerWithdrawalBatchResolved(batchId),
+  );
+  if (dispatchedAction === "PUBLIC_CALLBACK") await proveAndCallbackWithdrawal(batcher, shares, batchId);
   const finalState = Number(await batcher.batchState(batchId));
-  if (finalState !== 2 && finalState !== 3) return false;
-  if (!(await manager.managerWithdrawalBatchResolved(batchId))) {
+  if (finalState !== 2 && finalState !== 3) return "waiting";
+  const resolved = await manager.managerWithdrawalBatchResolved(batchId);
+  const finalAction = withdrawalBatchResumeAction(finalState, resolved);
+  if (finalAction === "RESOLVE" || finalAction === "RESOLVE_CANCELED") {
     await (await manager.resolveWithdrawalBatch(batchId)).wait();
   }
+  if (finalState === 3) return "canceled";
 
   const requestBeforeSettle = await manager.withdrawalRequest(requestId);
   if (!requestBeforeSettle.settled) {
-    await (await manager.settleWithdrawal(requestId)).wait();
+    const beforeResult = await fhevm.publicDecrypt([requestBeforeSettle.completed]);
+    const alreadyCompleted = beforeResult.clearValues[
+      Object.keys(beforeResult.clearValues)[0] as keyof typeof beforeResult.clearValues
+    ] as boolean;
+    if (!alreadyCompleted) {
+      await (await manager.settleWithdrawal(requestId)).wait();
+    }
     const requestAfterSettle = await manager.withdrawalRequest(requestId);
-    const result = await fhevm.publicDecrypt([requestAfterSettle.completed]);
+    const result = alreadyCompleted ? beforeResult : await fhevm.publicDecrypt([requestAfterSettle.completed]);
     const completed = result.clearValues[
       Object.keys(result.clearValues)[0] as keyof typeof result.clearValues
     ] as boolean;
     if (!completed) throw new Error("Queued withdrawal did not complete after strategy settlement");
     await (await manager.finalizeWithdrawal(requestId, completed, result.decryptionProof)).wait();
   }
-  return true;
+  return "completed";
+}
+
+async function processQueuedWithdrawal(
+  manager: VeilStrategyManagerV2,
+  batcher: VeilWithdrawalBatcher,
+  shares: MockYieldVaultShareConfidentialWrapper,
+  requestId: bigint,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const lastBatchId = await manager.lastManagerWithdrawalBatchId();
+    if (lastBatchId === 0n || !(await manager.managerWithdrawalBatch(lastBatchId))) {
+      await (await manager.fundWithdrawalLiquidity()).wait();
+    }
+
+    const result = await settleQueuedWithdrawal(manager, batcher, shares, requestId);
+    if (result === "completed") return true;
+    if (result === "waiting") return false;
+
+    const request = await manager.withdrawalRequest(requestId);
+    if (request.settled) return true;
+    console.log(`  withdrawal batch ${await manager.lastManagerWithdrawalBatchId()} canceled; retrying funding`);
+    await (await manager.fundWithdrawalLiquidity()).wait();
+  }
+  throw new Error("Withdrawal liquidity batch canceled repeatedly; refusing to create request 2");
 }
 
 async function run() {
@@ -298,6 +455,8 @@ async function run() {
   requireAddress("prizeVault.pool", await prizeVault.pool(), addresses.pool);
   requireAddress("prizeVault.asset", await prizeVault.asset(), addresses.shares);
 
+  await printStartupSummary(pool, prizeVault, manager, deposits, withdrawals);
+
   await ensureGas(deployer, alice);
   await ensureGas(deployer, bob);
   console.log("  signer ETH balances: sufficient");
@@ -305,6 +464,7 @@ async function run() {
   console.log("A/B. CONFIDENTIAL SETUP AND DEPOSITS");
   await ensureDeposit(asset, principal, pool, alice, DEMO_DEPOSIT);
   await ensureDeposit(asset, principal, pool, bob, DEMO_DEPOSIT);
+  await validateDemoPositions(pool, manager, alice, bob);
   if ((await principal.confidentialBalanceOf(addresses.pool)) !== ethers.ZeroHash) {
     throw new Error("Pool principal wrapper custody is nonzero");
   }
@@ -334,10 +494,12 @@ async function run() {
   }
 
   console.log("E. AUTONOMOUS DRAW");
-  const roundId = await pool.nextRoundId();
+  const roundId = SMOKE_ROUND_ID;
   let drawState = Number(await pool.getDrawState(roundId));
+  if (drawState !== 3) drawResumeAction(drawState, await pool.nextRoundId());
   if (drawState === 0) {
     let schedule = await pool.getDrawSchedule();
+    if (schedule.currentRoundId !== roundId) throw new Error("Pool schedule is not positioned at smoke round 1");
     if (!schedule.ready) {
       if (schedule.insufficientParticipants) {
         throw new Error(`Draw ${roundId} is SKIPPABLE for insufficient participation; no winner handle exists`);
@@ -360,6 +522,11 @@ async function run() {
       await pool.connect(deployer).finalizeWinner(roundId, result.abiEncodedClearValues, result.decryptionProof)
     ).wait();
   }
+  if (drawState === 4 || drawState === 5) {
+    throw new Error(
+      `Smoke round ${roundId} is ${namedState(drawStateNames, drawState)}; no prize winner can be delivered`,
+    );
+  }
   if (Number(await pool.getDrawState(roundId)) !== 3) throw new Error(`Draw ${roundId} is not FINALIZED`);
   const winnerAddress = await pool.getWinner(roundId);
   const winner = [alice, bob].find((candidate) => candidate.address.toLowerCase() === winnerAddress.toLowerCase());
@@ -369,11 +536,9 @@ async function run() {
 
   console.log("F. DIRECT CONFIDENTIAL PRIZE DELIVERY");
   const prizePointer = await manager.nextPrizeRoundId();
-  if (prizePointer < roundId) {
-    throw new Error(`Prize pointer is blocked at earlier round ${prizePointer}; process FIFO before rerunning`);
-  }
   const statusBefore = await prizeVault.prizeStatus(roundId);
-  if (prizePointer === roundId && !statusBefore.processed) {
+  const prizeAction = prizeResumeAction(prizePointer, statusBefore.processed);
+  if (prizeAction === "PROCESS") {
     const winnerBefore = await decrypt64(addresses.shares, await shares.confidentialBalanceOf(winner.address), winner);
     await (await manager.connect(alice).processNextPrizeRound()).wait();
     const encryptedPrize = await prizeVault.connect(winner).encryptedPrizeOf(roundId);
@@ -396,14 +561,19 @@ async function run() {
   }
 
   console.log("G. QUEUED WITHDRAWAL AND PUBLIC-DECRYPTION CALLBACKS");
-  const requestId = await manager.nextWithdrawalRequestId();
+  const requestId = SMOKE_WITHDRAWAL_REQUEST_ID;
   let request = await manager.withdrawalRequest(requestId);
-  if (!request.exists) {
+  const requestAction = withdrawalResumeAction(request.exists, await manager.nextWithdrawalRequestId());
+  if (requestAction === "CREATE") {
     const input = await encryptedInput(addresses.pool, alice, DEMO_DEPOSIT);
     await (await pool.connect(alice).withdraw(input.handles[0], input.inputProof)).wait();
     request = await manager.withdrawalRequest(requestId);
   }
   if (!request.exists) throw new Error("Withdrawal request was not recorded");
+  if (request.account.toLowerCase() !== alice.address.toLowerCase()) {
+    throw new Error("Smoke withdrawal request 1 belongs to a different account");
+  }
+  if (request.canceled) throw new Error("Smoke withdrawal request 1 is canceled; refusing to create request 2");
   if (!request.settled) {
     const queueState = await manager.withdrawalRequestQueueState(requestId);
     if (!queueState.classified) {
@@ -415,19 +585,7 @@ async function run() {
         throw new Error("Demo withdrawal became instant; fresh demo conditions should produce a queued request");
       await (await manager.connect(bob).classifyWithdrawal(requestId, completed, completion.decryptionProof)).wait();
     }
-    let withdrawalBatchId = await manager.lastManagerWithdrawalBatchId();
-    if (!(await manager.managerWithdrawalBatch(withdrawalBatchId))) {
-      await (await manager.fundWithdrawalLiquidity()).wait();
-      withdrawalBatchId = await manager.lastManagerWithdrawalBatchId();
-    }
-    const openedAt = Number(await withdrawals.currentBatchOpenedAt());
-    const batchAge = Number(await withdrawals.minimumBatchAge());
-    const withdrawalState = Number(await withdrawals.batchState(withdrawalBatchId));
-    if (withdrawalState === 0) {
-      if (!(await waitForRealTime(`withdrawal batch ${withdrawalBatchId}`, openedAt + batchAge))) return;
-      await (await withdrawals.dispatchBatch()).wait();
-    }
-    if (!(await settleQueuedWithdrawal(manager, withdrawals, shares, requestId))) return;
+    if (!(await processQueuedWithdrawal(manager, withdrawals, shares, requestId))) return;
     request = await manager.withdrawalRequest(requestId);
   } else {
     console.log("  withdrawal request already settled; no duplicate funding or settlement submitted");

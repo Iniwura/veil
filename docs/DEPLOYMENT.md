@@ -132,11 +132,16 @@ csteakcUSDC or Steakhouse confidential-yield route, so the V2 deployment remains
 production strategy deployment.
 
 The V2 smoke script accepts explicit `UNVEIL_V2_*_ADDRESS` variables or the new hardhat-deploy records only; it never
-falls back to V1 addresses. It checks bytecode and all immutable wiring, uses `fhevm.initializeCLIApi()`, and is
-resumable at the current batch/draw/prize state. It never uses `evm_increaseTime` on Sepolia. When a real-time draw or
-batch age is not ready, it prints the exact timestamp and exits cleanly unless `UNVEIL_V2_SMOKE_WAIT=true` is set to
-poll until ready. The smoke flow's simulated appreciation phase prints
-`TEST/DEMO ONLY: simulating ERC4626 appreciation`.
+falls back to V1 addresses. It checks bytecode and all immutable wiring, uses `fhevm.initializeCLIApi()`, and resumes
+the fixed smoke identifiers (draw round `1` and withdrawal request `1`) through their existing state machines. It never
+uses `evm_increaseTime` on Sepolia. When a real-time draw or batch age is not ready, it prints the exact timestamp and
+exits cleanly unless `UNVEIL_V2_SMOKE_WAIT=true` is set to poll until ready. The smoke flow's simulated appreciation
+phase prints `TEST/DEMO ONLY: simulating ERC4626 appreciation` and its startup summary reports only public state.
+
+V2 deployment records are reused only when their constructor arguments and prior deployment transaction can be verified
+against the current artifact. A missing transaction or any artifact/argument mismatch fails clearly; the script does not
+silently repair or redeploy a mismatched Sepolia stack. After reuse or deployment, the immutable draw period, both batch
+ages, reserve BPS, haircut BPS, and complete route wiring are checked onchain before parameters are printed as valid.
 
 ## 5. Verification
 
