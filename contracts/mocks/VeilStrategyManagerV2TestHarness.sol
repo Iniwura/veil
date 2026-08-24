@@ -2,9 +2,9 @@
 pragma solidity ^0.8.27;
 
 // TEST/DEMO ONLY. These ACL-granting views must never be added to the production manager.
-// solhint-disable use-natspec, immutable-vars-naming
+// solhint-disable use-natspec, immutable-vars-naming, gas-custom-errors
 
-import {FHE, euint64, euint128} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, ebool, euint64, euint128} from "@fhevm/solidity/lib/FHE.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfaces/IERC7984ERC20Wrapper.sol";
 
@@ -24,6 +24,10 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
     euint64 public lastShareBalance;
     euint64 public lastSafeSurplusShares;
     euint64 public lastManagerBatchDeposit;
+    euint64 public lastQueuedWithdrawalTotal;
+    euint64 public lastWithdrawalRemaining;
+    euint64 public lastWithdrawalPaid;
+    ebool public lastWithdrawalCompleted;
     uint256 public lastConservativeValue;
     uint256 public lastShareScale;
 
@@ -59,7 +63,8 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         euint64 investable = _investableBuffer();
         euint64 uncovered = _uncoveredPrincipal(buffer);
         (uint256 conservativeValue, uint256 shareScale) = _conservativeValuation();
-        euint128 required = _requiredShares(uncovered, shareScale, conservativeValue);
+        euint128 required =
+            conservativeValue == 0 ? FHE.asEuint128(0) : _requiredShares(uncovered, shareScale, conservativeValue);
         euint64 shareBalance = strategyShareAsset.confidentialBalanceOf(address(this));
         if (!FHE.isInitialized(shareBalance)) shareBalance = FHE.asEuint64(0);
         euint64 safeSurplus = _safeSurplusShares();
@@ -72,6 +77,7 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         lastRequiredShares = required;
         lastShareBalance = shareBalance;
         lastSafeSurplusShares = safeSurplus;
+        lastQueuedWithdrawalTotal = _queuedWithdrawalTotal;
         lastConservativeValue = conservativeValue;
         lastShareScale = shareScale;
 
@@ -83,6 +89,7 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         FHE.allowThis(required);
         FHE.allowThis(shareBalance);
         FHE.allowThis(safeSurplus);
+        FHE.allowThis(lastQueuedWithdrawalTotal);
 
         FHE.allow(liability, msg.sender);
         FHE.allow(buffer, msg.sender);
@@ -92,6 +99,7 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         FHE.allow(required, msg.sender);
         FHE.allow(shareBalance, msg.sender);
         FHE.allow(safeSurplus, msg.sender);
+        FHE.allow(lastQueuedWithdrawalTotal, msg.sender);
     }
 
     function exposeManagerBatchDepositForTest(uint256 batchId) external {
@@ -99,5 +107,19 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         lastManagerBatchDeposit = deposit;
         FHE.allowThis(deposit);
         FHE.allow(deposit, msg.sender);
+    }
+
+    function exposeWithdrawalRequestForTest(uint256 requestId) external {
+        (, , euint64 remaining, euint64 paid, ebool completed, , bool exists, , ) = this.withdrawalRequest(requestId);
+        require(exists, "Unknown request");
+        lastWithdrawalRemaining = remaining;
+        lastWithdrawalPaid = paid;
+        lastWithdrawalCompleted = completed;
+        FHE.allowThis(remaining);
+        FHE.allowThis(paid);
+        FHE.allowThis(completed);
+        FHE.allow(remaining, msg.sender);
+        FHE.allow(paid, msg.sender);
+        FHE.allow(completed, msg.sender);
     }
 }

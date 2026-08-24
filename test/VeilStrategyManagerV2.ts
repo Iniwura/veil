@@ -185,6 +185,23 @@ async function dispatchAndProve(
   ).wait();
 }
 
+async function dispatchAndProveWithdrawal(
+  batcher: VeilWithdrawalBatcher,
+  shareWrapper: Wrapper,
+  relayer: HardhatEthersSigner,
+  batchId = 1n,
+) {
+  const requestId = await batcher.unwrapRequestId(batchId);
+  const encryptedAmount = await shareWrapper.unwrapAmount(requestId);
+  const publicResult = await fhevm.publicDecrypt([encryptedAmount]);
+  const clearAmount = publicResult.clearValues[
+    Object.keys(publicResult.clearValues)[0] as keyof typeof publicResult.clearValues
+  ] as bigint;
+  await (
+    await batcher.connect(relayer).dispatchBatchCallback(batchId, clearAmount, publicResult.decryptionProof)
+  ).wait();
+}
+
 async function depositThroughPool(system: ManagerSystem, signer: HardhatEthersSigner, amount: bigint) {
   await (await system.fromWrapper.connect(signer).setOperator(await system.pool.getAddress(), MAX_UINT48)).wait();
   const encrypted = await fhevm
@@ -194,6 +211,21 @@ async function depositThroughPool(system: ManagerSystem, signer: HardhatEthersSi
   await (
     await system.pool.connect(signer).depositFor(signer.address, encrypted.handles[0], encrypted.inputProof)
   ).wait();
+}
+
+async function requestWithdrawalThroughPool(
+  system: ManagerSystem,
+  signer: HardhatEthersSigner,
+  amount: bigint,
+): Promise<bigint> {
+  await (await system.fromWrapper.connect(signer).setOperator(await system.pool.getAddress(), MAX_UINT48)).wait();
+  const encrypted = await fhevm
+    .createEncryptedInput(await system.pool.getAddress(), signer.address)
+    .add64(amount)
+    .encrypt();
+  const nextId = await system.manager.nextWithdrawalRequestId();
+  await (await system.pool.connect(signer).requestWithdrawal(encrypted.handles[0], encrypted.inputProof)).wait();
+  return nextId;
 }
 
 async function decrypt64(contractAddress: string, handle: string, signer: HardhatEthersSigner): Promise<bigint> {
@@ -219,9 +251,52 @@ async function expose(system: ManagerSystem, signer: HardhatEthersSigner = signe
     ),
     shareBalance: await decrypt64(managerAddress, await system.manager.lastShareBalance(), signer),
     safeSurplusShares: await decrypt64(managerAddress, await system.manager.lastSafeSurplusShares(), signer),
+    queuedWithdrawalTotal: await decrypt64(managerAddress, await system.manager.lastQueuedWithdrawalTotal(), signer),
     conservativeValue: await system.manager.lastConservativeValue(),
     shareScale: await system.manager.lastShareScale(),
   };
+}
+
+async function exposePositions(system: ManagerSystem, account: HardhatEthersSigner) {
+  await (await system.pool.connect(account).exposePositionsForTest(account.address)).wait();
+  const poolAddress = await system.pool.getAddress();
+  return {
+    active: await decrypt64(poolAddress, await system.pool.activePosition(account.address), account),
+    reserved: await decrypt64(poolAddress, await system.pool.reservedWithdrawal(account.address), account),
+  };
+}
+
+async function exposeWithdrawalRequest(
+  system: ManagerSystem,
+  requestId: bigint,
+  signer: HardhatEthersSigner = signers.manager,
+) {
+  await (await system.manager.connect(signer).exposeWithdrawalRequestForTest(requestId)).wait();
+  const managerAddress = await system.manager.getAddress();
+  const completion = await fhevm.publicDecrypt([await system.manager.lastWithdrawalCompleted()]);
+  const clearCompleted = completion.clearValues[
+    Object.keys(completion.clearValues)[0] as keyof typeof completion.clearValues
+  ] as boolean;
+  return {
+    remaining: await decrypt64(managerAddress, await system.manager.lastWithdrawalRemaining(), signer),
+    paid: await decrypt64(managerAddress, await system.manager.lastWithdrawalPaid(), signer),
+    completed: clearCompleted,
+  };
+}
+
+async function finalizeWithdrawalRequest(
+  system: ManagerSystem,
+  requestId: bigint,
+  signer: HardhatEthersSigner = signers.outsider,
+) {
+  await (await system.manager.connect(signers.manager).exposeWithdrawalRequestForTest(requestId)).wait();
+  const completion = await fhevm.publicDecrypt([await system.manager.lastWithdrawalCompleted()]);
+  const clearCompleted = completion.clearValues[
+    Object.keys(completion.clearValues)[0] as keyof typeof completion.clearValues
+  ] as boolean;
+  await (
+    await system.manager.connect(signer).finalizeWithdrawal(requestId, clearCompleted, completion.decryptionProof)
+  ).wait();
 }
 
 async function decryptManagerBatchDeposit(
@@ -687,5 +762,309 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     expect(accounting.principalLiability).to.equal(MAX_UINT64);
     expect(accounting.targetBuffer).to.equal(ceilDiv(MAX_UINT64 * 5_000n, BPS));
     expect(accounting.investable).to.equal(MAX_UINT64 - accounting.targetBuffer);
+  });
+
+  it("pays instant withdrawals all-or-zero and keeps oversized requests silent-zero", async function () {
+    const system = await deployManagerSystem({ bufferReserveBps: 10_000 });
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+
+    const instantId = await requestWithdrawalThroughPool(system, signers.manager, 10n);
+    let accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(90n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 90n, reserved: 0n });
+    expect((await exposeWithdrawalRequest(system, instantId)).remaining).to.equal(0n);
+    await finalizeWithdrawalRequest(system, instantId);
+    expect(await system.manager.nextWithdrawalRequestIdToSettle()).to.equal(2);
+
+    const oversizedId = await requestWithdrawalThroughPool(system, signers.manager, 1_000n);
+    accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(90n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 90n, reserved: 0n });
+    expect((await exposeWithdrawalRequest(system, oversizedId)).remaining).to.equal(0n);
+    await finalizeWithdrawalRequest(system, oversizedId);
+  });
+
+  it("moves a valid insufficient request into reserved encrypted queue liability", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    const accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(100n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(50n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 50n, reserved: 50n });
+    expect((await exposeWithdrawalRequest(system, requestId)).remaining).to.equal(50n);
+    expect(await system.manager.managerWithdrawalBatch(1)).to.equal(false);
+
+    const duplicateAttempt = await requestWithdrawalThroughPool(system, signers.manager, 60n);
+    expect((await exposeWithdrawalRequest(system, duplicateAttempt)).remaining).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 50n, reserved: 50n });
+  });
+
+  it("allows only the request owner to cancel before strategy commitment", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+
+    await expect(system.pool.connect(signers.outsider).cancelWithdrawal(requestId)).to.be.revertedWith(
+      "Not request owner",
+    );
+    await (await system.pool.connect(signers.manager).cancelWithdrawal(requestId)).wait();
+    const accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(100n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 100n, reserved: 0n });
+    await expect(system.pool.connect(signers.manager).cancelWithdrawal(requestId)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestClosed",
+    );
+  });
+
+  it("reclaims a Pending manager deposit batch before using strategy liquidity", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+
+    await (await system.manager.connect(signers.outsider).reclaimPendingDepositBatch(1)).wait();
+    expect(await system.manager.managerDepositBatchResolved(1)).to.equal(true);
+    let accounting = await expose(system);
+    expect(accounting.buffer).to.equal(100n);
+    expect(accounting.shareBalance).to.equal(0n);
+    expect(accounting.principalLiability).to.equal(100n);
+    await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
+    accounting = await expose(system);
+    expect(accounting.buffer).to.equal(50n);
+    expect(accounting.principalLiability).to.equal(50n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 50n, reserved: 0n });
+    await finalizeWithdrawalRequest(system, requestId);
+  });
+
+  it("derives withdrawal shares, keeps in-flight output out of buffer, and settles permissionlessly", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    await (await system.manager.connect(signers.outsider).fundWithdrawalLiquidity()).wait();
+    expect(await system.manager.managerWithdrawalBatch(1)).to.equal(true);
+    let accounting = await expose(system);
+    expect(accounting.buffer).to.equal(20n);
+    expect(accounting.shareBalance).to.equal(50n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(50n);
+    expect((await exposeWithdrawalRequest(system, requestId)).remaining).to.equal(50n);
+
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.thirdParty).dispatchBatch()).wait();
+    expect(await system.manager.withdrawalRequestCommitted(requestId)).to.equal(true);
+    await dispatchAndProveWithdrawal(system.withdrawalBatcher, system.shareWrapper, signers.thirdParty);
+    await (await system.manager.connect(signers.thirdParty).resolveWithdrawalBatch(1)).wait();
+    accounting = await expose(system);
+    expect(accounting.buffer).to.equal(50n);
+    expect(accounting.shareBalance).to.equal(50n);
+    expect(accounting.principalLiability).to.equal(100n);
+    await expect(system.manager.resolveWithdrawalBatch(1)).to.be.revertedWithCustomError(
+      system.manager,
+      "ManagerWithdrawalBatchAlreadyResolved",
+    );
+
+    await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
+    accounting = await expose(system);
+    expect(accounting.buffer).to.equal(0n);
+    expect(accounting.principalLiability).to.equal(50n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 50n, reserved: 0n });
+    await finalizeWithdrawalRequest(system, requestId);
+  });
+
+  it("does not allow cancellation after a withdrawal batch is dispatched", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await expect(system.pool.connect(signers.manager).cancelWithdrawal(requestId)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestCommitted",
+    );
+  });
+
+  it("cancels a failed withdrawal batch by returning original strategy shares", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await (await system.vault.setRedeemFailure(true)).wait();
+    await dispatchAndProveWithdrawal(system.withdrawalBatcher, system.shareWrapper, signers.outsider);
+    expect(await system.withdrawalBatcher.batchState(1)).to.equal(3);
+    await (await system.manager.connect(signers.thirdParty).resolveWithdrawalBatch(1)).wait();
+    const accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(100n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(50n);
+    expect(accounting.buffer).to.equal(20n);
+    expect(accounting.shareBalance).to.equal(80n);
+    expect((await exposeWithdrawalRequest(system, requestId)).remaining).to.equal(50n);
+  });
+
+  it("caps redemption at actual shares and preserves the queue after strategy loss", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    await (await system.vault.simulateLoss(60n)).wait();
+
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    const accounting = await expose(system);
+    expect(accounting.shareBalance).to.equal(0n);
+    expect(accounting.principalLiability).to.equal(100n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(50n);
+    expect((await exposeWithdrawalRequest(system, requestId)).remaining).to.equal(50n);
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProveWithdrawal(system.withdrawalBatcher, system.shareWrapper, signers.outsider);
+    expect(await system.withdrawalBatcher.batchState(1)).to.equal(2);
+    await (await system.manager.resolveWithdrawalBatch(1)).wait();
+    const accountingAfterLoss = await expose(system);
+    expect(accountingAfterLoss.buffer).to.equal(40n);
+    expect(accountingAfterLoss.shareBalance).to.equal(0n);
+    expect(accountingAfterLoss.principalLiability).to.equal(100n);
+    expect(accountingAfterLoss.queuedWithdrawalTotal).to.equal(50n);
+  });
+
+  it("enforces FIFO settlement and uses an encrypted completion proof", async function () {
+    const system = await deployManagerSystem({ bufferReserveBps: 0 });
+    for (const [signer, amount] of [
+      [signers.manager, 50n],
+      [signers.outsider, 50n],
+      [signers.thirdParty, 50n],
+    ] as const) {
+      await mintAsset(system, signer, amount);
+      await wrap(system.asset, system.fromWrapper, signer, amount);
+      await depositThroughPool(system, signer, amount);
+    }
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+    const aliceRequest = await requestWithdrawalThroughPool(system, signers.manager, 40n);
+    const bobRequest = await requestWithdrawalThroughPool(system, signers.outsider, 40n);
+    const carolRequest = await requestWithdrawalThroughPool(system, signers.thirdParty, 40n);
+    await expect(system.manager.settleWithdrawal(bobRequest)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestNotHead",
+    );
+
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.thirdParty).dispatchBatch()).wait();
+    await dispatchAndProveWithdrawal(system.withdrawalBatcher, system.shareWrapper, signers.thirdParty);
+    await (await system.manager.resolveWithdrawalBatch(1)).wait();
+
+    for (const requestId of [aliceRequest, bobRequest, carolRequest]) {
+      await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
+      await finalizeWithdrawalRequest(system, requestId);
+    }
+    const accounting = await expose(system);
+    expect(accounting.principalLiability).to.equal(30n);
+    expect(accounting.queuedWithdrawalTotal).to.equal(0n);
+    expect(await exposePositions(system, signers.manager)).to.deep.equal({ active: 10n, reserved: 0n });
+    expect(await exposePositions(system, signers.outsider)).to.deep.equal({ active: 10n, reserved: 0n });
+    expect(await exposePositions(system, signers.thirdParty)).to.deep.equal({ active: 10n, reserved: 0n });
+  });
+
+  it("keeps queued obligations inside safe-surplus liability accounting", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+    const before = (await expose(system)).safeSurplusShares;
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 50n);
+    const afterQueue = await expose(system);
+    expect(afterQueue.principalLiability).to.equal(100n);
+    expect(afterQueue.queuedWithdrawalTotal).to.equal(50n);
+    expect(afterQueue.safeSurplusShares).to.equal(before);
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    expect((await expose(system)).safeSurplusShares).to.equal(0n);
+    await expect(system.manager.settleWithdrawal(requestId)).to.not.be.reverted;
+  });
+
+  it("rejects invalid valuation for strategy redemption without treating it as zero backing", async function () {
+    const system = await deployManagerSystem();
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    await (await system.manager.investExcess()).wait();
+    await (await system.vault.setPreviewRedeemFailure(true)).wait();
+    await expect(system.manager.fundWithdrawalLiquidity()).to.be.revertedWithCustomError(
+      system.manager,
+      "InvalidValuation",
+    );
+  });
+
+  it("makes repeated settlement and batch resolution economically idempotent", async function () {
+    const system = await deployManagerSystem({ bufferReserveBps: 10_000 });
+    await mintAsset(system, signers.manager, 100n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+    await depositThroughPool(system, signers.manager, 100n);
+    const requestId = await requestWithdrawalThroughPool(system, signers.manager, 10n);
+    await (await system.manager.settleWithdrawal(requestId)).wait();
+    const afterFirst = await expose(system);
+    await (await system.manager.settleWithdrawal(requestId)).wait();
+    const afterSecond = await expose(system);
+    expect(afterSecond.principalLiability).to.equal(afterFirst.principalLiability);
+    expect(afterSecond.queuedWithdrawalTotal).to.equal(afterFirst.queuedWithdrawalTotal);
+    await finalizeWithdrawalRequest(system, requestId);
+    await expect(system.manager.settleWithdrawal(requestId)).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalRequestClosed",
+    );
   });
 });

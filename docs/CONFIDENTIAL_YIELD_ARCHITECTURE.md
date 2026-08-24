@@ -2,7 +2,8 @@
 
 Research snapshot: 2026-08-24
 
-Repository: `Iniwura/veil` Base: `feat/unveil-autonomous-draws` at `b62eda999ff716c0f350171658a9291f463289e1`
+Repository: `Iniwura/veil` Base: `feat/unveil-autonomous-draws` at the reviewed Slice 2A baseline
+`b87d75193c6bed6179b9191fe3fd8399fd029288`
 
 This document is an architecture and integration study. It deliberately does not implement the production yield
 integration, change the frontend, deploy contracts, or replace the current demo yield source.
@@ -345,7 +346,9 @@ If the buffer cannot satisfy the request, the manager creates an encrypted queue
 discarding the request or spending another user's principal:
 
 1. The requested amount is checked against the user's encrypted principal.
-2. The amount is reserved against the user's liability and added to an encrypted queue total.
+2. The amount is moved from the user's active pool position into a reserved withdrawal position and added to an
+   encrypted queue total. It remains inside aggregate `principalLiability`; queue reservation does not reduce the
+   protocol liability.
 3. The manager submits an aggregate csteakcUSDC amount to the withdrawal batcher when enough strategy liquidity is
    available.
 4. Anyone dispatches the batch, submits the valid asynchronous unwrap proof, and claims the resulting cUSDC to the
@@ -353,9 +356,12 @@ discarding the request or spending another user's principal:
 5. A permissionless settlement call uses encrypted queue state to pay eligible users from the replenished cUSDC buffer,
    with all-or-zero per user.
 
-The queue must have a FIFO or pro-rata policy that is explicit and testable. A user may cancel a request only before it
-is committed to a dispatched withdrawal batch; after dispatch, the request is represented by the batch's encrypted claim
-path. The queue state must survive keeper changes and KMS delays.
+The implemented queue is FIFO. Settlement attempts are all-or-zero against the FIFO head. Because Solidity cannot branch
+on an encrypted transfer result, the manager exposes only an encrypted `remaining == 0` completion predicate; anyone
+submits a valid proof of that boolean before the public FIFO pointer advances. This avoids revealing the amount while
+preventing a zero/failed payout from being treated as settled. A user may cancel only before their request is committed
+to a dispatched withdrawal batch; a canceled request restores the reserved amount to the active pool position. The queue
+state survives keeper changes and KMS delays.
 
 ### Can withdrawal remain instant?
 
@@ -418,8 +424,8 @@ value(buffer cUSDC)
 
 Implementation rules:
 
-1. `principalLiability` is increased only when cUSDC custody increases and decreased only after an all-or-zero user
-   withdrawal is actually transferred or an irrevocable queued withdrawal is reserved.
+1. `principalLiability` is increased only when cUSDC custody increases and decreased only after an actual confidential
+   principal transfer to the user. A queued withdrawal remains a real liability until it is paid.
 2. Investing principal changes asset form but not liability.
 3. A prize transfer is selected from `safeSurplusShares`, which is computed after reserving the shares needed to cover
    liability not covered by the buffer.
@@ -434,6 +440,49 @@ Implementation rules:
 
 This is an asset-solvency invariant, not a promise that an external strategy can never lose money. Governance may pause
 new investment, but it must not be able to mint a prize or write down a user's encrypted liability arbitrarily.
+
+## Slice 2B implementation note
+
+Slice 2B extends `VeilStrategyManagerV2` with principal withdrawals while leaving prizes, harvesting, `VeilPoolV2`, and
+the frontend out of scope. The test-only pool harness models the production boundary: an encrypted withdrawal is first
+restricted against the caller's active encrypted position, then the manager receives the permitted ciphertext through
+the immutable pool address. The manager separately caps it against aggregate liability.
+
+The accounting invariant is:
+
+```text
+principalLiability = active principal + reserved unpaid withdrawal principal
+queuedWithdrawalTotal = encrypted sum of reserved unpaid requests
+```
+
+An instant request transfers the full permitted amount only when the live manager cUSDC buffer covers it. Otherwise it
+transfers zero and queues the full permitted amount. Only the actual confidential amount returned by the ERC-7984
+transfer reduces `principalLiability`; queue creation does not increase it. Queue settlement decreases both
+`queuedWithdrawalTotal` and `principalLiability` only after actual payout. Cancellation decreases only the queue total
+and restores the user's reserved amount to active position; it never writes down aggregate liability.
+
+The queue is FIFO and bounded per call: one request is attempted per settlement call, and one canceled head can be
+advanced per `advanceWithdrawalQueue` call. A completion proof verifies only an encrypted boolean predicate, not the
+withdrawal amount. This extra permissionless proof step is required by the FHE constraint that a contract cannot branch
+on whether an encrypted payout was nonzero.
+
+Pending manager deposit batches can be permissionlessly reclaimed through `quit`, returning principal to the live buffer
+without changing liability or shares. Since the encrypted liquidity deficit cannot be used as a Solidity branch, the
+reclaim operation is state-gated to recognized Pending manager batches but may be called prematurely by a keeper; the
+trade-off is documented in the contract and prioritizes principal recoverability over yield availability.
+
+When the buffer is insufficient after reclaim, `fundWithdrawalLiquidity` computes:
+
+```text
+liquidityNeed = max(queuedWithdrawalTotal - liveBuffer, 0)
+requiredShares = ceil(liquidityNeed * shareScale / conservativeAssetsForProbe)
+submittedShares = min(requiredShares, liveManagerShareBalance)
+```
+
+Strategy shares entering the withdrawal batch are not liquid and do not change either liability value. Only a finalized
+batch claim returning confidential principal to the manager increases the live buffer. A canceled batch returns the
+original confidential shares. A dispatched batch that is waiting on KMS remains committed and its requests cannot be
+canceled; strategy losses may therefore leave a request reserved and unpaid without making the liability disappear.
 
 ### Arithmetic implementation gate
 
@@ -620,10 +669,10 @@ accounting rights to those participants.
 
 ## Slice 2A implementation note
 
-Slice 2A adds VeilStrategyManagerV2 without changing VeilPool, withdrawals, prizes, deployment, or the frontend. The
-immutable pool is the only principal-liability writer and records the exact encrypted amount returned by the
-confidential asset transfer; the manager reads its live ERC7984 principal and share balances rather than maintaining
-shadow balances.
+Slice 2A adds the custody and solvency foundation without implementing withdrawals, prizes, deployment, or the frontend.
+The immutable pool is the only principal-liability writer and records the exact encrypted amount returned by the
+confidential asset transfer; Slice 2B adds the manager's only decrement path, restricted to actual confidential payout.
+The manager reads its live ERC7984 principal and share balances rather than maintaining shadow balances.
 
 The manager values one whole confidential share-token unit using `10 ** strategyShareAsset.decimals()` multiplied by the
 wrapper rate, `vault.previewRedeem`, principal-wrapper conversion, and an immutable haircut. Required shares use
