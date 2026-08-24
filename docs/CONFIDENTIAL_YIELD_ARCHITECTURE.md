@@ -1,8 +1,8 @@
 # UNVEIL Confidential Yield Architecture
 
-Research snapshot: 2026-08-24  
-Repository: `Iniwura/veil`  
-Base: `feat/unveil-autonomous-draws` at `b62eda999ff716c0f350171658a9291f463289e1`
+Research snapshot: 2026-08-24
+
+Repository: `Iniwura/veil` Base: `feat/unveil-autonomous-draws` at `b62eda999ff716c0f350171658a9291f463289e1`
 
 This document is an architecture and integration study. It deliberately does not implement the production yield
 integration, change the frontend, deploy contracts, or replace the current demo yield source.
@@ -548,8 +548,9 @@ These are future implementation steps, not changes in this research task:
    not expose encrypted amounts.
 8. Use a fresh deployment version because the existing prize-vault configuration is one-time and the deployed demo has
    different economic semantics.
-9. Upgrade the OpenZeppelin confidential-contracts dependency to the selected current release and review its
-   `@openzeppelin/contracts` and Solidity pragma requirements before pinning.
+9. Pin the reviewed OpenZeppelin confidential-contracts release and its peer baseline; Slice 1 uses
+   `@openzeppelin/confidential-contracts` `0.5.2`, `@openzeppelin/contracts` `5.6.1`, and
+   `@openzeppelin/contracts-upgradeable` `5.6.1` with `@fhevm/solidity` `0.11.1`.
 10. Preserve all current draw, FHE, ERC-7984 silent-zero, pooled-custody, snapshot, and seat-lease guarantees.
 
 ## Required new interfaces
@@ -595,6 +596,24 @@ Concrete batcher routes need:
    addresses and simulated performance in the deployment output.
 7. Retire or clearly label `VeilYieldSource`'s `accrueYield` and `allocateToRound` as demo-only. Do not present them as
    production yield integration.
+
+## Slice 1 implementation note
+
+Slice 1 now pins `@openzeppelin/confidential-contracts` `0.5.2`, with its verified peer baseline of `@fhevm/solidity`
+`0.11.1`, `@openzeppelin/contracts` `5.6.1`, and `@openzeppelin/contracts-upgradeable` `5.6.1`. It adds
+`VeilDepositBatcher` and `VeilWithdrawalBatcher` as immutable, route-specific `BatcherConfidential` adapters. Both use a
+shared permissionless `minimumBatchAge` gate; the base primitive has no timing gate of its own.
+
+The local route fixture uses `MockUSDC`, `MockYieldVault4626`, and ERC7984 wrappers explicitly marked TEST/DEMO ONLY.
+They are not official Zama assets or a production vault. The mock vault's donation and failure toggles exist only to
+test share-price movement and `Complete`/`Cancel` behavior. The concrete batcher base initializes `ZamaEthereumConfig`
+because `BatcherConfidential` does not do so itself.
+
+The routes multiply the proven cleartext wrapper amount by `fromToken().rate()` before calling ERC-4626. They catch
+vault deposit/redeem failures and return `ExecuteOutcome.Cancel` without an alternate irreversible transfer, and they do
+not use `Partial` or introduce a timeout recovery path. Direct third-party batch participation remains technically
+possible, as required by the v0.5.2 callback boundary; Slice 1 has no `VeilStrategyManagerV2` and grants no UNVEIL
+accounting rights to those participants.
 
 ## Tests required before production integration
 
