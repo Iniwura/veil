@@ -70,8 +70,11 @@ describe("VeilPool draw-seat lifecycle", function () {
     expect(await pool.playerCount()).to.equal(2);
     expect(await pool.seated(alice.address)).to.equal(true);
     expect(await decryptPosition(alice)).to.equal(10);
+    const latest = await ethers.provider.getBlock("latest");
+    if (!latest) throw new Error("Latest block unavailable");
+    expect((await pool.seatExpiresAt(alice.address)) - BigInt(latest.timestamp)).to.be.greaterThan(24n * 60n * 60n);
 
-    await ethers.provider.send("evm_increaseTime", [86_401]);
+    await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]);
     await ethers.provider.send("evm_mine", []);
     await (await pool.pruneExpiredSeats()).wait();
 

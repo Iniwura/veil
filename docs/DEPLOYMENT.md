@@ -33,9 +33,13 @@ available onchain through `drawPeriod`, `firstDrawOpensAt`, `nextDrawOpensAt`, `
 never shifts the schedule. `getDrawSchedule()` reports the actionable timer/readiness state, insufficient close-time
 participation, whether the round can advance, overdue settlement, and the number of unsettled rounds. A closed round
 with fewer than two eligible seats can be permissionlessly advanced with `cancelInsufficientRound()`; post-close
-entrants cannot backfill it. A late keeper cannot rewrite a closed round: the pool lazily checkpoints encrypted balances
-and eligible seats at each scheduled close before accepting later deposits, withdrawals, seat releases, or pruning.
-Multiple rounds may therefore be snapshotted while older rounds await KMS finalization.
+entrants cannot backfill it. A late keeper cannot rewrite a closed round: the pool seals encrypted balances, seat
+addresses, and expiry metadata into one bounded state epoch for the newly closed range before accepting later deposits,
+withdrawals, seat releases, or pruning. Unchanged periods do not create per-round storage or FHE ACL work. Multiple
+rounds may therefore be snapshotted while older rounds await KMS finalization.
+
+The bounded prototype roster uses a 30-day minimum inactivity lease. Principal remains withdrawable after expiry, users
+can renew their own seats through normal interaction, and abandoned seats can still be pruned by anyone.
 
 ## 3. Choose the confidential asset
 

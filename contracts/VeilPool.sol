@@ -23,7 +23,7 @@ interface IERC7984Asset {
 ///      or zero-weight accounts cannot permanently consume the 32-player bounded FHE draw roster.
 contract VeilPool is ZamaEthereumConfig {
     uint8 public constant MAX_PLAYERS = 32;
-    uint64 public constant SEAT_LEASE = 1 days;
+    uint64 public constant SEAT_LEASE = 30 days;
 
     enum DrawState {
         NONE,
@@ -71,7 +71,8 @@ contract VeilPool is ZamaEthereumConfig {
     uint256 public nextRoundId = 1;
     uint64 public nextDrawOpensAt;
     uint64 public nextDrawClosesAt;
-    uint256 public lastCheckpointedRoundId;
+    uint256 public lastSealedRoundId;
+    uint256 public stateEpochCount;
     uint256 public unsettledRoundCount;
 
     mapping(uint256 => Draw) private draws;
@@ -80,14 +81,19 @@ contract VeilPool is ZamaEthereumConfig {
     mapping(uint256 => mapping(address => uint8)) private drawPlayerIndex;
     mapping(uint256 => mapping(address => bool)) private drawParticipantIncluded;
 
-    // Close checkpoints are created lazily by any state-changing call that crosses one or more
-    // scheduled close times. They preserve the encrypted balance and seat membership at the
-    // boundary without locking principal or depending on a keeper transaction at the deadline.
-    mapping(uint256 => bool) private closeCheckpointed;
-    mapping(uint256 => uint8) private closeParticipantCount;
-    mapping(uint256 => mapping(uint8 => address)) private closeParticipants;
-    mapping(uint256 => mapping(address => bool)) private closeParticipantIncluded;
-    mapping(uint256 => mapping(address => euint64)) private closeWeights;
+    // A state epoch is valid for a contiguous closed-round range. Epochs are created only when a
+    // balance or seat mutation crosses a new close; unchanged periods are represented by one
+    // range instead of one encrypted copy per round.
+    struct StateEpoch {
+        uint256 startRoundId;
+        uint256 endRoundId;
+        uint8 participantCount;
+    }
+
+    mapping(uint256 => StateEpoch) private stateEpochs;
+    mapping(uint256 => mapping(uint8 => address)) private stateEpochPlayers;
+    mapping(uint256 => mapping(uint8 => euint64)) private stateEpochWeights;
+    mapping(uint256 => mapping(uint8 => uint64)) private stateEpochSeatExpiresAt;
 
     event PlayerJoined(address indexed player);
     event DrawSeatRenewed(address indexed player, uint64 expiresAt);
@@ -125,7 +131,7 @@ contract VeilPool is ZamaEthereumConfig {
         FHE.allowTransient(requested, address(asset));
         euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
 
-        _checkpointPassedRounds();
+        _sealCurrentStateForClosedRounds();
 
         if (!joined[msg.sender]) {
             positions[msg.sender].balance = FHE.asEuint64(0);
@@ -148,25 +154,25 @@ contract VeilPool is ZamaEthereumConfig {
 
     function renewDrawSeat() external {
         require(joined[msg.sender], "Not joined");
-        _checkpointPassedRounds();
+        _sealCurrentStateForClosedRounds();
         _acquireOrRenewSeat(msg.sender);
     }
 
     function leaveDrawSeat() external {
         require(seated[msg.sender], "Not seated");
-        _checkpointPassedRounds();
+        _sealCurrentStateForClosedRounds();
         _removeSeat(msg.sender);
     }
 
     function pruneExpiredSeats() external {
-        _checkpointPassedRounds();
+        _sealCurrentStateForClosedRounds();
         _pruneExpiredSeats();
     }
 
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(joined[msg.sender], "Not joined");
 
-        _checkpointPassedRounds();
+        _sealCurrentStateForClosedRounds();
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
 
@@ -203,19 +209,36 @@ contract VeilPool is ZamaEthereumConfig {
 
     /// @notice Closes the current open draw window and freezes confidential weights.
     /// @dev Permissionless once the scheduled close time has passed. The snapshot consumes the
-    ///      encrypted close checkpoint, so delayed execution cannot change historical weights.
+    ///      historical state epoch covering the scheduled close, so delayed execution cannot
+    ///      change historical weights.
     function snapshotRound() external returns (uint256 roundId) {
         require(block.timestamp >= nextDrawClosesAt, "Draw still open");
-
-        _checkpointPassedRounds();
 
         roundId = nextRoundId;
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.NONE, "Round already snapshotted");
-        require(closeCheckpointed[roundId], "Close not checkpointed");
-        require(closeParticipantCount[roundId] >= 2, "Need 2 players");
+        euint64 snapshotTotalWeight = FHE.asEuint64(0);
+        uint8 snapshotParticipantCount;
+        uint256 epochId = _stateEpochForRound(roundId);
+        uint8 sourceParticipantCount = epochId == 0 ? playerCount : stateEpochs[epochId].participantCount;
 
-        _pruneExpiredSeats();
+        for (uint8 i = 0; i < sourceParticipantCount; i++) {
+            (address account, uint64 expiresAt, euint64 weight) = _historicalPlayerAt(epochId, i);
+
+            if (expiresAt < nextDrawClosesAt) continue;
+
+            drawPlayers[roundId][snapshotParticipantCount] = account;
+            drawWeights[roundId][snapshotParticipantCount] = weight;
+            drawPlayerIndex[roundId][account] = snapshotParticipantCount;
+            drawParticipantIncluded[roundId][account] = true;
+            snapshotTotalWeight = FHE.add(snapshotTotalWeight, weight);
+
+            FHE.allowThis(drawWeights[roundId][snapshotParticipantCount]);
+            FHE.allow(drawWeights[roundId][snapshotParticipantCount], account);
+            snapshotParticipantCount++;
+        }
+
+        require(snapshotParticipantCount >= 2, "Need 2 players");
 
         unchecked {
             nextRoundId++;
@@ -223,25 +246,9 @@ contract VeilPool is ZamaEthereumConfig {
         _updateNextDrawWindow();
 
         draw.snapshotBlock = uint64(block.number);
-        draw.participantCount = closeParticipantCount[roundId];
+        draw.participantCount = snapshotParticipantCount;
         draw.state = DrawState.SNAPSHOTTED;
         unsettledRoundCount++;
-
-        euint64 snapshotTotalWeight = FHE.asEuint64(0);
-
-        for (uint8 i = 0; i < draw.participantCount; i++) {
-            address account = closeParticipants[roundId][i];
-            euint64 weight = closeWeights[roundId][account];
-
-            drawPlayers[roundId][i] = account;
-            drawWeights[roundId][i] = weight;
-            drawPlayerIndex[roundId][account] = i;
-            drawParticipantIncluded[roundId][account] = true;
-            snapshotTotalWeight = FHE.add(snapshotTotalWeight, weight);
-
-            FHE.allowThis(drawWeights[roundId][i]);
-            FHE.allow(drawWeights[roundId][i], account);
-        }
 
         draw.encryptedTotalWeight = snapshotTotalWeight;
         FHE.allowThis(draw.encryptedTotalWeight);
@@ -255,13 +262,10 @@ contract VeilPool is ZamaEthereumConfig {
     function cancelInsufficientRound() external returns (uint256 roundId) {
         require(block.timestamp >= nextDrawClosesAt, "Draw still open");
 
-        _checkpointPassedRounds();
-
         roundId = nextRoundId;
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.NONE, "Round already advanced");
-        require(closeCheckpointed[roundId], "Close not checkpointed");
-        require(closeParticipantCount[roundId] < 2, "Enough players");
+        require(_historicalParticipantCount(roundId, nextDrawClosesAt) < 2, "Enough players");
 
         unchecked {
             nextRoundId++;
@@ -269,7 +273,7 @@ contract VeilPool is ZamaEthereumConfig {
         _updateNextDrawWindow();
 
         draw.snapshotBlock = uint64(block.number);
-        draw.participantCount = closeParticipantCount[roundId];
+        draw.participantCount = _historicalParticipantCount(roundId, nextDrawClosesAt);
         draw.state = DrawState.CANCELLED;
 
         emit RoundSkipped(roundId, draw.participantCount, draw.snapshotBlock);
@@ -296,15 +300,8 @@ contract VeilPool is ZamaEthereumConfig {
     function getDrawAvailability() public view returns (DrawAvailability) {
         if (!isDrawTimeReady()) return DrawAvailability.OPEN;
 
-        if (closeCheckpointed[nextRoundId]) {
-            return
-                closeParticipantCount[nextRoundId] >= 2
-                    ? DrawAvailability.READY
-                    : DrawAvailability.INSUFFICIENT_PARTICIPANTS;
-        }
-
         return
-            _currentEligibleCountAtClose(nextDrawClosesAt) >= 2
+            _historicalParticipantCount(nextRoundId, nextDrawClosesAt) >= 2
                 ? DrawAvailability.READY
                 : DrawAvailability.INSUFFICIENT_PARTICIPANTS;
     }
@@ -468,37 +465,63 @@ contract VeilPool is ZamaEthereumConfig {
         return (block.timestamp - uint256(firstDrawOpensAt)) / uint256(drawPeriod);
     }
 
-    /// @dev Materializes every crossed close before a caller can mutate balances or seats. The
-    ///      same encrypted handle is retained; no plaintext balance or eligibility is exposed.
-    function _checkpointPassedRounds() private {
+    /// @dev Seals the current encrypted roster once for the newly closed range before a caller can
+    ///      mutate balances or seats. The same encrypted handle is retained; no plaintext balance
+    ///      or eligibility is exposed.
+    function _sealCurrentStateForClosedRounds() private {
         uint256 latestClosedRoundId = _latestClosedRoundId();
-        if (latestClosedRoundId <= lastCheckpointedRoundId) return;
+        if (latestClosedRoundId <= lastSealedRoundId) return;
 
-        uint256 roundId = lastCheckpointedRoundId + 1;
-        while (roundId <= latestClosedRoundId) {
-            uint64 closesAt = _scheduledDrawClosesAt(roundId);
+        uint256 epochId = stateEpochCount + 1;
+        StateEpoch storage epoch = stateEpochs[epochId];
+        epoch.startRoundId = lastSealedRoundId + 1;
+        epoch.endRoundId = latestClosedRoundId;
+        epoch.participantCount = playerCount;
 
-            for (uint8 i = 0; i < playerCount; i++) {
-                address account = players[i];
-                if (seatExpiresAt[account] < closesAt || closeParticipantIncluded[roundId][account]) continue;
-
-                closeParticipantIncluded[roundId][account] = true;
-                closeParticipants[roundId][closeParticipantCount[roundId]] = account;
-                closeParticipantCount[roundId]++;
-                closeWeights[roundId][account] = positions[account].balance;
-                FHE.allowThis(closeWeights[roundId][account]);
-            }
-
-            closeCheckpointed[roundId] = true;
-            roundId++;
+        for (uint8 i = 0; i < playerCount; i++) {
+            address account = players[i];
+            stateEpochPlayers[epochId][i] = account;
+            stateEpochWeights[epochId][i] = positions[account].balance;
+            stateEpochSeatExpiresAt[epochId][i] = seatExpiresAt[account];
+            FHE.allowThis(stateEpochWeights[epochId][i]);
         }
 
-        lastCheckpointedRoundId = latestClosedRoundId;
+        stateEpochCount = epochId;
+        lastSealedRoundId = latestClosedRoundId;
     }
 
-    function _currentEligibleCountAtClose(uint64 closesAt) private view returns (uint8 count) {
-        for (uint8 i = 0; i < playerCount; i++) {
-            if (seatExpiresAt[players[i]] >= closesAt) count++;
+    function _stateEpochForRound(uint256 roundId) private view returns (uint256) {
+        for (uint256 epochId = stateEpochCount; epochId > 0; epochId--) {
+            StateEpoch storage epoch = stateEpochs[epochId];
+            if (roundId > epoch.endRoundId) return 0;
+            if (roundId >= epoch.startRoundId) return epochId;
+        }
+
+        return 0;
+    }
+
+    function _historicalPlayerAt(
+        uint256 epochId,
+        uint8 index
+    ) private view returns (address account, uint64 expiresAt, euint64 weight) {
+        if (epochId == 0) {
+            account = players[index];
+            expiresAt = seatExpiresAt[account];
+            weight = positions[account].balance;
+        } else {
+            account = stateEpochPlayers[epochId][index];
+            expiresAt = stateEpochSeatExpiresAt[epochId][index];
+            weight = stateEpochWeights[epochId][index];
+        }
+    }
+
+    function _historicalParticipantCount(uint256 roundId, uint64 closesAt) private view returns (uint8 count) {
+        uint256 epochId = _stateEpochForRound(roundId);
+        uint8 sourceParticipantCount = epochId == 0 ? playerCount : stateEpochs[epochId].participantCount;
+
+        for (uint8 i = 0; i < sourceParticipantCount; i++) {
+            uint64 expiresAt = epochId == 0 ? seatExpiresAt[players[i]] : stateEpochSeatExpiresAt[epochId][i];
+            if (expiresAt >= closesAt) count++;
         }
     }
 

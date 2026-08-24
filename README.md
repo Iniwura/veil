@@ -83,8 +83,7 @@ The frontend therefore never infers or publishes an "insufficient balance" resul
 Private positions and BlindDraw roster membership are separate concepts.
 
 - Principal remains withdrawable even when a draw seat expires.
-- Draw seats use a 1-day minimum lease and are extended through the next two scheduled closes when needed, so a
-  one-day production cadence does not require daily renewal merely to remain eligible.
+- Draw seats use a 30-day minimum inactivity lease and are extended through the next two scheduled closes when needed.
 - Users can renew or release a seat without changing confidential principal.
 - Anyone can prune expired seats.
 - The active roster is bounded to 32 seats.
@@ -92,8 +91,9 @@ Private positions and BlindDraw roster membership are separate concepts.
 
 Draw windows use an immutable `firstDrawOpensAt` anchor and the configured `drawPeriod`. Future windows are derived
 from that anchor, so delayed snapshot, BlindDraw, or winner finalization never shifts the protocol schedule. Lazy
-encrypted close checkpoints preserve the balance and seat eligibility at each scheduled close even when the keeper is
-late. Multiple rounds may be snapshotted and await KMS settlement concurrently; Snapshot, BlindDraw, and proof
+encrypted state epochs preserve the balance and seat eligibility across scheduled closes even when the keeper is late.
+Closed ranges with no state changes are stored as one bounded epoch rather than copied once per round.
+Multiple rounds may be snapshotted and await KMS settlement concurrently; Snapshot, BlindDraw, and proof
 finalization are permissionless when their state and timing requirements are satisfied.
 If a scheduled close has fewer than two eligible seats, `cancelInsufficientRound` advances that round without allowing
 post-close entrants to backfill it.

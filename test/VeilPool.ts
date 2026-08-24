@@ -16,13 +16,13 @@ type Signers = {
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
 const TEST_DRAW_PERIOD = 60 * 60;
 
-async function deployFixture() {
+async function deployFixture(drawPeriod = TEST_DRAW_PERIOD) {
   const tokenFactory = (await ethers.getContractFactory("MockConfidentialToken")) as MockConfidentialToken__factory;
   const token = (await tokenFactory.deploy()) as MockConfidentialToken;
   const tokenAddress = await token.getAddress();
 
   const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-  const veilPoolContract = (await poolFactory.deploy(tokenAddress, TEST_DRAW_PERIOD)) as VeilPool;
+  const veilPoolContract = (await poolFactory.deploy(tokenAddress, drawPeriod)) as VeilPool;
   const veilPoolContractAddress = await veilPoolContract.getAddress();
 
   return { token, tokenAddress, veilPoolContract, veilPoolContractAddress };
@@ -274,6 +274,37 @@ describe("VeilPool", function () {
     await expect(deposit(wallets[32], 1)).to.be.rejectedWith("Draw roster full");
   });
 
+  it("reconstructs seat expiry across an idle interval without per-round epochs", async function () {
+    const dailyPeriod = 24 * 60 * 60;
+    ({ token, veilPoolContract, veilPoolContractAddress } = await deployFixture(dailyPeriod));
+
+    for (const signer of [signers.alice, signers.bob, signers.outsider]) {
+      await (await token.mint(signer.address, 1_000)).wait();
+      await (await token.connect(signer).setOperator(veilPoolContractAddress, MAX_OPERATOR_UNTIL)).wait();
+    }
+
+    await deposit(signers.alice, 10);
+    await deposit(signers.bob, 30);
+
+    const firstDrawOpensAt = Number(await veilPoolContract.firstDrawOpensAt());
+    await mineAt(firstDrawOpensAt + 35 * dailyPeriod + 10);
+    expect(await veilPoolContract.stateEpochCount()).to.equal(0);
+
+    await deposit(signers.outsider, 50);
+    expect(await veilPoolContract.stateEpochCount()).to.equal(1);
+    expect(await veilPoolContract.lastSealedRoundId()).to.equal(35);
+
+    for (let roundId = 1; roundId <= 30; roundId++) {
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+    }
+
+    expect((await veilPoolContract.getDrawInfo(30)).participantCount).to.equal(2);
+    expect(await veilPoolContract.getDrawAvailability()).to.equal(2);
+    await (await veilPoolContract.connect(signers.outsider).cancelInsufficientRound()).wait();
+    expect((await veilPoolContract.getDrawInfo(31)).state).to.equal(4);
+    expect(await veilPoolContract.stateEpochCount()).to.equal(1);
+  });
+
   describe("encrypted snapshots and BlindDraw", function () {
     beforeEach(async function () {
       await deposit(signers.alice, 10);
@@ -337,6 +368,20 @@ describe("VeilPool", function () {
       expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
     });
 
+    it("does not let a reused seat slot rewrite an older round", async function () {
+      await advanceToDrawClose();
+      await (await veilPoolContract.connect(signers.alice).leaveDrawSeat()).wait();
+      await deposit(signers.outsider, 50);
+
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      expect(await veilPoolContract.getSnapshotPlayer(1, 0)).to.equal(signers.alice.address);
+      expect(await veilPoolContract.getSnapshotPlayer(1, 1)).to.equal(signers.bob.address);
+      await expect(veilPoolContract.connect(signers.outsider).encryptedSnapshotWeightOf(1)).to.be.revertedWith(
+        "Not in round",
+      );
+    });
+
     it("preserves close-time weights when the permissionless snapshot is late", async function () {
       const closesAt = Number(await veilPoolContract.nextDrawClosesAt());
       await mineAt(closesAt + 20 * 60);
@@ -362,6 +407,30 @@ describe("VeilPool", function () {
       const draw = await veilPoolContract.getDrawInfo(2);
       expect(draw.participantCount).to.equal(3);
       expect(await decryptSnapshotWeight(signers.outsider, 2)).to.equal(50);
+    });
+
+    it("compresses 100 idle closes into one epoch and reconstructs historical rounds", async function () {
+      const firstDrawOpensAt = Number(await veilPoolContract.firstDrawOpensAt());
+      await mineAt(firstDrawOpensAt + 100 * TEST_DRAW_PERIOD + 10);
+
+      expect(await veilPoolContract.stateEpochCount()).to.equal(0);
+      await deposit(signers.alice, 5);
+      expect(await veilPoolContract.stateEpochCount()).to.equal(1);
+      expect(await veilPoolContract.lastSealedRoundId()).to.equal(100);
+
+      for (let roundId = 1; roundId <= 100; roundId++) {
+        await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      }
+
+      expect(await veilPoolContract.stateEpochCount()).to.equal(1);
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.alice, 100)).to.equal(10);
+
+      await mineAt(firstDrawOpensAt + 101 * TEST_DRAW_PERIOD);
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 101)).to.equal(15);
+      expect(await veilPoolContract.unsettledRoundCount()).to.equal(101);
     });
 
     it("lets each participant decrypt only their own historical weight", async function () {
