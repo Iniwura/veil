@@ -13,6 +13,9 @@ import {VeilTimedBatcher} from "./VeilTimedBatcher.sol";
 /// @notice Routes confidential ERC-4626 shares back into the confidential underlying wrapper.
 /// @dev The batcher owns the plain shares during route execution and redeems them to itself.
 contract VeilWithdrawalBatcher is VeilTimedBatcher {
+    error WithdrawalPreviewMismatch(uint256 expectedAssets, uint256 actualAssets);
+    error WithdrawalToTokenRateChanged(uint256 expectedRate, uint256 actualRate);
+
     IERC4626 public immutable vault;
 
     constructor(
@@ -29,7 +32,7 @@ contract VeilWithdrawalBatcher is VeilTimedBatcher {
     }
 
     function routeDescription() public pure override returns (string memory) {
-        return "TEST/DEMO confidential ERC4626 shares to underlying";
+        return "UNVEIL confidential ERC4626 shares to underlying";
     }
 
     /// @dev `amount` is the cleartext amount in fromToken wrapper units.
@@ -38,10 +41,37 @@ contract VeilWithdrawalBatcher is VeilTimedBatcher {
         if (rate == 0 || amount > type(uint256).max / rate) return ExecuteOutcome.Cancel;
 
         uint256 rawShares = amount * rate;
-        try vault.redeem(rawShares, address(this), address(this)) returns (uint256) {
-            return ExecuteOutcome.Complete;
+        uint256 toTokenRate;
+        try toToken().rate() returns (uint256 rate_) {
+            toTokenRate = rate_;
         } catch {
             return ExecuteOutcome.Cancel;
         }
+        if (toTokenRate == 0) return ExecuteOutcome.Cancel;
+
+        uint256 expectedAssets;
+        try vault.previewRedeem(rawShares) returns (uint256 previewedAssets) {
+            expectedAssets = previewedAssets;
+        } catch {
+            return ExecuteOutcome.Cancel;
+        }
+        if (expectedAssets < toTokenRate) return ExecuteOutcome.Cancel;
+
+        uint256 actualAssets;
+        try vault.redeem(rawShares, address(this), address(this)) returns (uint256 assets) {
+            actualAssets = assets;
+        } catch {
+            return ExecuteOutcome.Cancel;
+        }
+
+        // Reverting here is intentional for the same post-execution safety reason as the
+        // deposit route: a mismatched vault must roll back, not enter the base Cancel path.
+        if (actualAssets != expectedAssets) revert WithdrawalPreviewMismatch(expectedAssets, actualAssets);
+
+        uint256 actualToTokenRate = toToken().rate();
+        if (actualToTokenRate != toTokenRate) {
+            revert WithdrawalToTokenRateChanged(toTokenRate, actualToTokenRate);
+        }
+        return ExecuteOutcome.Complete;
     }
 }

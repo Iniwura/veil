@@ -611,7 +611,10 @@ because `BatcherConfidential` does not do so itself.
 
 The routes multiply the proven cleartext wrapper amount by `fromToken().rate()` before calling ERC-4626. They catch
 vault deposit/redeem failures and return `ExecuteOutcome.Cancel` without an alternate irreversible transfer, and they do
-not use `Partial` or introduce a timeout recovery path. Direct third-party batch participation remains technically
+not use `Partial` or introduce a timeout recovery path. Before either vault mutation, the routes compare
+`previewDeposit`/`previewRedeem` output with `toToken().rate()` and cancel sub-wrapper-unit results; if a non-standard
+vault disagrees with its preview or the wrapper rate changes after movement, the callback reverts so the external
+operation cannot be misreported as a recoverable cancel. Direct third-party batch participation remains technically
 possible, as required by the v0.5.2 callback boundary; Slice 1 has no `VeilStrategyManagerV2` and grants no UNVEIL
 accounting rights to those participants.
 

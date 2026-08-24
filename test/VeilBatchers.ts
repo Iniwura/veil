@@ -196,8 +196,10 @@ describe("UNVEIL Slice 1 confidential batch routes", function () {
     expect(await system.withdrawalBatcher.vault()).to.equal(await system.vault.getAddress());
     expect(await system.depositBatcher.minimumBatchAge()).to.equal(MINIMUM_BATCH_AGE);
     expect(await system.depositBatcher.currentBatchOpenedAt()).to.be.greaterThan(0);
-    expect(await system.depositBatcher.routeDescription()).to.contain("underlying");
-    expect(await system.withdrawalBatcher.routeDescription()).to.contain("shares");
+    expect(await system.depositBatcher.routeDescription()).to.equal("UNVEIL confidential underlying to ERC4626 shares");
+    expect(await system.withdrawalBatcher.routeDescription()).to.equal(
+      "UNVEIL confidential ERC4626 shares to underlying",
+    );
     expect(await system.fromWrapper.name()).to.equal("TEST MockUSDC Confidential");
     expect(await system.fromWrapper.symbol()).to.equal("t-cUSDC");
     expect(await system.fromWrapper.contractURI()).to.equal("test-only://mock-usdc");
@@ -223,6 +225,27 @@ describe("UNVEIL Slice 1 confidential batch routes", function () {
     await expect(
       depositFactory.deploy(
         await system.fromWrapper.getAddress(),
+        await wrongWrapper.getAddress(),
+        await system.vault.getAddress(),
+        MINIMUM_BATCH_AGE,
+      ),
+    ).to.be.revertedWith("Invalid to asset");
+
+    const withdrawalFactory = (await ethers.getContractFactory(
+      "VeilWithdrawalBatcher",
+    )) as VeilWithdrawalBatcher__factory;
+    await expect(
+      withdrawalFactory.deploy(
+        await wrongWrapper.getAddress(),
+        await system.fromWrapper.getAddress(),
+        await system.vault.getAddress(),
+        MINIMUM_BATCH_AGE,
+      ),
+    ).to.be.revertedWith("Invalid from asset");
+
+    await expect(
+      withdrawalFactory.deploy(
+        await system.shareWrapper.getAddress(),
         await wrongWrapper.getAddress(),
         await system.vault.getAddress(),
         MINIMUM_BATCH_AGE,
@@ -326,6 +349,46 @@ describe("UNVEIL Slice 1 confidential batch routes", function () {
     expect(await system.vault.totalAssets()).to.equal(0);
   });
 
+  it("cancels a deposit whose nonzero preview is below one share-wrapper unit before vault movement", async function () {
+    system = await deploySystem({ lowShare: true });
+    await mintAsset(system, signers.manager, 1n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 1n);
+    await join(system.fromWrapper, system.depositBatcher, signers.manager, 1n);
+
+    expect(await system.vault.previewDeposit(1n)).to.equal(1n);
+    expect(await system.shareWrapper.rate()).to.equal(1_000);
+
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+
+    expect(await system.depositBatcher.batchState(1)).to.equal(3);
+    expect(await system.vault.totalAssets()).to.equal(0);
+    await (await system.depositBatcher.connect(signers.manager).quit(1)).wait();
+    expect(await decryptBalance(system.fromWrapper, signers.manager)).to.equal(1n);
+  });
+
+  it("cancels a withdrawal whose nonzero preview is below one underlying-wrapper unit before vault movement", async function () {
+    system = await deploySystem({ lowSource: true });
+    await mintAsset(system, signers.manager, 2_000n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 2_000n);
+    await completeDeposit(system, signers.manager, signers.outsider, 2n);
+
+    expect(await system.vault.totalAssets()).to.equal(2_000n);
+    expect(await system.vault.previewRedeem(1n)).to.equal(1n);
+    expect(await system.fromWrapper.rate()).to.equal(1_000);
+
+    await join(system.shareWrapper, system.withdrawalBatcher, signers.manager, 1n);
+    await advanceBatchAge(system.withdrawalBatcher);
+    await (await system.withdrawalBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.withdrawalBatcher, system.shareWrapper, signers.outsider);
+
+    expect(await system.withdrawalBatcher.batchState(1)).to.equal(3);
+    expect(await system.vault.totalAssets()).to.equal(2_000n);
+    await (await system.withdrawalBatcher.connect(signers.manager).quit(1)).wait();
+    expect(await decryptBalance(system.shareWrapper, signers.manager)).to.equal(2_000n);
+  });
+
   it("reflects simulated vault performance in later share redemption without exposing share balances", async function () {
     await mintAsset(system, signers.manager, UNIT);
     await wrap(system.asset, system.fromWrapper, signers.manager, UNIT);
@@ -422,6 +485,39 @@ describe("UNVEIL Slice 1 confidential batch routes", function () {
 
     await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
     expect(await system.depositBatcher.batchState(1)).to.equal(2);
+  });
+
+  it("resets the batch age after each permissionless dispatch", async function () {
+    await mintAsset(system, signers.manager, 2n);
+    await wrap(system.asset, system.fromWrapper, signers.manager, 2n);
+    await join(system.fromWrapper, system.depositBatcher, signers.manager, 1n);
+
+    await expect(
+      system.depositBatcher
+        .connect(signers.outsider)
+        .dispatchBatch()
+        .then((transaction) => transaction.wait()),
+    ).to.be.rejected;
+
+    const firstOpenedAt = await system.depositBatcher.currentBatchOpenedAt();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+
+    const secondOpenedAt = await system.depositBatcher.currentBatchOpenedAt();
+    expect(await system.depositBatcher.currentBatchId()).to.equal(2);
+    expect(secondOpenedAt).to.be.greaterThanOrEqual(firstOpenedAt + BigInt(MINIMUM_BATCH_AGE));
+
+    await join(system.fromWrapper, system.depositBatcher, signers.manager, 1n);
+    await expect(
+      system.depositBatcher
+        .connect(signers.outsider)
+        .dispatchBatch()
+        .then((transaction) => transaction.wait()),
+    ).to.be.rejected;
+
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    expect(await system.depositBatcher.currentBatchId()).to.equal(3);
   });
 
   it("cancels a zero aggregate safely and prevents duplicate callbacks or claims", async function () {

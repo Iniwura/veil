@@ -18,6 +18,9 @@ import {VeilTimedBatcher} from "./VeilTimedBatcher.sol";
 contract VeilDepositBatcher is VeilTimedBatcher {
     using SafeERC20 for IERC20;
 
+    error DepositPreviewMismatch(uint256 expectedShares, uint256 actualShares);
+    error DepositToTokenRateChanged(uint256 expectedRate, uint256 actualRate);
+
     IERC4626 public immutable vault;
 
     constructor(
@@ -35,7 +38,7 @@ contract VeilDepositBatcher is VeilTimedBatcher {
     }
 
     function routeDescription() public pure override returns (string memory) {
-        return "TEST/DEMO confidential underlying to ERC4626 shares";
+        return "UNVEIL confidential underlying to ERC4626 shares";
     }
 
     /// @dev `amount` is the cleartext amount in fromToken wrapper units. The underlying route
@@ -45,10 +48,38 @@ contract VeilDepositBatcher is VeilTimedBatcher {
         if (rate == 0 || amount > type(uint256).max / rate) return ExecuteOutcome.Cancel;
 
         uint256 rawUnderlying = amount * rate;
-        try vault.deposit(rawUnderlying, address(this)) returns (uint256) {
-            return ExecuteOutcome.Complete;
+        uint256 toTokenRate;
+        try toToken().rate() returns (uint256 rate_) {
+            toTokenRate = rate_;
         } catch {
             return ExecuteOutcome.Cancel;
         }
+        if (toTokenRate == 0) return ExecuteOutcome.Cancel;
+
+        uint256 expectedShares;
+        try vault.previewDeposit(rawUnderlying) returns (uint256 previewedShares) {
+            expectedShares = previewedShares;
+        } catch {
+            return ExecuteOutcome.Cancel;
+        }
+        if (expectedShares < toTokenRate) return ExecuteOutcome.Cancel;
+
+        uint256 actualShares;
+        try vault.deposit(rawUnderlying, address(this)) returns (uint256 shares) {
+            actualShares = shares;
+        } catch {
+            return ExecuteOutcome.Cancel;
+        }
+
+        // Reverting here is intentional. The external deposit has already moved assets, so a
+        // mismatched non-standard vault must roll back the entire callback rather than be
+        // misreported as a recoverable Cancel by BatcherConfidential.
+        if (actualShares != expectedShares) revert DepositPreviewMismatch(expectedShares, actualShares);
+
+        uint256 actualToTokenRate = toToken().rate();
+        if (actualToTokenRate != toTokenRate) {
+            revert DepositToTokenRateChanged(toTokenRate, actualToTokenRate);
+        }
+        return ExecuteOutcome.Complete;
     }
 }
