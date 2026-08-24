@@ -38,6 +38,12 @@ addresses, and expiry metadata into one bounded state epoch for the newly closed
 withdrawals, seat releases, or pruning. Unchanged periods do not create per-round storage or FHE ACL work. Multiple
 rounds may therefore be snapshotted while older rounds await KMS finalization.
 
+The round states are intentionally distinct: `CANCELLED` is used only after BlindDraw and a valid KMS proof establish an
+encrypted zero-address winner, so `getEncryptedWinner()` remains valid for that round. `SKIPPED` is used when the
+close-time eligible count is below two and no BlindDraw ran; `getEncryptedWinner()` reverts for a skipped round. State
+changes crossing closed windows cost `O(MAX_PLAYERS)`, epoch lookup is `O(log stateEpochCount)`, and materializing one
+round costs `O(MAX_PLAYERS + log stateEpochCount)`.
+
 The bounded prototype roster uses a 30-day minimum inactivity lease. Principal remains withdrawable after expiry, users
 can renew their own seats through normal interaction, and abandoned seats can still be pruned by anyone.
 

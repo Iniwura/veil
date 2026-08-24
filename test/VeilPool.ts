@@ -149,8 +149,38 @@ describe("VeilPool", function () {
     expect(schedule.insufficientParticipants).to.equal(true);
     await expect(veilPoolContract.snapshotRound()).to.be.revertedWith("Need 2 players");
     await (await veilPoolContract.connect(signers.outsider).cancelInsufficientRound()).wait();
-    expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(4);
+    const skipped = await veilPoolContract.getDrawInfo(1);
+    expect(skipped.state).to.equal(5);
+    expect(skipped.participantCount).to.equal(1);
+    await expect(veilPoolContract.getEncryptedWinner(1)).to.be.revertedWith("Winner unavailable");
     expect(await veilPoolContract.nextRoundId()).to.equal(2);
+  });
+
+  it("stores skipped participation from the skipped round close", async function () {
+    const dailyPeriod = 24 * 60 * 60;
+    ({ token, veilPoolContract, veilPoolContractAddress } = await deployFixture(dailyPeriod));
+
+    await (await token.mint(signers.alice.address, 1_000)).wait();
+    await (await token.connect(signers.alice).setOperator(veilPoolContractAddress, MAX_OPERATOR_UNTIL)).wait();
+    await deposit(signers.alice, 10);
+
+    const firstDrawOpensAt = Number(await veilPoolContract.firstDrawOpensAt());
+    await mineAt(firstDrawOpensAt + 30 * dailyPeriod + 10);
+
+    // This seals round 30 before the withdrawal changes live state. Alice's lease covers round 30's
+    // close, but has expired by the following close, so round 30 must retain a count of one.
+    await withdraw(signers.alice, 1);
+    expect(await veilPoolContract.stateEpochCount()).to.equal(1);
+    expect(await veilPoolContract.lastSealedRoundId()).to.equal(30);
+
+    for (let roundId = 1; roundId <= 30; roundId++) {
+      await (await veilPoolContract.connect(signers.outsider).cancelInsufficientRound()).wait();
+    }
+
+    const skipped = await veilPoolContract.getDrawInfo(30);
+    expect(skipped.state).to.equal(5);
+    expect(skipped.participantCount).to.equal(1);
+    await expect(veilPoolContract.getEncryptedWinner(30)).to.be.revertedWith("Winner unavailable");
   });
 
   it("requires the pool to be an authorized confidential-token operator", async function () {
@@ -301,7 +331,7 @@ describe("VeilPool", function () {
     expect((await veilPoolContract.getDrawInfo(30)).participantCount).to.equal(2);
     expect(await veilPoolContract.getDrawAvailability()).to.equal(2);
     await (await veilPoolContract.connect(signers.outsider).cancelInsufficientRound()).wait();
-    expect((await veilPoolContract.getDrawInfo(31)).state).to.equal(4);
+    expect((await veilPoolContract.getDrawInfo(31)).state).to.equal(5);
     expect(await veilPoolContract.stateEpochCount()).to.equal(1);
   });
 
@@ -431,6 +461,38 @@ describe("VeilPool", function () {
 
       expect(await decryptSnapshotWeight(signers.alice, 101)).to.equal(15);
       expect(await veilPoolContract.unsettledRoundCount()).to.equal(101);
+    });
+
+    it("locates first, middle, latest, and current-unsealed state ranges", async function () {
+      const firstDrawOpensAt = Number(await veilPoolContract.firstDrawOpensAt());
+
+      await mineAt(firstDrawOpensAt + TEST_DRAW_PERIOD + 10);
+      await deposit(signers.alice, 5);
+
+      await mineAt(firstDrawOpensAt + 2 * TEST_DRAW_PERIOD + 10);
+      await withdraw(signers.bob, 10);
+
+      await mineAt(firstDrawOpensAt + 3 * TEST_DRAW_PERIOD + 10);
+      await deposit(signers.alice, 5);
+
+      expect(await veilPoolContract.stateEpochCount()).to.equal(3);
+      expect(await veilPoolContract.lastSealedRoundId()).to.equal(3);
+
+      // Round 4 is newer than the latest sealed epoch and must use the current unsealed state.
+      await mineAt(firstDrawOpensAt + 4 * TEST_DRAW_PERIOD + 10);
+      for (let roundId = 1; roundId <= 4; roundId++) {
+        await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      }
+
+      expect(await veilPoolContract.stateEpochCount()).to.equal(3);
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+      expect(await decryptSnapshotWeight(signers.alice, 2)).to.equal(15);
+      expect(await decryptSnapshotWeight(signers.bob, 2)).to.equal(30);
+      expect(await decryptSnapshotWeight(signers.alice, 3)).to.equal(15);
+      expect(await decryptSnapshotWeight(signers.bob, 3)).to.equal(20);
+      expect(await decryptSnapshotWeight(signers.alice, 4)).to.equal(20);
+      expect(await decryptSnapshotWeight(signers.bob, 4)).to.equal(20);
     });
 
     it("lets each participant decrypt only their own historical weight", async function () {

@@ -30,7 +30,8 @@ contract VeilPool is ZamaEthereumConfig {
         SNAPSHOTTED,
         DRAWN,
         FINALIZED,
-        CANCELLED
+        CANCELLED,
+        SKIPPED
     }
 
     struct Position {
@@ -265,7 +266,9 @@ contract VeilPool is ZamaEthereumConfig {
         roundId = nextRoundId;
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.NONE, "Round already advanced");
-        require(_historicalParticipantCount(roundId, nextDrawClosesAt) < 2, "Enough players");
+        uint64 roundClosesAt = nextDrawClosesAt;
+        uint8 participantCount = _historicalParticipantCount(roundId, roundClosesAt);
+        require(participantCount < 2, "Enough players");
 
         unchecked {
             nextRoundId++;
@@ -273,8 +276,8 @@ contract VeilPool is ZamaEthereumConfig {
         _updateNextDrawWindow();
 
         draw.snapshotBlock = uint64(block.number);
-        draw.participantCount = _historicalParticipantCount(roundId, nextDrawClosesAt);
-        draw.state = DrawState.CANCELLED;
+        draw.participantCount = participantCount;
+        draw.state = DrawState.SKIPPED;
 
         emit RoundSkipped(roundId, draw.participantCount, draw.snapshotBlock);
     }
@@ -490,11 +493,24 @@ contract VeilPool is ZamaEthereumConfig {
         lastSealedRoundId = latestClosedRoundId;
     }
 
+    /// @dev Epoch ranges are ordered and non-overlapping, so lookup is logarithmic in the number
+    ///      of sealed epochs. Zero means the requested round is newer than the latest sealed range
+    ///      (or there are no epochs), and callers should use current state in that case.
     function _stateEpochForRound(uint256 roundId) private view returns (uint256) {
-        for (uint256 epochId = stateEpochCount; epochId > 0; epochId--) {
-            StateEpoch storage epoch = stateEpochs[epochId];
-            if (roundId > epoch.endRoundId) return 0;
-            if (roundId >= epoch.startRoundId) return epochId;
+        uint256 low = 1;
+        uint256 high = stateEpochCount;
+
+        while (low <= high) {
+            uint256 middle = low + ((high - low) / 2);
+            StateEpoch storage epoch = stateEpochs[middle];
+
+            if (roundId < epoch.startRoundId) {
+                high = middle - 1;
+            } else if (roundId > epoch.endRoundId) {
+                low = middle + 1;
+            } else {
+                return middle;
+            }
         }
 
         return 0;

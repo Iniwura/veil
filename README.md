@@ -88,6 +88,8 @@ Private positions and BlindDraw roster membership are separate concepts.
 - Anyone can prune expired seats.
 - The active roster is bounded to 32 seats.
 - All-zero encrypted rounds can be proven and finalized as `CANCELLED` instead of becoming stuck.
+- `CANCELLED` means BlindDraw ran and KMS proved an encrypted zero-address winner; its encrypted winner handle remains available.
+- `SKIPPED` means the round never ran because fewer than two seats were eligible at its scheduled close; skipped rounds have no winner handle.
 
 Draw windows use an immutable `firstDrawOpensAt` anchor and the configured `drawPeriod`. Future windows are derived
 from that anchor, so delayed snapshot, BlindDraw, or winner finalization never shifts the protocol schedule. Lazy
@@ -97,6 +99,8 @@ Multiple rounds may be snapshotted and await KMS settlement concurrently; Snapsh
 finalization are permissionless when their state and timing requirements are satisfied.
 If a scheduled close has fewer than two eligible seats, `cancelInsufficientRound` advances that round without allowing
 post-close entrants to backfill it.
+State changes that cross scheduled closes cost `O(MAX_PLAYERS)`, historical epoch lookup is `O(log stateEpochCount)`,
+and materializing one historical round is `O(MAX_PLAYERS + log stateEpochCount)`; missed rounds are not replayed one by one.
 
 ## Architecture
 
