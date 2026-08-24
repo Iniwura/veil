@@ -141,7 +141,7 @@ snapshots, silent-zero semantics, and bounded seat model, but delegates custody 
 prize vault. It owns:
 
 - an encrypted cUSDC liquidity buffer;
-- encrypted cUSDC principal liability supplied by `VeilPoolV2`;
+- encrypted cUSDC principal liability recorded by the manager after the pool's exact custody transfer;
 - confidential csteakcUSDC strategy shares;
 - encrypted queued-withdrawal liabilities;
 - route state and batch IDs for the deposit and withdrawal batchers.
@@ -225,11 +225,13 @@ VeilStrategyManager ── encrypted surplus csteakcUSDC ──► VeilPrizeVaul
 
 ### User deposit into UNVEIL
 
-1. The user encrypts a cUSDC amount for `VeilPoolV2` and submits the ERC-7984 transfer/input proof.
-2. `VeilPoolV2` updates the user's encrypted principal and aggregate liability with the existing all-or-zero semantics.
-3. cUSDC is transferred into the manager or its buffer. The user-facing deposit does not reveal the amount.
-4. The manager marks the new principal liability before any investment decision. It may keep the funds in the buffer or
-   include an aggregate excess amount in the next strategy deposit batch.
+1. The user encrypts a cUSDC amount for `VeilPoolV2` and submits the ERC-7984 input proof.
+2. `VeilPoolV2` transfers the exact ERC-7984 result directly from the user to the manager and records that same
+   ciphertext as the user's encrypted active position and draw weight.
+3. The manager marks the new principal liability before any investment decision. The user-facing deposit does not reveal
+   the amount; the pool itself does not custody principal.
+4. The manager may keep the funds in the buffer or include an aggregate excess amount in the next strategy deposit
+   batch.
 5. The manager never sends a user's individual amount to the batcher. It sends a pooled encrypted amount, so the batcher
    normally observes the manager as the UNVEIL participant and does not create a second user-level public join record.
    Direct third-party participants remain technically possible and are outside UNVEIL accounting and privacy guarantees.
@@ -332,9 +334,10 @@ already extracted prizes are not retroactively relabelled.
 
 ### Instant path
 
-`VeilPoolV2.withdraw` first checks the caller's encrypted principal and the manager's encrypted liquid cUSDC buffer. It
-selects the full requested amount only when both are sufficient. A valid request within both limits transfers cUSDC
-immediately and decreases the encrypted principal liability.
+`VeilPoolV2.withdraw` first seals any newly closed draw state, restricts the caller's encrypted request to active
+principal, and delegates the instant-versus-queued decision to the manager. A valid buffer-covered request transfers
+cUSDC immediately and decreases the encrypted principal liability; a queued request moves accepted principal out of
+active draw weight while the manager keeps it as an unpaid liability.
 
 This preserves the current silent-zero protection against oversized confidential requests, but the manager must expose a
 user-scoped status/decryption path so a user can distinguish an immediate completion from a queued request without
@@ -445,10 +448,10 @@ new investment, but it must not be able to mint a prize or write down a user's e
 
 ## Slice 2B implementation note
 
-Slice 2B extends `VeilStrategyManagerV2` with principal withdrawals while leaving prizes, harvesting, `VeilPoolV2`, and
-the frontend out of scope. The test-only pool harness models the production boundary: an encrypted withdrawal is first
-restricted against the caller's active encrypted position, then the manager receives the permitted ciphertext through
-the immutable pool address. The manager separately caps it against aggregate liability.
+Slice 2B extends `VeilStrategyManagerV2` with principal withdrawals. Slice 3A integrates that manager with `VeilPoolV2`;
+the test-only pool harness remains for isolated manager tests. An encrypted withdrawal is first restricted against the
+caller's active encrypted position, then the manager receives the permitted ciphertext through the immutable pool
+address. The manager separately caps it against aggregate liability.
 
 The accounting invariant is:
 
@@ -607,7 +610,7 @@ it, while public vault state, aggregate batches, addresses, timing, and final wi
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | User                  | Deposit, immediate withdrawal, queue/cancel withdrawal under the documented state rules, and claim their own prize.                                                                                                         |
 | Keeper/relayer        | Dispatch deposit/withdrawal batches after the route age, submit valid KMS callbacks, claim completed batch outputs, rebalance, settle queued withdrawals, and harvest a safe prize. All are permissionless and state-gated. |
-| `VeilPoolV2`          | Update the manager's encrypted principal liability and authorize only protocol-scoped custody movements.                                                                                                                    |
+| `VeilPoolV2`          | Hold encrypted active/reserved user positions and draw weights; authorize only the configured manager callbacks and one-time deployment wiring. It does not custody principal.                                              |
 | `VeilStrategyManager` | Move only configured cUSDC/csteakcUSDC assets and invoke only the configured batchers/vault.                                                                                                                                |
 | Governance/guardian   | Configure risk parameters at deployment; pause new investment or new prizes through a delayed, observable path. It cannot set yield, transfer arbitrary principal, or select a winner.                                      |
 | Zama KMS/coprocessor  | Produce proofs for encrypted unwraps and draw/winner decryptions; onchain contracts validate the proofs.                                                                                                                    |
@@ -689,7 +692,8 @@ Concrete batcher routes need:
    namespace/version.
 3. Deploy `VeilStrategyManagerV2` with the official mainnet cUSDC, csteakcUSDC, vault, and wrapper registry addresses
    after fork verification.
-4. Deploy `VeilPoolV2` and `VeilPrizeVaultV2`, wiring immutable strategy and asset addresses.
+4. For Slice 3A, deploy `VeilPoolV2`, then `VeilStrategyManagerV2`, then call the one-time `configureStrategyManager`;
+   deploy and wire `VeilPrizeVaultV2` only in Slice 3B.
 5. Seed only a documented cUSDC buffer. Do not migrate principal silently; users opt into the new pool and receive no
    implicit share conversion unless a separately audited migration contract is added.
 6. On Sepolia, deploy the same route boundary against `cUSDCMock` and the controlled mock ERC-4626 strategy. Mark all
@@ -729,6 +733,38 @@ The manager values one whole confidential share-token unit using `10 ** strategy
 wrapper rate, `vault.previewRedeem`, principal-wrapper conversion, and an immutable haircut. Required shares use
 encrypted ceil division, and pending, dispatched, finalized-unclaimed, and canceled-unquit batch assets remain excluded
 because they have not returned to a manager balance. This slice exposes no prize transfer or harvest path.
+
+## Slice 3A implementation note
+
+`VeilPoolV2` is the production custody-boundary candidate. The legacy `VeilPool.sol` remains unchanged for legacy
+regression coverage. V2 keeps the reviewed fixed schedule, permissionless snapshot/skip/BlindDraw/finalization, 30-day
+draw-seat leases, compressed historical `StateEpoch` ranges, binary-search epoch lookup, close-time weights, overlapping
+unsettled rounds, `FHE.randEuint64()`, SKIPPED insufficient-participant rounds, and KMS-proven zero-weight `CANCELLED`
+rounds.
+
+The intended deployment order is:
+
+1. Deploy `VeilPoolV2(asset, drawPeriod)`.
+2. Deploy `VeilStrategyManagerV2` with `pool = VeilPoolV2` and `principalAsset = asset`.
+3. Call `VeilPoolV2.configureStrategyManager(manager)` once from the deployment owner.
+
+The configuration call checks both immutable manager references. Deposits and withdrawals are unavailable before it;
+after it, the owner has no economic, custody, strategy, replacement, or withdrawal authority.
+
+On deposit, V2 parses the user's encrypted input, transfers the exact ERC-7984 result directly from the user to the
+manager, transiently authorizes that returned ciphertext to the manager, and calls `recordPrincipalDeposit`. The pool
+records the same actual ciphertext as active position and draw weight. The pool is never the normal principal custody
+account.
+
+On withdrawal, V2 first seals any newly closed draw state, restricts the request to the user's encrypted active position
+with ERC-7984 silent-zero behavior, and delegates instant-versus-queued handling to the manager. The accepted amount
+leaves active position and future draw weight immediately. Only queued principal enters encrypted reserved position;
+instant principal is paid by the manager and never enters the reserved balance. A manager payment callback clears
+reserved position only. A manager cancellation callback seals closed state first, restores the canceled amount to future
+active weight, and never reacquires an expired draw seat. Request ownership is public metadata; all amounts and
+positions remain encrypted and user-ACL protected.
+
+Slice 3A deliberately adds no prize vault, surplus harvest, deployment execution, frontend, or yield-policy redesign.
 
 ## Tests required before production integration
 
