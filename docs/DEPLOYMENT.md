@@ -30,8 +30,12 @@ export VEIL_DRAW_PERIOD_SECONDS=259200 # three days, for example
 The value must be a positive integer number of seconds. The selected cadence is printed in the deployment output and is
 available onchain through `drawPeriod`, `firstDrawOpensAt`, `nextDrawOpensAt`, `nextDrawClosesAt`, and
 `getDrawSchedule()`. All future windows derive from `firstDrawOpensAt + (roundId - 1) * drawPeriod`; delayed settlement
-never shifts the schedule. If settlement is delayed past the next close, the schedule reports the active, blocked, and
-overdue state until the old round settles.
+never shifts the schedule. `getDrawSchedule()` reports the actionable timer/readiness state, insufficient close-time
+participation, whether the round can advance, overdue settlement, and the number of unsettled rounds. A closed round
+with fewer than two eligible seats can be permissionlessly advanced with `cancelInsufficientRound()`; post-close
+entrants cannot backfill it. A late keeper cannot rewrite a closed round: the pool lazily checkpoints encrypted balances
+and eligible seats at each scheduled close before accepting later deposits, withdrawals, seat releases, or pruning.
+Multiple rounds may therefore be snapshotted while older rounds await KMS finalization.
 
 ## 3. Choose the confidential asset
 
@@ -79,8 +83,9 @@ npm test
 npm run lint
 ```
 
-After a successful Sepolia deployment, verify each contract with the exact constructor arguments used by the deployment.
-Do not claim a deployment is successful until the network transaction receipts and deployed bytecode are confirmed.
+This branch intentionally does not deploy to Sepolia. Its constructor and ABI require a fresh, versioned deployment
+stack before any existing address is used. After a future deployment, verify each contract with the exact constructor
+arguments used by the deployment; do not claim success until receipts and deployed bytecode are confirmed.
 
 ## Privacy boundary
 

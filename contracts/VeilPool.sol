@@ -47,6 +47,12 @@ contract VeilPool is ZamaEthereumConfig {
         DrawState state;
     }
 
+    enum DrawAvailability {
+        OPEN,
+        READY,
+        INSUFFICIENT_PARTICIPANTS
+    }
+
     address public immutable owner;
     IERC7984Asset public immutable asset;
     uint64 public immutable drawPeriod;
@@ -63,15 +69,25 @@ contract VeilPool is ZamaEthereumConfig {
 
     euint64 private encryptedTotalWeight;
     uint256 public nextRoundId = 1;
-    uint256 public activeRoundId;
     uint64 public nextDrawOpensAt;
     uint64 public nextDrawClosesAt;
+    uint256 public lastCheckpointedRoundId;
+    uint256 public unsettledRoundCount;
 
     mapping(uint256 => Draw) private draws;
     mapping(uint256 => mapping(uint8 => address)) private drawPlayers;
     mapping(uint256 => mapping(uint8 => euint64)) private drawWeights;
     mapping(uint256 => mapping(address => uint8)) private drawPlayerIndex;
     mapping(uint256 => mapping(address => bool)) private drawParticipantIncluded;
+
+    // Close checkpoints are created lazily by any state-changing call that crosses one or more
+    // scheduled close times. They preserve the encrypted balance and seat membership at the
+    // boundary without locking principal or depending on a keeper transaction at the deadline.
+    mapping(uint256 => bool) private closeCheckpointed;
+    mapping(uint256 => uint8) private closeParticipantCount;
+    mapping(uint256 => mapping(uint8 => address)) private closeParticipants;
+    mapping(uint256 => mapping(address => bool)) private closeParticipantIncluded;
+    mapping(uint256 => mapping(address => euint64)) private closeWeights;
 
     event PlayerJoined(address indexed player);
     event DrawSeatRenewed(address indexed player, uint64 expiresAt);
@@ -80,6 +96,7 @@ contract VeilPool is ZamaEthereumConfig {
     event WithdrawalRecorded(address indexed player);
     event DrawWindowOpened(uint256 indexed roundId, uint64 opensAt, uint64 closesAt);
     event RoundSnapshotted(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
+    event RoundSkipped(uint256 indexed roundId, uint8 participantCount, uint64 snapshotBlock);
     event BlindDrawCompleted(uint256 indexed roundId, eaddress encryptedWinner);
     event WinnerFinalized(uint256 indexed roundId, address indexed winner);
     event RoundCancelled(uint256 indexed roundId);
@@ -108,6 +125,8 @@ contract VeilPool is ZamaEthereumConfig {
         FHE.allowTransient(requested, address(asset));
         euint64 transferred = asset.confidentialTransferFrom(msg.sender, address(this), requested);
 
+        _checkpointPassedRounds();
+
         if (!joined[msg.sender]) {
             positions[msg.sender].balance = FHE.asEuint64(0);
             positions[msg.sender].active = true;
@@ -129,20 +148,25 @@ contract VeilPool is ZamaEthereumConfig {
 
     function renewDrawSeat() external {
         require(joined[msg.sender], "Not joined");
+        _checkpointPassedRounds();
         _acquireOrRenewSeat(msg.sender);
     }
 
     function leaveDrawSeat() external {
         require(seated[msg.sender], "Not seated");
+        _checkpointPassedRounds();
         _removeSeat(msg.sender);
     }
 
     function pruneExpiredSeats() external {
+        _checkpointPassedRounds();
         _pruneExpiredSeats();
     }
 
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         require(joined[msg.sender], "Not joined");
+
+        _checkpointPassedRounds();
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
 
@@ -178,32 +202,36 @@ contract VeilPool is ZamaEthereumConfig {
     }
 
     /// @notice Closes the current open draw window and freezes confidential weights.
-    /// @dev Permissionless once the scheduled close time has passed. A new round cannot be
-    ///      snapshotted until the active round is finalized or proven cancelled.
+    /// @dev Permissionless once the scheduled close time has passed. The snapshot consumes the
+    ///      encrypted close checkpoint, so delayed execution cannot change historical weights.
     function snapshotRound() external returns (uint256 roundId) {
-        require(activeRoundId == 0, "Previous round unsettled");
         require(block.timestamp >= nextDrawClosesAt, "Draw still open");
 
-        _pruneExpiredSeats();
-        require(playerCount >= 2, "Need 2 players");
+        _checkpointPassedRounds();
 
         roundId = nextRoundId;
+        Draw storage draw = draws[roundId];
+        require(draw.state == DrawState.NONE, "Round already snapshotted");
+        require(closeCheckpointed[roundId], "Close not checkpointed");
+        require(closeParticipantCount[roundId] >= 2, "Need 2 players");
+
+        _pruneExpiredSeats();
+
         unchecked {
             nextRoundId++;
         }
-        activeRoundId = roundId;
         _updateNextDrawWindow();
 
-        Draw storage draw = draws[roundId];
         draw.snapshotBlock = uint64(block.number);
-        draw.participantCount = playerCount;
+        draw.participantCount = closeParticipantCount[roundId];
         draw.state = DrawState.SNAPSHOTTED;
+        unsettledRoundCount++;
 
         euint64 snapshotTotalWeight = FHE.asEuint64(0);
 
-        for (uint8 i = 0; i < playerCount; i++) {
-            address account = players[i];
-            euint64 weight = positions[account].balance;
+        for (uint8 i = 0; i < draw.participantCount; i++) {
+            address account = closeParticipants[roundId][i];
+            euint64 weight = closeWeights[roundId][account];
 
             drawPlayers[roundId][i] = account;
             drawWeights[roundId][i] = weight;
@@ -221,45 +249,103 @@ contract VeilPool is ZamaEthereumConfig {
         emit RoundSnapshotted(roundId, draw.participantCount, draw.snapshotBlock);
     }
 
+    /// @notice Advances a closed round that had fewer than two eligible participants.
+    /// @dev This is separate from snapshotRound so an insufficient round cannot be backfilled by
+    ///      post-close entrants and the fixed schedule cannot become permanently stuck.
+    function cancelInsufficientRound() external returns (uint256 roundId) {
+        require(block.timestamp >= nextDrawClosesAt, "Draw still open");
+
+        _checkpointPassedRounds();
+
+        roundId = nextRoundId;
+        Draw storage draw = draws[roundId];
+        require(draw.state == DrawState.NONE, "Round already advanced");
+        require(closeCheckpointed[roundId], "Close not checkpointed");
+        require(closeParticipantCount[roundId] < 2, "Enough players");
+
+        unchecked {
+            nextRoundId++;
+        }
+        _updateNextDrawWindow();
+
+        draw.snapshotBlock = uint64(block.number);
+        draw.participantCount = closeParticipantCount[roundId];
+        draw.state = DrawState.CANCELLED;
+
+        emit RoundSkipped(roundId, draw.participantCount, draw.snapshotBlock);
+    }
+
     /// @notice Returns whether the scheduled draw window can be advanced by any caller.
-    /// @dev A timestamp alone is not enough: an unsettled round must block a second snapshot.
+    /// @dev This is an actionable readiness check. Use isDrawTimeReady() when only the timer is
+    ///      needed; insufficient close-time participation is reported separately.
     function isDrawReady() public view returns (bool) {
-        return activeRoundId == 0 && block.timestamp >= nextDrawClosesAt;
+        return getDrawAvailability() == DrawAvailability.READY;
     }
 
-    /// @notice Returns whether a snapshotted round is still preventing the next snapshot.
-    function isDrawBlocked() public view returns (bool) {
-        return activeRoundId != 0;
+    /// @notice Returns whether the scheduled close time has passed, regardless of participation.
+    function isDrawTimeReady() public view returns (bool) {
+        return block.timestamp >= nextDrawClosesAt;
     }
 
-    /// @notice Returns whether the fixed schedule has passed while a prior round remains unsettled.
+    /// @notice Returns whether the closed scheduled round can be advanced by snapshot or cancellation.
+    function canAdvanceDraw() public view returns (bool) {
+        return getDrawAvailability() != DrawAvailability.OPEN;
+    }
+
+    /// @notice Returns the frontend-visible readiness state for the scheduled round.
+    function getDrawAvailability() public view returns (DrawAvailability) {
+        if (!isDrawTimeReady()) return DrawAvailability.OPEN;
+
+        if (closeCheckpointed[nextRoundId]) {
+            return
+                closeParticipantCount[nextRoundId] >= 2
+                    ? DrawAvailability.READY
+                    : DrawAvailability.INSUFFICIENT_PARTICIPANTS;
+        }
+
+        return
+            _currentEligibleCountAtClose(nextDrawClosesAt) >= 2
+                ? DrawAvailability.READY
+                : DrawAvailability.INSUFFICIENT_PARTICIPANTS;
+    }
+
+    /// @notice Returns whether any snapshotted or drawn rounds still await settlement.
+    function hasUnsettledRounds() public view returns (bool) {
+        return unsettledRoundCount != 0;
+    }
+
+    /// @notice Returns whether a scheduled window is overdue while another round awaits KMS settlement.
     function isDrawOverdue() public view returns (bool) {
-        return isDrawBlocked() && block.timestamp >= nextDrawClosesAt;
+        return hasUnsettledRounds() && isDrawTimeReady();
     }
 
     /// @notice Returns the public schedule needed to render the current draw lifecycle.
-    /// @dev `currentRoundId` is the scheduled round awaiting snapshot. `activeRoundId_` is the
-    ///      separate snapshotted/drawn round that must settle before another snapshot can occur.
+    /// @dev `currentRoundId` is the next scheduled round awaiting snapshot. Settlement is
+    ///      independent and is represented by the unsettled round count plus getDrawInfo(roundId).
     function getDrawSchedule()
         external
         view
         returns (
             uint256 currentRoundId,
-            uint256 activeRoundId_,
+            uint256 unsettledRounds,
             uint64 opensAt,
             uint64 closesAt,
+            bool timeReady,
             bool ready,
-            bool blocked,
+            bool canAdvance,
+            bool insufficientParticipants,
             bool overdue
         )
     {
         return (
             nextRoundId,
-            activeRoundId,
+            unsettledRoundCount,
             nextDrawOpensAt,
             nextDrawClosesAt,
+            isDrawTimeReady(),
             isDrawReady(),
-            isDrawBlocked(),
+            canAdvanceDraw(),
+            getDrawAvailability() == DrawAvailability.INSUFFICIENT_PARTICIPANTS,
             isDrawOverdue()
         );
     }
@@ -267,8 +353,6 @@ contract VeilPool is ZamaEthereumConfig {
     /// @notice Runs the FHE weighted selection against an already frozen round.
     /// @dev Permissionless. The random target and all weights remain encrypted.
     function blindDraw(uint256 roundId) external {
-        require(activeRoundId == roundId, "Round not active");
-
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.SNAPSHOTTED, "Round not ready");
 
@@ -304,8 +388,6 @@ contract VeilPool is ZamaEthereumConfig {
         bytes calldata abiEncodedClearWinner,
         bytes calldata decryptionProof
     ) external {
-        require(activeRoundId == roundId, "Round not active");
-
         Draw storage draw = draws[roundId];
         require(draw.state == DrawState.DRAWN, "Round not awaiting finalization");
 
@@ -316,15 +398,15 @@ contract VeilPool is ZamaEthereumConfig {
         address clearWinner = abi.decode(abiEncodedClearWinner, (address));
         if (clearWinner == address(0)) {
             draw.state = DrawState.CANCELLED;
+            unsettledRoundCount--;
             emit RoundCancelled(roundId);
-            _clearActiveRound();
             return;
         }
 
         draw.winner = clearWinner;
         draw.state = DrawState.FINALIZED;
+        unsettledRoundCount--;
         emit WinnerFinalized(roundId, clearWinner);
-        _clearActiveRound();
     }
 
     function getDrawInfo(
@@ -362,10 +444,6 @@ contract VeilPool is ZamaEthereumConfig {
         return drawPlayers[roundId][index];
     }
 
-    function _clearActiveRound() private {
-        activeRoundId = 0;
-    }
-
     function _updateNextDrawWindow() private {
         nextDrawOpensAt = _scheduledDrawOpensAt(nextRoundId);
         nextDrawClosesAt = nextDrawOpensAt + drawPeriod;
@@ -378,6 +456,50 @@ contract VeilPool is ZamaEthereumConfig {
         uint256 opensAt = uint256(firstDrawOpensAt) + ((roundId - 1) * uint256(drawPeriod));
         require(opensAt <= type(uint64).max - uint256(drawPeriod), "Schedule overflow");
         return uint64(opensAt);
+    }
+
+    function _scheduledDrawClosesAt(uint256 roundId) private view returns (uint64) {
+        return _scheduledDrawOpensAt(roundId) + drawPeriod;
+    }
+
+    function _latestClosedRoundId() private view returns (uint256) {
+        uint256 firstClose = uint256(firstDrawOpensAt) + uint256(drawPeriod);
+        if (block.timestamp < firstClose) return 0;
+        return (block.timestamp - uint256(firstDrawOpensAt)) / uint256(drawPeriod);
+    }
+
+    /// @dev Materializes every crossed close before a caller can mutate balances or seats. The
+    ///      same encrypted handle is retained; no plaintext balance or eligibility is exposed.
+    function _checkpointPassedRounds() private {
+        uint256 latestClosedRoundId = _latestClosedRoundId();
+        if (latestClosedRoundId <= lastCheckpointedRoundId) return;
+
+        uint256 roundId = lastCheckpointedRoundId + 1;
+        while (roundId <= latestClosedRoundId) {
+            uint64 closesAt = _scheduledDrawClosesAt(roundId);
+
+            for (uint8 i = 0; i < playerCount; i++) {
+                address account = players[i];
+                if (seatExpiresAt[account] < closesAt || closeParticipantIncluded[roundId][account]) continue;
+
+                closeParticipantIncluded[roundId][account] = true;
+                closeParticipants[roundId][closeParticipantCount[roundId]] = account;
+                closeParticipantCount[roundId]++;
+                closeWeights[roundId][account] = positions[account].balance;
+                FHE.allowThis(closeWeights[roundId][account]);
+            }
+
+            closeCheckpointed[roundId] = true;
+            roundId++;
+        }
+
+        lastCheckpointedRoundId = latestClosedRoundId;
+    }
+
+    function _currentEligibleCountAtClose(uint64 closesAt) private view returns (uint8 count) {
+        for (uint8 i = 0; i < playerCount; i++) {
+            if (seatExpiresAt[players[i]] >= closesAt) count++;
+        }
     }
 
     function _acquireOrRenewSeat(address account) private {
@@ -393,6 +515,8 @@ contract VeilPool is ZamaEthereumConfig {
         }
 
         uint64 expiresAt = uint64(block.timestamp + SEAT_LEASE);
+        uint64 nextWindowClose = _scheduledDrawClosesAt(nextRoundId + 1);
+        if (expiresAt < nextWindowClose) expiresAt = nextWindowClose;
         seatExpiresAt[account] = expiresAt;
         emit DrawSeatRenewed(account, expiresAt);
     }

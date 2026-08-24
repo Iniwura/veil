@@ -57,7 +57,7 @@ The execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPO
 1. A user encrypts a deposit client-side with the Zama Relayer SDK.
 2. `VeilPool` records confidential principal and encrypted draw weight.
 3. A temporary draw seat makes the position eligible for the next snapshot.
-4. A round snapshot freezes the active roster and encrypted participant weights.
+4. A permissionless snapshot freezes the scheduled close-time roster and encrypted participant weights.
 5. `blindDraw` selects over encrypted weights without revealing balances or odds.
 6. Zama public decryption produces a proof for the encrypted winner handle.
 7. `finalizeWinner` verifies the proof and stores the public winner, or records a proven zero-weight cancellation.
@@ -83,15 +83,20 @@ The frontend therefore never infers or publishes an "insufficient balance" resul
 Private positions and BlindDraw roster membership are separate concepts.
 
 - Principal remains withdrawable even when a draw seat expires.
-- Draw seats use a 1-day renewable lease.
+- Draw seats use a 1-day minimum lease and are extended through the next two scheduled closes when needed, so a
+  one-day production cadence does not require daily renewal merely to remain eligible.
 - Users can renew or release a seat without changing confidential principal.
 - Anyone can prune expired seats.
 - The active roster is bounded to 32 seats.
 - All-zero encrypted rounds can be proven and finalized as `CANCELLED` instead of becoming stuck.
 
 Draw windows use an immutable `firstDrawOpensAt` anchor and the configured `drawPeriod`. Future windows are derived
-from that anchor, so delayed BlindDraw or winner finalization never shifts the protocol schedule. Snapshot, BlindDraw,
-and proof finalization are permissionless when their state and timing requirements are satisfied.
+from that anchor, so delayed snapshot, BlindDraw, or winner finalization never shifts the protocol schedule. Lazy
+encrypted close checkpoints preserve the balance and seat eligibility at each scheduled close even when the keeper is
+late. Multiple rounds may be snapshotted and await KMS settlement concurrently; Snapshot, BlindDraw, and proof
+finalization are permissionless when their state and timing requirements are satisfied.
+If a scheduled close has fewer than two eligible seats, `cancelInsufficientRound` advances that round without allowing
+post-close entrants to backfill it.
 
 ## Architecture
 

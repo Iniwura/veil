@@ -113,18 +113,20 @@ describe("VeilPool", function () {
   it("starts with zero players, the configured asset, and an open scheduled round", async function () {
     expect(await veilPoolContract.playerCount()).to.equal(0);
     expect(await veilPoolContract.nextRoundId()).to.equal(1);
-    expect(await veilPoolContract.activeRoundId()).to.equal(0);
+    expect(await veilPoolContract.unsettledRoundCount()).to.equal(0);
     expect(await veilPoolContract.owner()).to.equal(signers.deployer.address);
     expect(await veilPoolContract.asset()).to.equal(await token.getAddress());
     expect(await veilPoolContract.drawPeriod()).to.equal(TEST_DRAW_PERIOD);
     expect(await veilPoolContract.firstDrawOpensAt()).to.equal(await veilPoolContract.nextDrawOpensAt());
     const schedule = await veilPoolContract.getDrawSchedule();
     expect(schedule.currentRoundId).to.equal(1);
-    expect(schedule.activeRoundId_).to.equal(0);
+    expect(schedule.unsettledRounds).to.equal(0);
     expect(schedule.opensAt).to.be.greaterThan(0);
     expect(schedule.closesAt - schedule.opensAt).to.equal(BigInt(TEST_DRAW_PERIOD));
+    expect(schedule.timeReady).to.equal(false);
     expect(schedule.ready).to.equal(false);
-    expect(schedule.blocked).to.equal(false);
+    expect(schedule.canAdvance).to.equal(false);
+    expect(schedule.insufficientParticipants).to.equal(false);
     expect(schedule.overdue).to.equal(false);
     expect(await veilPoolContract.isDrawReady()).to.equal(false);
   });
@@ -132,6 +134,23 @@ describe("VeilPool", function () {
   it("rejects a zero draw period", async function () {
     const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
     await expect(poolFactory.deploy(await token.getAddress(), 0)).to.be.revertedWith("Invalid draw period");
+  });
+
+  it("separates timer readiness from insufficient close-time participation", async function () {
+    await deposit(signers.alice, 10);
+    await advanceToDrawClose();
+
+    expect(await veilPoolContract.isDrawTimeReady()).to.equal(true);
+    expect(await veilPoolContract.isDrawReady()).to.equal(false);
+    expect(await veilPoolContract.canAdvanceDraw()).to.equal(true);
+    expect(await veilPoolContract.getDrawAvailability()).to.equal(2);
+    const schedule = await veilPoolContract.getDrawSchedule();
+    expect(schedule.canAdvance).to.equal(true);
+    expect(schedule.insufficientParticipants).to.equal(true);
+    await expect(veilPoolContract.snapshotRound()).to.be.revertedWith("Need 2 players");
+    await (await veilPoolContract.connect(signers.outsider).cancelInsufficientRound()).wait();
+    expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(4);
+    expect(await veilPoolContract.nextRoundId()).to.equal(2);
   });
 
   it("requires the pool to be an authorized confidential-token operator", async function () {
@@ -274,6 +293,77 @@ describe("VeilPool", function () {
       expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
     });
 
+    it("does not let a post-close deposit increase the closed draw", async function () {
+      await advanceToDrawClose();
+      await deposit(signers.alice, 15);
+
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+    });
+
+    it("does not let a post-close withdrawal decrease the closed draw", async function () {
+      await advanceToDrawClose();
+      await withdraw(signers.alice, 7);
+
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+      expect(await decryptOwnBalance(signers.alice)).to.equal(3);
+    });
+
+    it("does not add a user who joins after close to that closed draw", async function () {
+      await advanceToDrawClose();
+      await deposit(signers.outsider, 50);
+
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      const draw = await veilPoolContract.getDrawInfo(1);
+      expect(draw.participantCount).to.equal(2);
+      await expect(veilPoolContract.connect(signers.outsider).encryptedSnapshotWeightOf(1)).to.be.revertedWith(
+        "Not in round",
+      );
+    });
+
+    it("keeps a user who leaves after close eligible in the closed draw", async function () {
+      await advanceToDrawClose();
+      await (await veilPoolContract.connect(signers.alice).leaveDrawSeat()).wait();
+
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+    });
+
+    it("preserves close-time weights when the permissionless snapshot is late", async function () {
+      const closesAt = Number(await veilPoolContract.nextDrawClosesAt());
+      await mineAt(closesAt + 20 * 60);
+      await deposit(signers.alice, 15);
+      await withdraw(signers.bob, 10);
+
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      expect(await decryptSnapshotWeight(signers.alice, 1)).to.equal(10);
+      expect(await decryptSnapshotWeight(signers.bob, 1)).to.equal(30);
+      expect(await decryptOwnBalance(signers.alice)).to.equal(25);
+      expect(await decryptOwnBalance(signers.bob)).to.equal(20);
+    });
+
+    it("applies post-close activity to the next eligible scheduled round", async function () {
+      await advanceToDrawClose();
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      await deposit(signers.outsider, 50);
+
+      await advanceToDrawClose();
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+
+      const draw = await veilPoolContract.getDrawInfo(2);
+      expect(draw.participantCount).to.equal(3);
+      expect(await decryptSnapshotWeight(signers.outsider, 2)).to.equal(50);
+    });
+
     it("lets each participant decrypt only their own historical weight", async function () {
       await advanceToDrawClose();
       await (await veilPoolContract.snapshotRound()).wait();
@@ -322,14 +412,14 @@ describe("VeilPool", function () {
 
       const draw = await veilPoolContract.getDrawInfo(1);
       expect(draw.state).to.equal(3);
-      expect(await veilPoolContract.activeRoundId()).to.equal(0);
+      expect(await veilPoolContract.unsettledRoundCount()).to.equal(0);
       expect(await veilPoolContract.nextRoundId()).to.equal(2);
       await expect(veilPoolContract.snapshotRound()).to.be.revertedWith("Draw still open");
       await expect(
         veilPoolContract
           .connect(signers.alice)
           .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof),
-      ).to.be.revertedWith("Round not active");
+      ).to.be.revertedWith("Round not awaiting finalization");
     });
 
     it("rejects an invalid winner decryption proof", async function () {
@@ -347,18 +437,18 @@ describe("VeilPool", function () {
       ).to.be.reverted;
 
       expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(2);
-      expect(await veilPoolContract.activeRoundId()).to.equal(1);
+      expect(await veilPoolContract.unsettledRoundCount()).to.equal(1);
     });
 
-    it("enforces the timer, a single active round, and permissionless callers", async function () {
+    it("enforces the timer, per-round state, and permissionless callers", async function () {
       await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith("Draw still open");
-      await expect(veilPoolContract.blindDraw(99)).to.be.revertedWith("Round not active");
+      await expect(veilPoolContract.blindDraw(99)).to.be.revertedWith("Round not ready");
 
       await advanceToDrawClose();
       await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
 
-      expect(await veilPoolContract.activeRoundId()).to.equal(1);
-      await expect(veilPoolContract.snapshotRound()).to.be.revertedWith("Previous round unsettled");
+      expect(await veilPoolContract.unsettledRoundCount()).to.equal(1);
+      await expect(veilPoolContract.snapshotRound()).to.be.revertedWith("Draw still open");
       expect(await veilPoolContract.getSnapshotPlayer(1, 0)).to.equal(signers.alice.address);
       expect(await veilPoolContract.getSnapshotPlayer(1, 1)).to.equal(signers.bob.address);
       await expect(veilPoolContract.getSnapshotPlayer(1, 2)).to.be.revertedWith("Invalid index");
@@ -381,16 +471,14 @@ describe("VeilPool", function () {
       const snapshotBlock = await ethers.provider.getBlock(snapshotReceipt.blockNumber);
       if (!snapshotBlock) throw new Error("Snapshot block unavailable");
       expect(snapshotBlock.timestamp).to.equal(closesAt);
-      expect(await veilPoolContract.activeRoundId()).to.equal(1);
+      expect(await veilPoolContract.unsettledRoundCount()).to.equal(1);
     });
 
     it("does not allow a duplicate snapshot or BlindDraw", async function () {
       await advanceToDrawClose();
       await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
 
-      await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith(
-        "Previous round unsettled",
-      );
+      await expect(veilPoolContract.connect(signers.alice).snapshotRound()).to.be.revertedWith("Draw still open");
 
       await (await veilPoolContract.connect(signers.outsider).blindDraw(1)).wait();
       await expect(veilPoolContract.connect(signers.bob).blindDraw(1)).to.be.revertedWith("Round not ready");
@@ -403,8 +491,7 @@ describe("VeilPool", function () {
 
       const firstDrawSchedule = await veilPoolContract.getDrawSchedule();
       expect(firstDrawSchedule.currentRoundId).to.equal(2);
-      expect(firstDrawSchedule.activeRoundId_).to.equal(1);
-      expect(firstDrawSchedule.blocked).to.equal(true);
+      expect(firstDrawSchedule.unsettledRounds).to.equal(1);
       expect(firstDrawSchedule.overdue).to.equal(false);
 
       const firstDrawOpensAt = await veilPoolContract.firstDrawOpensAt();
@@ -414,13 +501,41 @@ describe("VeilPool", function () {
       expect(firstDrawSchedule.closesAt).to.equal(expectedRoundTwoClosesAt);
 
       await mineAt(Number(expectedRoundTwoClosesAt) + 20 * 60);
-      expect(await veilPoolContract.isDrawReady()).to.equal(false);
-      expect(await veilPoolContract.isDrawBlocked()).to.equal(true);
+      expect(await veilPoolContract.isDrawTimeReady()).to.equal(true);
+      expect(await veilPoolContract.isDrawReady()).to.equal(true);
       expect(await veilPoolContract.isDrawOverdue()).to.equal(true);
       expect((await veilPoolContract.getDrawSchedule()).overdue).to.equal(true);
 
-      const encryptedWinner = await veilPoolContract.getEncryptedWinner(1);
-      const publicDecryptResults = await fhevm.publicDecrypt([encryptedWinner]);
+      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
+      expect(await veilPoolContract.unsettledRoundCount()).to.equal(2);
+      expect((await veilPoolContract.getDrawInfo(2)).state).to.equal(1);
+      await (await veilPoolContract.connect(signers.alice).blindDraw(2)).wait();
+
+      const roundOneWinner = await veilPoolContract.getEncryptedWinner(1);
+      const roundOneProof = await fhevm.publicDecrypt([roundOneWinner]);
+      await expect(
+        veilPoolContract
+          .connect(signers.outsider)
+          .finalizeWinner(1, roundOneProof.abiEncodedClearValues, `${roundOneProof.decryptionProof}dead`),
+      ).to.be.reverted;
+      expect((await veilPoolContract.getDrawInfo(1)).state).to.equal(2);
+      expect((await veilPoolContract.getDrawInfo(2)).state).to.equal(2);
+
+      const schedule = await veilPoolContract.getDrawSchedule();
+      expect(schedule.currentRoundId).to.equal(3);
+      const expectedRoundThreeOpensAt = firstDrawOpensAt + 2n * BigInt(TEST_DRAW_PERIOD);
+      const expectedRoundThreeClosesAt = expectedRoundThreeOpensAt + BigInt(TEST_DRAW_PERIOD);
+      expect(schedule.opensAt).to.equal(expectedRoundThreeOpensAt);
+      expect(schedule.closesAt).to.equal(expectedRoundThreeClosesAt);
+      expect(schedule.unsettledRounds).to.equal(2);
+      expect(schedule.overdue).to.equal(false);
+
+      const nextSchedule = await veilPoolContract.getDrawSchedule();
+      expect(nextSchedule.currentRoundId).to.equal(3);
+      expect(nextSchedule.opensAt).to.equal(firstDrawOpensAt + 2n * BigInt(TEST_DRAW_PERIOD));
+      expect(nextSchedule.closesAt).to.equal(firstDrawOpensAt + 3n * BigInt(TEST_DRAW_PERIOD));
+
+      const publicDecryptResults = roundOneProof;
       const finalizeTx = await veilPoolContract
         .connect(signers.outsider)
         .finalizeWinner(1, publicDecryptResults.abiEncodedClearValues, publicDecryptResults.decryptionProof);
@@ -429,23 +544,13 @@ describe("VeilPool", function () {
       const finalizeBlock = await ethers.provider.getBlock(finalizeReceipt.blockNumber);
       if (!finalizeBlock) throw new Error("Finalization block unavailable");
 
-      const schedule = await veilPoolContract.getDrawSchedule();
-      expect(schedule.currentRoundId).to.equal(2);
-      expect(schedule.activeRoundId_).to.equal(0);
-      expect(schedule.opensAt).to.equal(expectedRoundTwoOpensAt);
-      expect(schedule.closesAt).to.equal(expectedRoundTwoClosesAt);
-      expect(schedule.opensAt).to.not.equal(BigInt(finalizeBlock.timestamp));
-      expect(schedule.ready).to.equal(true);
-      expect(schedule.blocked).to.equal(false);
-      expect(schedule.overdue).to.equal(false);
-      expect(await veilPoolContract.isDrawReady()).to.equal(true);
-      await (await veilPoolContract.connect(signers.outsider).snapshotRound()).wait();
-      expect(await veilPoolContract.activeRoundId()).to.equal(2);
-
-      const nextSchedule = await veilPoolContract.getDrawSchedule();
-      expect(nextSchedule.currentRoundId).to.equal(3);
-      expect(nextSchedule.opensAt).to.equal(firstDrawOpensAt + 2n * BigInt(TEST_DRAW_PERIOD));
-      expect(nextSchedule.closesAt).to.equal(firstDrawOpensAt + 3n * BigInt(TEST_DRAW_PERIOD));
+      const afterFinalize = await veilPoolContract.getDrawSchedule();
+      expect(afterFinalize.currentRoundId).to.equal(3);
+      expect(afterFinalize.opensAt).to.equal(nextSchedule.opensAt);
+      expect(afterFinalize.closesAt).to.equal(nextSchedule.closesAt);
+      expect(afterFinalize.unsettledRounds).to.equal(1);
+      expect(afterFinalize.opensAt).to.not.equal(BigInt(finalizeBlock.timestamp));
+      expect(await decryptSnapshotWeight(signers.alice, 2)).to.equal(10);
     });
   });
 });

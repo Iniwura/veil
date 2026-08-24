@@ -53,8 +53,12 @@ async function main() {
 
   const schedule = await pool.getDrawSchedule();
   if (!schedule.ready) {
+    if (schedule.insufficientParticipants) {
+      throw new Error(`Draw ${roundId} closed with fewer than two eligible participants; it cannot be snapshotted.`);
+    }
     throw new Error(`Draw ${roundId} is not ready. Its window closes at Unix timestamp ${schedule.closesAt}.`);
   }
+  console.log(`  unsettled:  ${schedule.unsettledRounds}`);
 
   console.log("1/7 Snapshotting current encrypted pool...");
   await (await pool.snapshotRound()).wait();

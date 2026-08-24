@@ -119,7 +119,7 @@ describe("VeilPool draw-seat lifecycle", function () {
 
     const draw = await pool.getDrawInfo(1);
     expect(draw.state).to.equal(4);
-    expect(await pool.activeRoundId()).to.equal(0);
+    expect(await pool.unsettledRoundCount()).to.equal(0);
     expect(await pool.nextDrawClosesAt()).to.be.greaterThan(0);
     await expect(pool.getWinner(1)).to.be.revertedWith("Winner not finalized");
   });

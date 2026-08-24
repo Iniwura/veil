@@ -1,5 +1,9 @@
 # VEIL Sepolia end-to-end smoke result
 
+> Historical record only. This smoke test predates the autonomous fixed-close checkpoint and overlapping-round ABI
+> changes on `feat/unveil-autonomous-draws`; that branch was not deployed as part of this implementation and requires a
+> fresh, versioned deployment before these addresses or results are reused.
+
 ## Final hardened deployment
 
 - Date: 2026-08-23
