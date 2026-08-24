@@ -66,6 +66,7 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
     mapping(uint256 batchId => bool resolved) private _managerDepositBatchResolved;
     mapping(uint256 batchId => bool recognized) private _managerWithdrawalBatches;
     mapping(uint256 batchId => bool resolved) private _managerWithdrawalBatchResolved;
+    mapping(uint256 batchId => uint256 fundingNonce) private _withdrawalBatchFundingNonce;
 
     struct WithdrawalRequest {
         address account;
@@ -73,7 +74,6 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         euint64 remaining;
         euint64 paid;
         ebool completed;
-        uint256 associatedWithdrawalBatchId;
         uint256 createdWithdrawalBatchId;
         uint256 createdWithdrawalFundingNonce;
         bool exists;
@@ -183,6 +183,10 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         return _lastManagerWithdrawalBatchId;
     }
 
+    function withdrawalBatchFundingNonce(uint256 batchId) external view returns (uint256) {
+        return _withdrawalBatchFundingNonce[batchId];
+    }
+
     function withdrawalRequest(
         uint256 requestId
     )
@@ -194,7 +198,8 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             euint64 remaining,
             euint64 paid,
             ebool completed,
-            uint256 associatedWithdrawalBatchId,
+            uint256 createdWithdrawalBatchId,
+            uint256 createdWithdrawalFundingNonce,
             bool exists,
             bool canceled,
             bool settled
@@ -207,7 +212,8 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             request.remaining,
             request.paid,
             request.completed,
-            request.associatedWithdrawalBatchId,
+            request.createdWithdrawalBatchId,
+            request.createdWithdrawalFundingNonce,
             request.exists,
             request.canceled,
             request.settled
@@ -247,7 +253,9 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         if (msg.sender != pool) revert OnlyPool();
         if (!FHE.isAllowed(permittedAmount, address(this))) revert UnauthorizedCiphertext();
 
-        acceptedAmount = FHE.min(_principalLiability, permittedAmount);
+        euint64 unreservedLiability = FHESafeMath.saturatingSub(_principalLiability, _queuedWithdrawalTotal);
+        FHE.allowThis(unreservedLiability);
+        acceptedAmount = FHE.min(unreservedLiability, permittedAmount);
         euint64 buffer = _principalBuffer();
         ebool bufferCovers = FHE.ge(buffer, acceptedAmount);
         euint64 instantAmount = FHE.select(bufferCovers, acceptedAmount, FHE.asEuint64(0));
@@ -277,7 +285,6 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
             remaining: queuedAmount,
             paid: actualTransferred,
             completed: completed,
-            associatedWithdrawalBatchId: _pendingWithdrawalBatchForNewRequest(),
             createdWithdrawalBatchId: withdrawalBatcher.currentBatchId(),
             createdWithdrawalFundingNonce: _withdrawalFundingNonce,
             exists: true,
@@ -364,9 +371,15 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
 
         euint64 buffer = _principalBuffer();
         euint64 liquidityNeed = FHESafeMath.saturatingSub(_queuedWithdrawalTotal, buffer);
-        euint128 required = _requiredShares(liquidityNeed, shareScale, conservativeValue);
+        euint128 totalRequired = _requiredSharesForFunding(liquidityNeed, shareScale, conservativeValue);
+        euint64 alreadyCommittedShares = withdrawalBatcher.deposits(batchId, address(this));
+        if (!FHE.isInitialized(alreadyCommittedShares)) alreadyCommittedShares = FHE.asEuint64(0);
+        FHE.allowThis(alreadyCommittedShares);
+        euint128 alreadyCommittedShares128 = FHE.asEuint128(alreadyCommittedShares);
+        euint128 coveredRequired = FHE.min(totalRequired, alreadyCommittedShares128);
+        euint128 remainingRequired = FHE.sub(totalRequired, coveredRequired);
         euint64 shareBalance = _strategyShareBalance();
-        euint128 capped = FHE.min(FHE.asEuint128(shareBalance), required);
+        euint128 capped = FHE.min(FHE.asEuint128(shareBalance), remainingRequired);
         euint64 withdrawalShares = FHE.asEuint64(capped);
 
         FHE.allowThis(withdrawalShares);
@@ -374,10 +387,11 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         FHE.allowTransient(withdrawalShares, address(strategyShareAsset));
         strategyShareAsset.confidentialTransferAndCall(address(withdrawalBatcher), withdrawalShares, "");
 
+        ++_withdrawalFundingNonce;
+        _withdrawalBatchFundingNonce[batchId] = _withdrawalFundingNonce;
         if (_lastManagerWithdrawalBatchId != batchId) {
             _lastManagerWithdrawalBatchId = batchId;
             _managerWithdrawalBatches[batchId] = true;
-            ++_withdrawalFundingNonce;
         }
         emit WithdrawalBatchFunded(batchId);
     }
@@ -503,7 +517,9 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
 
     function _investableBuffer() internal returns (euint64) {
         euint64 buffer = _principalBuffer();
-        return FHESafeMath.saturatingSub(buffer, _targetBuffer());
+        euint64 normalTarget = _targetBuffer();
+        euint64 liquidFloor = FHE.max(normalTarget, _queuedWithdrawalTotal);
+        return FHESafeMath.saturatingSub(buffer, liquidFloor);
     }
 
     function _uncoveredPrincipal(euint64 buffer) internal returns (euint64) {
@@ -522,15 +538,6 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         FHE.allowThis(balance);
     }
 
-    function _pendingWithdrawalBatchForNewRequest() internal view returns (uint256) {
-        if (_lastManagerWithdrawalBatchId == 0) return 0;
-        if (_lastManagerWithdrawalBatchId != withdrawalBatcher.currentBatchId()) return 0;
-        if (_managerWithdrawalBatchResolved[_lastManagerWithdrawalBatchId]) return 0;
-        if (withdrawalBatcher.batchState(_lastManagerWithdrawalBatchId) != BatcherConfidential.BatchState.Pending)
-            return 0;
-        return _lastManagerWithdrawalBatchId;
-    }
-
     function _requireOpenWithdrawalRequest(uint256 requestId, WithdrawalRequest storage request) internal view {
         if (!request.exists) revert WithdrawalRequestNotFound(requestId);
         if (request.canceled || request.settled) revert WithdrawalRequestClosed(requestId);
@@ -538,17 +545,10 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
 
     function _withdrawalRequestIsCommitted(WithdrawalRequest storage request) internal view returns (bool) {
         if (!request.exists) return false;
-        if (request.associatedWithdrawalBatchId != 0) {
-            return
-                withdrawalBatcher.batchState(request.associatedWithdrawalBatchId) !=
-                BatcherConfidential.BatchState.Pending;
+        if (_withdrawalBatchFundingNonce[request.createdWithdrawalBatchId] <= request.createdWithdrawalFundingNonce) {
+            return false;
         }
-        if (
-            _lastManagerWithdrawalBatchId == 0 ||
-            request.createdWithdrawalBatchId != _lastManagerWithdrawalBatchId ||
-            request.createdWithdrawalFundingNonce >= _withdrawalFundingNonce
-        ) return false;
-        return withdrawalBatcher.batchState(_lastManagerWithdrawalBatchId) != BatcherConfidential.BatchState.Pending;
+        return withdrawalBatcher.batchState(request.createdWithdrawalBatchId) != BatcherConfidential.BatchState.Pending;
     }
 
     /// @dev Returns (conservative assets represented by one confidential share unit,
@@ -621,6 +621,34 @@ contract VeilStrategyManagerV2 is ReentrancyGuardTransient, ZamaEthereumConfig {
         euint128 remainder = FHE.rem(product, uint128(conservativeValue));
         ebool hasRemainder = FHE.ne(remainder, FHE.asEuint128(0));
         return FHE.add(quotient, FHE.asEuint128(hasRemainder));
+    }
+
+    /// @dev The funding path uses ceil((uncovered * scale) / value) in its equivalent
+    /// rounded-numerator form to keep the residual-balance circuit within the FHE depth limit.
+    /// The public guard falls back to the remainder form when the rounded numerator could exceed
+    /// uint128. This remains exact for every supported valuation.
+    function _requiredSharesForFunding(
+        euint64 uncovered,
+        uint256 shareScale,
+        uint256 conservativeValue
+    ) internal returns (euint128) {
+        if (
+            conservativeValue == 0 ||
+            shareScale == 0 ||
+            shareScale > type(uint64).max ||
+            conservativeValue > type(uint128).max
+        ) {
+            revert InvalidValuation();
+        }
+
+        uint256 maximumProduct = uint256(type(uint64).max) * shareScale;
+        if (conservativeValue - 1 > type(uint128).max - maximumProduct) {
+            return _requiredShares(uncovered, shareScale, conservativeValue);
+        }
+
+        euint128 product = FHE.mul(FHE.asEuint128(uncovered), uint128(shareScale));
+        euint128 roundedNumerator = FHE.add(product, uint128(conservativeValue - 1));
+        return FHE.div(roundedNumerator, uint128(conservativeValue));
     }
 
     function _safeSurplusShares() internal returns (euint64) {

@@ -21,6 +21,7 @@ contract VeilStrategyPoolHarness is ZamaEthereumConfig {
     mapping(address account => euint64 active) private _activePositions;
     mapping(address account => euint64 reserved) private _reservedWithdrawals;
     mapping(uint256 requestId => address account) private _withdrawalRequestAccounts;
+    euint64 public lastBypassAccepted;
 
     constructor(IERC7984 principalAsset_) ZamaEthereumConfig() {
         require(address(principalAsset_) != address(0), "Invalid asset");
@@ -87,6 +88,26 @@ contract VeilStrategyPoolHarness is ZamaEthereumConfig {
         FHE.allow(newReserved, msg.sender);
     }
 
+    /// @dev Test-only adversarial boundary: forwards a caller-authorized amount without applying
+    /// the pool position cap. The manager must still enforce aggregate unreserved liability.
+    function requestWithdrawalBypassForTest(
+        address account,
+        externalEuint64 encryptedAmount,
+        bytes calldata inputProof
+    ) external returns (uint256 requestId) {
+        require(msg.sender == deployer, "Not deployer");
+        require(managerConfigured, "Manager not configured");
+
+        euint64 permitted = FHE.fromExternal(encryptedAmount, inputProof);
+        FHE.allowTransient(permitted, manager);
+        euint64 accepted;
+        (requestId, accepted, , ) = VeilStrategyManagerV2(manager).requestPrincipalWithdrawal(account, permitted);
+        lastBypassAccepted = accepted;
+        FHE.allowThis(accepted);
+        FHE.allow(accepted, deployer);
+        _withdrawalRequestAccounts[requestId] = account;
+    }
+
     /// @dev The user-facing pool would authenticate the caller before forwarding cancellation.
     function cancelWithdrawal(uint256 requestId) external returns (euint64 canceledAmount) {
         require(_withdrawalRequestAccounts[requestId] == msg.sender, "Not request owner");
@@ -131,8 +152,14 @@ contract VeilStrategyPoolHarness is ZamaEthereumConfig {
     function exposePositionsForTest(address account) external returns (euint64 active, euint64 reserved) {
         active = _activePositions[account];
         reserved = _reservedWithdrawals[account];
-        if (!FHE.isInitialized(active)) active = FHE.asEuint64(0);
-        if (!FHE.isInitialized(reserved)) reserved = FHE.asEuint64(0);
+        if (!FHE.isInitialized(active)) {
+            active = FHE.asEuint64(0);
+            _activePositions[account] = active;
+        }
+        if (!FHE.isInitialized(reserved)) {
+            reserved = FHE.asEuint64(0);
+            _reservedWithdrawals[account] = reserved;
+        }
         FHE.allowThis(active);
         FHE.allowThis(reserved);
         FHE.allow(active, msg.sender);

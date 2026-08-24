@@ -109,8 +109,15 @@ contract VeilStrategyManagerV2TestHarness is VeilStrategyManagerV2 {
         FHE.allow(deposit, msg.sender);
     }
 
+    function exposeManagerWithdrawalBatchDepositForTest(uint256 batchId) external {
+        euint64 deposit = withdrawalBatcher.deposits(batchId, address(this));
+        lastManagerBatchDeposit = deposit;
+        FHE.allowThis(deposit);
+        FHE.allow(deposit, msg.sender);
+    }
+
     function exposeWithdrawalRequestForTest(uint256 requestId) external {
-        (, , euint64 remaining, euint64 paid, ebool completed, , bool exists, , ) = this.withdrawalRequest(requestId);
+        (, , euint64 remaining, euint64 paid, ebool completed, , , bool exists, , ) = this.withdrawalRequest(requestId);
         require(exists, "Unknown request");
         lastWithdrawalRemaining = remaining;
         lastWithdrawalPaid = paid;

@@ -461,6 +461,16 @@ transfer reduces `principalLiability`; queue creation does not increase it. Queu
 `queuedWithdrawalTotal` and `principalLiability` only after actual payout. Cancellation decreases only the queue total
 and restores the user's reserved amount to active position; it never writes down aggregate liability.
 
+The manager applies a second aggregate-safety cap even though the pool normally restricts a request to the user's active
+position:
+
+```text
+unreservedLiability = max(principalLiability - queuedWithdrawalTotal, 0)
+acceptedAmount = min(unreservedLiability, poolPermittedAmount)
+```
+
+Thus a stale or over-permissive pool ciphertext cannot consume liability already reserved for another queued request.
+
 The queue is FIFO and bounded per call: one request is attempted per settlement call, and one canceled head can be
 advanced per `advanceWithdrawalQueue` call. A completion proof verifies only an encrypted boolean predicate, not the
 withdrawal amount. This extra permissionless proof step is required by the FHE constraint that a contract cannot branch
@@ -474,15 +484,30 @@ trade-off is documented in the contract and prioritizes principal recoverability
 When the buffer is insufficient after reclaim, `fundWithdrawalLiquidity` computes:
 
 ```text
+normalTarget = ceil(principalLiability * bufferReserveBps / 10_000)
+liquidFloor = max(normalTarget, queuedWithdrawalTotal)
+investable = max(liveBuffer - liquidFloor, 0)
 liquidityNeed = max(queuedWithdrawalTotal - liveBuffer, 0)
-requiredShares = ceil(liquidityNeed * shareScale / conservativeAssetsForProbe)
-submittedShares = min(requiredShares, liveManagerShareBalance)
+totalRequired = ceil(liquidityNeed * shareScale / conservativeAssetsForProbe)
+alreadyCommittedShares = withdrawalBatcher.deposits(currentBatchId, manager)
+remainingRequired = max(totalRequired - alreadyCommittedShares, 0)
+additionalShares = min(remainingRequired, liveManagerShareBalance)
 ```
 
-Strategy shares entering the withdrawal batch are not liquid and do not change either liability value. Only a finalized
-batch claim returning confidential principal to the manager increases the live buffer. A canceled batch returns the
-original confidential shares. A dispatched batch that is waiting on KMS remains committed and its requests cannot be
-canceled; strategy losses may therefore leave a request reserved and unpaid without making the liability disappear.
+Queued claims therefore reserve liquidity before new principal is invested: a pending investment may not reduce the
+manager's live buffer below either the normal reserve target or the encrypted queue total. Repeated funding calls for
+the same Pending withdrawal batch submit only the current shortfall; a later request increases the required amount only
+by its delta. Strategy shares entering the withdrawal batch are not liquid and do not change either liability value.
+Only a finalized batch claim returning confidential principal to the manager increases the live buffer. A canceled batch
+returns the original confidential shares. A dispatched batch that is waiting on KMS remains committed and its requests
+cannot be canceled; strategy losses may therefore leave a request reserved and unpaid without making the liability
+disappear.
+
+Each withdrawal request records the batch ID and global funding-attempt nonce at creation. Every manager funding attempt
+increments the nonce and records the latest nonce for the current batch. A request is committed only when a later
+funding attempt exists for that same batch and the batch has left `Pending`; merely being created while an
+already-funded batch is still Pending does not commit it. Requests in a later batch do not inherit the prior batch's
+commitment.
 
 ### Arithmetic implementation gate
 
