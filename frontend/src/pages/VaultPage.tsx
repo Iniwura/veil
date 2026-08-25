@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PrivateStat } from "../components/PrivateStat";
 import type { UnveilController } from "../hooks/useUnveil";
 
 export function VaultPage({ unveil }: { unveil: UnveilController }) {
   const roundIds = useMemo(() => unveil.history.map((round) => round.id), [unveil.history]);
-  const [roundId, setRoundId] = useState(() => roundIds[0]?.toString() ?? "1");
+  const [roundId, setRoundId] = useState("");
+  const selectedRoundId = roundIds.some((id) => id.toString() === roundId) ? roundId : (roundIds[0]?.toString() ?? "");
+  useEffect(() => {
+    if (selectedRoundId !== roundId) setRoundId(selectedRoundId);
+  }, [roundId, selectedRoundId]);
   const revealed = Boolean(unveil.vault);
   return (
     <div className="page-stack route-enter">
@@ -81,7 +85,7 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
         </div>
         <div className="weight-control">
           <label htmlFor="round-select">ROUND</label>
-          <select id="round-select" value={roundId} onChange={(event) => setRoundId(event.target.value)}>
+          <select id="round-select" value={selectedRoundId} onChange={(event) => setRoundId(event.target.value)}>
             {roundIds.length ? (
               roundIds.map((id) => (
                 <option key={id.toString()} value={id.toString()}>
@@ -89,13 +93,13 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
                 </option>
               ))
             ) : (
-              <option value="1">1</option>
+              <option value="">NO SETTLED ROUND</option>
             )}
           </select>
           <button
             className="button-secondary"
-            disabled={Boolean(unveil.busy)}
-            onClick={() => unveil.revealRound(BigInt(roundId))}
+            disabled={Boolean(unveil.busy) || !selectedRoundId}
+            onClick={() => selectedRoundId && unveil.revealRound(BigInt(selectedRoundId))}
           >
             {unveil.busy === "reveal-weight" ? "DECRYPTING…" : "UNVEIL MY DRAW WEIGHT"}
           </button>

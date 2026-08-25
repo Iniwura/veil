@@ -194,7 +194,12 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
             <p className="eyebrow">CURRENT DRAW · LIVE SEPOLIA</p>
             <h2>ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</h2>
           </div>
-          <DrawCountdown closesAt={schedule?.closesAt} ready={schedule?.ready} />
+          <DrawCountdown
+            closesAt={schedule?.closesAt}
+            timeReady={schedule?.timeReady}
+            ready={schedule?.ready}
+            insufficientParticipants={schedule?.insufficientParticipants}
+          />
         </div>
         <div className="live-metrics">
           <div>

@@ -33,6 +33,30 @@ export function AppShell({
   unveil: UnveilController;
   children: ReactNode;
 }) {
+  const walletAction = unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect;
+  const walletLabel =
+    unveil.busy === "switch-network"
+      ? "SWITCHING…"
+      : unveil.wrongNetwork
+        ? "SWITCH TO SEPOLIA"
+        : unveil.busy === "connect"
+          ? "CONNECTING…"
+          : unveil.address
+            ? shortAddress(unveil.address)
+            : unveil.walletState === "reconnect-required" || unveil.walletState === "account-changed"
+              ? "RECONNECT WALLET"
+              : "CONNECT WALLET";
+  const sessionLabel = unveil.wrongNetwork
+    ? "WRONG NETWORK"
+    : unveil.walletState === "account-changed"
+      ? "WALLET ACCOUNT CHANGED"
+      : unveil.walletState === "reconnect-required"
+        ? "RECONNECT REQUIRED"
+        : unveil.error
+          ? "ACTION NEEDS ATTENTION"
+          : unveil.busy
+            ? "ACTION IN PROGRESS"
+            : "SESSION";
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
@@ -64,23 +88,20 @@ export function AppShell({
             <strong>UNVEIL</strong>
           </RouteLink>
           <div>
-            <span className="live-dot" /> SEPOLIA V2 LIVE
+            <span className={`live-dot ${unveil.publicError ? "unavailable" : ""}`} />
+            {unveil.publicError ? "PUBLIC V2 STATE UNAVAILABLE" : "PUBLIC V2 STATE LIVE"}
           </div>
           <DemoBadge compact />
-          <button className="wallet-button" onClick={unveil.connect} disabled={Boolean(unveil.busy)}>
-            {unveil.busy === "connect"
-              ? "CONNECTING…"
-              : unveil.address
-                ? shortAddress(unveil.address)
-                : "CONNECT WALLET"}
+          <button className="wallet-button" onClick={walletAction} disabled={Boolean(unveil.busy)}>
+            {walletLabel}
           </button>
         </header>
         {(unveil.error || unveil.notice) && (
           <div
-            className={`session-status ${unveil.error ? "session-status--error" : ""}`}
-            role={unveil.error ? "alert" : "status"}
+            className={`session-status ${unveil.error || unveil.wrongNetwork ? "session-status--error" : ""}`}
+            role={unveil.error || unveil.wrongNetwork ? "alert" : "status"}
           >
-            <span>{unveil.error ? "ACTION NEEDS ATTENTION" : unveil.busy ? "ACTION IN PROGRESS" : "SESSION"}</span>
+            <span>{sessionLabel}</span>
             <p>{unveil.error || unveil.notice}</p>
             {unveil.error && (
               <button onClick={unveil.clearError} aria-label="Dismiss error">

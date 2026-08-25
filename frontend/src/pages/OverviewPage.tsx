@@ -19,7 +19,12 @@ export function OverviewPage({ unveil }: { unveil: UnveilController }) {
           </div>
           <div>
             <span>CLOSES IN</span>
-            <DrawCountdown closesAt={schedule?.closesAt} ready={schedule?.ready} />
+            <DrawCountdown
+              closesAt={schedule?.closesAt}
+              timeReady={schedule?.timeReady}
+              ready={schedule?.ready}
+              insufficientParticipants={schedule?.insufficientParticipants}
+            />
           </div>
         </div>
         <div className="draw-command-grid">
@@ -30,7 +35,15 @@ export function OverviewPage({ unveil }: { unveil: UnveilController }) {
           <div>
             <span>YOUR SEAT</span>
             <strong>
-              {!unveil.connected ? "CONNECT WALLET" : data?.seated ? "ACTIVE" : data?.joined ? "EXPIRED" : "NOT JOINED"}
+              {unveil.wrongNetwork
+                ? "WRONG NETWORK"
+                : !unveil.connected
+                  ? "CONNECT WALLET"
+                  : data?.seated
+                    ? "ACTIVE"
+                    : data?.joined
+                      ? "EXPIRED"
+                      : "NOT JOINED"}
             </strong>
           </div>
           <div>
@@ -43,8 +56,8 @@ export function OverviewPage({ unveil }: { unveil: UnveilController }) {
           </div>
         </div>
         {!unveil.connected ? (
-          <button className="button-primary" onClick={unveil.connect}>
-            Connect wallet
+          <button className="button-primary" onClick={unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect}>
+            {unveil.wrongNetwork ? "Switch to Sepolia" : "Connect wallet"}
           </button>
         ) : data?.joined && !data.seated ? (
           <button className="button-secondary" onClick={unveil.renewSeat} disabled={Boolean(unveil.busy)}>

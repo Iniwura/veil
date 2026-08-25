@@ -4,6 +4,7 @@ import { shortAddress } from "../lib/format";
 export function PrizesPage({ unveil }: { unveil: UnveilController }) {
   const round = unveil.latestFinalized;
   const status = !round ? "NO PRIZE" : round.processedPrize ? "DELIVERED" : "PROCESSING";
+  const latestReveal = round && unveil.prize?.roundId === round.id ? unveil.prize : undefined;
   return (
     <div className="page-stack route-enter">
       <header className="page-heading">
@@ -24,9 +25,9 @@ export function PrizesPage({ unveil }: { unveil: UnveilController }) {
         </div>
         <div className="prize-private">
           <span>CONFIDENTIAL TEST STRATEGY SHARES</span>
-          <strong>{unveil.prize ? unveil.prize.value.toString() : "••••••"}</strong>
+          <strong>{latestReveal ? latestReveal.value.toString() : "••••••"}</strong>
           <small>
-            {unveil.prize
+            {latestReveal
               ? "UNVEILED LOCALLY"
               : unveil.connectedWinner && round?.processedPrize
                 ? "WINNER AUTHORIZED TO REVEAL"
@@ -34,31 +35,56 @@ export function PrizesPage({ unveil }: { unveil: UnveilController }) {
           </small>
         </div>
       </section>
-      {unveil.connectedWinner && round?.processedPrize ? (
-        <div className="prize-actions">
-          <button
-            className="button-primary"
-            disabled={Boolean(unveil.busy)}
-            onClick={unveil.prize ? unveil.hidePrize : unveil.revealLatestPrize}
-          >
-            {unveil.busy === "reveal-prize"
-              ? "AWAITING WINNER SIGNATURE…"
-              : unveil.prize
-                ? "VEIL MY PRIZE"
-                : "REVEAL MY PRIZE"}
-          </button>
-          <p>These are TEST/DEMO confidential strategy-share units—not csteakcUSDC or production market yield.</p>
+      <section className="my-prizes">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">MY DELIVERED PRIZES</span>
+            <h2>CHOOSE A ROUND TO UNVEIL.</h2>
+          </div>
+          <p>TEST/DEMO confidential strategy-share units—not csteakcUSDC or production market yield.</p>
         </div>
-      ) : (
-        <div className="notice">
-          <strong>{round?.processedPrize ? "CONNECTED WALLET IS NOT THE WINNER" : status}</strong>
-          <p>
-            {round?.processedPrize
-              ? "Only the finalized winner can decrypt the delivered amount."
-              : "Prize processing advances in finalized-round order."}
-          </p>
-        </div>
-      )}
+        {!unveil.connected ? (
+          <div className="empty-state">
+            <span>WALLET DISCONNECTED</span>
+            <p>Connect the winner wallet to find its recent processed prize rounds.</p>
+          </div>
+        ) : unveil.myDeliveredPrizes.length === 0 ? (
+          <div className="empty-state">
+            <span>NO DELIVERED PRIZE IN RECENT HISTORY</span>
+            <p>This wallet is not the processed winner of a finalized round in the loaded history window.</p>
+          </div>
+        ) : (
+          <div className="prize-list">
+            {unveil.myDeliveredPrizes.map((deliveredRound) => {
+              const revealed = unveil.prize?.roundId === deliveredRound.id;
+              const revealing = unveil.busy === `reveal-prize-${deliveredRound.id}`;
+              return (
+                <article className={revealed ? "revealed" : ""} key={deliveredRound.id.toString()}>
+                  <div>
+                    <span>ROUND</span>
+                    <strong>{deliveredRound.id.toString().padStart(2, "0")}</strong>
+                  </div>
+                  <div>
+                    <span>STATUS</span>
+                    <strong>DELIVERED</strong>
+                  </div>
+                  <div className="prize-list-value">
+                    <span>CONFIDENTIAL SHARES</span>
+                    <strong>{revealed ? unveil.prize?.value.toString() : "••••••"}</strong>
+                  </div>
+                  <button
+                    className="button-secondary"
+                    disabled={Boolean(unveil.busy)}
+                    onClick={() => (revealed ? unveil.hidePrize() : unveil.revealPrizeForRound(deliveredRound.id))}
+                  >
+                    {revealing ? "AWAITING WINNER SIGNATURE…" : revealed ? "VEIL PRIZE" : "UNVEIL PRIZE"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
       <section className="explain-grid">
         <article>
           <span>AUTOMATIC DELIVERY</span>

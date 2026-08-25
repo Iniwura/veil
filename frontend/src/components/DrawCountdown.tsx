@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { drawCountdownLabel } from "../lib/format";
 
 function remaining(closesAt?: bigint) {
   if (!closesAt) return { display: "—", closed: false };
@@ -16,16 +17,28 @@ function remaining(closesAt?: bigint) {
   };
 }
 
-export function DrawCountdown({ closesAt, ready }: { closesAt?: bigint; ready?: boolean }) {
+export function DrawCountdown({
+  closesAt,
+  timeReady,
+  ready,
+  insufficientParticipants,
+}: {
+  closesAt?: bigint;
+  timeReady?: boolean;
+  ready?: boolean;
+  insufficientParticipants?: boolean;
+}) {
   const [value, setValue] = useState(() => remaining(closesAt));
   useEffect(() => {
     setValue(remaining(closesAt));
     const timer = window.setInterval(() => setValue(remaining(closesAt)), 1000);
     return () => window.clearInterval(timer);
   }, [closesAt]);
+  const closed = timeReady || value.closed;
+  const label = drawCountdownLabel({ closed: Boolean(closed), ready, insufficientParticipants, display: value.display });
   return (
     <span className="draw-countdown" aria-label="Time until scheduled draw close">
-      {ready || value.closed ? "READY TO ADVANCE" : value.display}
+      {label}
     </span>
   );
 }

@@ -31,3 +31,18 @@ export function drawStateLabel(schedule?: {
   if (schedule.timeReady) return "CLOSED";
   return "OPEN";
 }
+
+export function drawCountdownLabel({
+  closed,
+  ready,
+  insufficientParticipants,
+  display,
+}: {
+  closed: boolean;
+  ready?: boolean;
+  insufficientParticipants?: boolean;
+  display: string;
+}) {
+  if (!closed && !ready) return display;
+  return insufficientParticipants ? "READY TO SKIP" : "READY TO DRAW / ADVANCE";
+}

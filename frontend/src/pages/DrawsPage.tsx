@@ -26,7 +26,12 @@ export function DrawsPage({ unveil }: { unveil: UnveilController }) {
         </div>
         <div className="draw-focus-copy">
           <span className="eyebrow">ROUND {schedule?.currentRoundId.toString() ?? "—"}</span>
-          <DrawCountdown closesAt={schedule?.closesAt} ready={schedule?.ready} />
+          <DrawCountdown
+            closesAt={schedule?.closesAt}
+            timeReady={schedule?.timeReady}
+            ready={schedule?.ready}
+            insufficientParticipants={schedule?.insufficientParticipants}
+          />
           <strong className="state-word">{drawStateLabel(schedule)}</strong>
         </div>
       </section>

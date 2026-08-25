@@ -4,6 +4,8 @@ export function productError(error: unknown) {
       ? Number((error as { code?: unknown }).code)
       : undefined;
   const message = error instanceof Error ? error.message : "";
+  if (message.toLowerCase().includes("wallet account changed"))
+    return "Wallet account changed. Reconnect to load the current account.";
   if (code === 4001 || message.toLowerCase().includes("user rejected")) return "Request cancelled in your wallet.";
   if (message.toLowerCase().includes("insufficient funds")) return "Not enough Sepolia ETH to pay network gas.";
   if (message.startsWith("UNVEIL_TEST_FUNDING_FAILED:"))

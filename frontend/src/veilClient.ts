@@ -22,6 +22,22 @@ type ZamaRelayerSDK = {
 type EthereumProvider = Eip1193Provider & {
   isMetaMask?: boolean;
   providers?: EthereumProvider[];
+  on?: {
+    (event: "accountsChanged", listener: (accounts: string[]) => void): void;
+    (event: "chainChanged", listener: (chainId: string) => void): void;
+    (event: "disconnect", listener: (error: unknown) => void): void;
+  };
+  removeListener?: {
+    (event: "accountsChanged", listener: (accounts: string[]) => void): void;
+    (event: "chainChanged", listener: (chainId: string) => void): void;
+    (event: "disconnect", listener: (error: unknown) => void): void;
+  };
+};
+
+export type WalletLifecycleHandlers = {
+  accountsChanged: (accounts: string[]) => void;
+  chainChanged: (chainId: string) => void;
+  disconnect: (error: unknown) => void;
 };
 
 declare global {
@@ -155,6 +171,10 @@ export type MyVault = {
 let relayerPromise: Promise<FhevmInstance> | null = null;
 let sdkPromise: Promise<boolean> | null = null;
 
+export function resetWalletRelayer() {
+  relayerPromise = null;
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => reject(new Error(message)), ms);
@@ -218,6 +238,65 @@ function injectedProvider() {
   return providers.find((provider) => provider.isMetaMask) ?? root;
 }
 
+export function subscribeWalletLifecycle(handlers: WalletLifecycleHandlers) {
+  let ethereum: EthereumProvider;
+  try {
+    ethereum = injectedProvider();
+  } catch {
+    return () => undefined;
+  }
+  if (!ethereum.on || !ethereum.removeListener) return () => undefined;
+
+  const accountsChanged = (accounts: string[]) => {
+    resetWalletRelayer();
+    handlers.accountsChanged(accounts);
+  };
+  const chainChanged = (chainId: string) => {
+    resetWalletRelayer();
+    handlers.chainChanged(chainId);
+  };
+  const disconnect = (error: unknown) => {
+    resetWalletRelayer();
+    handlers.disconnect(error);
+  };
+
+  ethereum.on("accountsChanged", accountsChanged);
+  ethereum.on("chainChanged", chainChanged);
+  ethereum.on("disconnect", disconnect);
+  return () => {
+    ethereum.removeListener?.("accountsChanged", accountsChanged);
+    ethereum.removeListener?.("chainChanged", chainChanged);
+    ethereum.removeListener?.("disconnect", disconnect);
+  };
+}
+
+export function parseWalletChainId(chainId: string) {
+  try {
+    const parsed = Number(BigInt(chainId));
+    return Number.isSafeInteger(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function readInjectedWalletState() {
+  try {
+    const ethereum = injectedProvider();
+    const [chainId, accounts] = await Promise.all([
+      ethereum.request({ method: "eth_chainId" }),
+      ethereum.request({ method: "eth_accounts" }),
+    ]);
+    return {
+      chainId: typeof chainId === "string" ? parseWalletChainId(chainId) : undefined,
+      accounts: Array.isArray(accounts)
+        ? accounts.filter((account): account is string => typeof account === "string")
+        : [],
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function rpcErrorCode(error: unknown) {
   if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
   return Number((error as { code?: unknown }).code);
@@ -239,10 +318,18 @@ export async function connectWallet() {
     "Wallet did not respond to connection.",
   );
   await ensureSepolia(ethereum);
-  relayerPromise = null;
+  resetWalletRelayer();
   const provider: EthersBrowserProvider = new BrowserProvider(ethereum);
   const signer = await provider.getSigner();
-  return { provider, signer, address: await signer.getAddress() };
+  const address = await signer.getAddress();
+  const accounts = await ethereum.request({ method: "eth_accounts" });
+  if (
+    !Array.isArray(accounts) ||
+    !accounts.some((account) => typeof account === "string" && account.toLowerCase() === address.toLowerCase())
+  ) {
+    throw new Error("Wallet account changed during connection. Reconnect to load the current account.");
+  }
+  return { provider, signer, address };
 }
 
 export async function ensureSepolia(ethereum = injectedProvider()) {
@@ -268,7 +355,7 @@ export async function ensureSepolia(ethereum = injectedProvider()) {
   if ((await ethereum.request({ method: "eth_chainId" })) !== chainIdHex) {
     throw new Error("UNVEIL requires Sepolia. Switch your wallet to Sepolia and retry.");
   }
-  relayerPromise = null;
+  resetWalletRelayer();
 }
 
 export function contracts(signer: JsonRpcSigner) {
@@ -740,4 +827,15 @@ export async function readPublicProtocol() {
 
 export function isConnectedWinner(address: string, round?: VerifiedRound) {
   return Boolean(round?.winner && round.winner !== ZeroAddress && round.winner.toLowerCase() === address.toLowerCase());
+}
+
+export function deliveredPrizesForAddress(history: VerifiedRound[], address: string) {
+  if (!address) return [];
+  return history.filter(
+    (round) => round.status === "FINALIZED" && round.processedPrize && isConnectedWinner(address, round),
+  );
+}
+
+export function deliveredPrizeForRound(history: VerifiedRound[], address: string, roundId: bigint) {
+  return deliveredPrizesForAddress(history, address).find((round) => round.id === roundId);
 }
