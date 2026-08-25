@@ -17,9 +17,9 @@ integration, change the frontend, deploy contracts, or replace the current demo 
    not let `VeilPool` directly own strategy shares.
 4. Use one route-specific `BatcherConfidential` deposit batcher for cUSDC → csteakcUSDC and one withdrawal batcher for
    csteakcUSDC → cUSDC.
-5. Implement both batchers as thin, route-specific contracts inheriting the audited v0.5.2 primitive. Treat the manager
-   as the only participant recognized by UNVEIL accounting, while leaving dispatch, callbacks, and claims permissionless
-   and state-gated.
+5. Implement both batchers as thin, route-specific contracts inheriting the version-pinned v0.5.2 primitive. Treat the
+   manager as the only participant recognized by UNVEIL accounting, while leaving dispatch, callbacks, and claims
+   permissionless and state-gated.
 6. Pay prizes in encrypted `csteakcUSDC` shares. This preserves confidential yield-bearing ownership and avoids a second
    public redemption step at prize claim time.
 7. Make withdrawals synchronous only when the encrypted cUSDC buffer can satisfy the request; otherwise create an
@@ -176,8 +176,8 @@ acknowledged public and griefing surface, not a source of UNVEIL credit:
   route becomes unavailable.
 
 “Dedicated route” therefore means a fixed token/vault route and accounting boundary; it does not mean cryptographic
-manager exclusivity. A future audited primitive with a hook before the non-virtual callback could provide that stronger
-property, but this design does not assume one.
+manager exclusivity. A future independently reviewed primitive with a hook before the non-virtual callback could provide
+that stronger property, but this design does not assume one.
 
 ### Why a liquidity buffer is required
 
@@ -631,8 +631,8 @@ outcomes, but never event plaintext individual amounts.
 | -------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
 | User asset           | Official cUSDC `0xe978...72B2`                                                             | Official `cUSDCMock` `0x7c5B...3639`                                                            |
 | Yield route          | Official csteakcUSDC wrapper and Steakhouse/Morpho vault, subject to ABI/fork verification | Controlled test-only ERC-4626 strategy with the same adapter interface                          |
-| Yield claim          | Actual strategy performance measured from shares and public vault rate                     | Simulated strategy state, explicitly labelled as simulation; no “real yield” claim              |
-| Batchers             | Two deployed, audited-version route contracts tied to the official wrappers                | Two concrete demo route contracts using the same v0.5.2 base and lifecycle                      |
+| Yield claim          | Actual strategy performance measured from shares and public vault rate                     | Simulated strategy state, explicitly labelled as simulation; no market-yield claim              |
+| Batchers             | Two deployed, version-pinned route contracts tied to the official wrappers                 | Two concrete demo route contracts using the same v0.5.2 base and lifecycle                      |
 | Principal withdrawal | Buffer-covered instant path, otherwise asynchronous withdrawal batch                       | Same buffer/queue UX and failure states, exercised against the mock route                       |
 | Prize asset          | csteakcUSDC                                                                                | Mock confidential share token representing the same interface; not an official Steakhouse asset |
 | Deployment           | Fresh versioned deployment with addresses pinned in configuration                          | Fresh versioned demo deployment; do not reuse the current owner-funded `VeilYieldSource`        |
@@ -702,7 +702,7 @@ Concrete batcher routes need:
 4. For Slice 3A, deploy `VeilPoolV2`, then `VeilStrategyManagerV2`, then call the one-time `configureStrategyManager`;
    deploy and wire `VeilPrizeVaultV2` only in Slice 3B.
 5. Seed only a documented cUSDC buffer. Do not migrate principal silently; users opt into the new pool and receive no
-   implicit share conversion unless a separately audited migration contract is added.
+   implicit share conversion unless a separately reviewed migration contract is added.
 6. On Sepolia, deploy the same route boundary against `cUSDCMock` and the controlled mock ERC-4626 strategy. Mark all
    addresses and simulated performance in the deployment output.
 7. Retire or clearly label `VeilYieldSource`'s `accrueYield` and `allocateToRound` as demo-only. Do not present them as
@@ -891,7 +891,7 @@ cUSDC custody remain independent of prize processing.
 - Mainnet-fork test at the pinned production addresses, including the exact vault ABI and wrapper behavior.
 - Sepolia test against the official cUSDCMock wrapper plus the controlled mock strategy, with no production-address
   fallback.
-- Never label the mock strategy's deterministic exchange-rate changes as market or real yield.
+- Never label the mock strategy's deterministic exchange-rate changes as market yield.
 
 ## Unresolved risks
 
@@ -913,7 +913,7 @@ cUSDC custody remain independent of prize processing.
    KMS/wrapper liveness; the buffer mitigates this risk but does not prove universal availability.
 7. csteakcUSDC prizes improve privacy but impose a share-based UX and continued strategy risk on winners.
 8. OpenZeppelin Confidential Contracts is evolving and documents no backward-compatibility guarantee; the selected
-   release must be pinned and re-audited against its exact source commit.
+   release must be pinned and re-reviewed against its exact source commit.
 9. Mainnet strategy losses can make the pool economically undercollateralized. FHE can prevent further prize extraction;
    it cannot make an external strategy solvent.
 10. This document does not validate a live transaction or deploy any new contract. A production decision requires the

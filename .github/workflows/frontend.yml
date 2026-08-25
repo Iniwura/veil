@@ -7,7 +7,7 @@ on:
       - ".github/workflows/frontend.yml"
   push:
     branches:
-      - feat/frontend-polish
+      - main
     paths:
       - "frontend/**"
       - ".github/workflows/frontend.yml"
@@ -25,3 +25,5 @@ jobs:
           node-version: 22.x
       - run: npm ci
       - run: npm run build
+      - run: npm run verify:dist
+      - run: npm audit --omit=dev

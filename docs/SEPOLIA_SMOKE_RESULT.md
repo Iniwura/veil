@@ -70,7 +70,7 @@ VEIL Sepolia smoke test PASSED
 
 The first smoke invocation hit a transient Zama relayer `KEY_URL` fetch failure before the VEIL script began executing. A retry succeeded end to end without redeploying or modifying the contracts.
 
-This result validates the final hardened demo path from encrypted deposits through confidential settlement. It does not claim that the mock asset, owner-controlled demo yield source, or current bounded draw-seat policy are production-ready economic infrastructure.
+This result validates the final hardened demo path from encrypted deposits through confidential settlement. It does not claim that the mock asset, owner-controlled demo yield source, or current bounded draw-seat policy are suitable economic infrastructure for public-value deployment.
 
 ## Superseded hardened deployment
 

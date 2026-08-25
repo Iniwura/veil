@@ -1,50 +1,84 @@
-# VEIL
+# UNVEIL
 
-Private prize savings on Ethereum, powered by Zama FHE.
+## Save privately. Win verifiably.
 
-VEIL lets users deposit confidential balances into a shared prize pool, freeze encrypted round snapshots, run BlindDraw over encrypted weights, route confidential simulated yield into an encrypted prize, and let only the finalized winner decrypt the automatically delivered prize.
+Encrypted to everyone. Unveiled only to you.
 
-The core idea is simple: **balances stay private, selection stays blind, winners stay verifiable.**
+UNVEIL is a private prize-savings testnet build powered by Zama FHE. It keeps
+balances, draw weights, and prize values encrypted while preserving a fixed,
+permissionless draw schedule, a publicly verified winner, and confidential
+automatic prize delivery.
 
-## Why VEIL
+### LIVE DEMO
 
-Traditional prize-savings systems expose user balances, deposit sizes, and often implied winning odds onchain. VEIL uses Fully Homomorphic Encryption so the pool can operate on encrypted values without revealing them.
+Not hosted yet. This release candidate has no public URL; do not invent one.
 
-Private:
+## What UNVEIL demonstrates
 
-- User balance plaintext
-- Deposit and withdrawal amounts
-- Snapshot weight plaintext
-- Winning odds
-- Prize plaintext before authorized winner decryption
+- Private prize savings with client-side FHE encryption.
+- Encrypted balances and immutable encrypted round weights.
+- Fixed periodic draws that anyone can advance after the scheduled close.
+- BlindDraw selection over ciphertexts rather than plaintext odds.
+- A public winner finalized only with a valid Zama/KMS decryption proof.
+- Confidential automatic delivery through `VeilPrizeVaultV2`; the winner does not submit a claim transaction.
+- A simulated ERC-4626 Sepolia strategy used for test/demo accounting, not a market-yield claim.
+- A live V2 Sepolia deployment and a passing end-to-end smoke result.
 
-Public:
-
-- Wallet addresses
-- Transaction timing and occurrence
-- Active draw-seat membership
-- Round lifecycle
-- Finalized winner or proven cancellation
-- Prize processing and automatic-delivery state
-
-VEIL does not claim full metadata privacy. That boundary is intentional and explicit.
+Wallet addresses, transaction timing, roster membership, round state, winner,
+and prize-processing activity remain public metadata. UNVEIL does not claim
+full metadata privacy.
 
 ## Live UNVEIL V2 Sepolia TEST/DEMO deployment
 
-The active frontend uses the nine-address V2 stack documented in
-[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Its pool is
-`0xFC5E4b552f16975d9d0B28Ab8cd14eE4a3d3Dc76`, its manager is
-`0xFF4106998079309500Ad07d41382436f3fC681E7`, and its prize vault is
-`0x0Dc3d8978ee509EFb71183377E5EAf2f28420525`.
+The active frontend uses this canonical V2 stack. The label `SEPOLIA TEST/DEMO`
+is intentional: `MockUSDC` and `MockYieldVault4626` are implementation names
+for test assets and simulated ERC-4626 strategy behavior. They are not real
+USDC/cUSDC, Steakhouse/Morpho yield, or production market yield.
 
-This deployment uses a TEST token and simulated ERC-4626 strategy. It is not real USDC/cUSDC, official csteakcUSDC,
-Steakhouse/Morpho yield, or production market yield. The live smoke passed for contract source SHA
-`1b959b756c8bec732b4613eb8433322e0062a861`; offchain smoke/test evidence is pinned at
-`24018fda961400a1f5ea344373d90bec2ba83c2a`.
+| Component | Address |
+| --- | --- |
+| MockUSDC | `0x54350EE95601Ed535039993a5eE05FdA1Bd0Ae0C` |
+| PrincipalWrapper | `0xc948EDA1EA4c29d09965d1A15C3AC5B38cBdBB13` |
+| MockYieldVault4626 | `0xa39F57644e77FDb6E4F705F67BC08710d366d289` |
+| ShareWrapper | `0x48129B9c003b69987143d2622dC632Bc651E1F61` |
+| DepositBatcher | `0xb7BFbb875DCF3bd7c0B30536eBf60c284f0De2f1` |
+| WithdrawalBatcher | `0xa5f1B091ac896C01f73d47100666d80961FC4620` |
+| VeilPoolV2 | `0xFC5E4b552f16975d9d0B28Ab8cd14eE4a3d3Dc76` |
+| VeilPrizeVaultV2 | `0x0Dc3d8978ee509EFb71183377E5EAf2f28420525` |
+| VeilStrategyManagerV2 | `0xFF4106998079309500Ad07d41382436f3fC681E7` |
 
-## Legacy VEIL V1 Sepolia deployment
+Contract source SHA: `1b959b756c8bec732b4613eb8433322e0062a861`.
+Offchain smoke/test evidence SHA: `24018fda961400a1f5ea344373d90bec2ba83c2a`.
+The complete live result is in [`docs/UNVEIL_V2_LIVE_RESULT.md`](docs/UNVEIL_V2_LIVE_RESULT.md).
 
-The original owner-funded V1 deployment is retained as historical evidence and is not used by the active frontend.
+## V2 architecture and flow
+
+1. The browser encrypts a deposit with the Zama Relayer SDK.
+2. `VeilPoolV2` records confidential principal and encrypted draw-seat weight.
+3. At the fixed scheduled close, a permissionless snapshot freezes the eligible roster.
+4. `blindDraw` selects over encrypted weights without revealing balances or odds.
+5. Zama public decryption proves the encrypted winner handle; `finalizeWinner` stores the public winner.
+6. `VeilStrategyManagerV2` accounts for the simulated ERC-4626 strategy and processes finalized rounds in order.
+7. `VeilPrizeVaultV2` delivers the safe confidential surplus directly to the winner.
+
+## Canonical V2 commands
+
+The deployment and smoke scripts are retained for explicit review and repeatable
+testnet verification:
+
+```bash
+npm run deploy:v2:sepolia
+npm run smoke:v2:sepolia
+```
+
+Do not redeploy the canonical live demo merely to run the frontend. Review the
+existing addresses above and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) first.
+
+## Legacy V1 / historical implementation
+
+The original owner-funded V1 deployment and contracts remain in the repository
+for historical reference only. They are not used by the active frontend and
+are not the canonical Sepolia flow.
 
 | Contract | Address |
 | --- | --- |
@@ -53,30 +87,9 @@ The original owner-funded V1 deployment is retained as historical evidence and i
 | VeilYieldSource | `0xdDB2b7fe447c55576F882138d59DE00a7d8EbE3D` |
 | VeilPrizeVault | `0xb580c50192f5d7C613Db4e9427a2fA0C9701Af84` |
 
-The asset is the explicit test-only `MockConfidentialToken` used for controlled protocol integration testing. It is not presented as production infrastructure.
-
-The final Sepolia end-to-end smoke test passed on **23 August 2026**:
-
-- Round: `1`
-- Winner: `0x7d105bd4Ba5a28E9813F75D172BC59D689cA8a84`
-- Prize: `15 encrypted token units`
-- Winner-only prize decryption: **PASS**
-- Confidential prize claim: **PASS**
-
-The execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPOLIA_SMOKE_RESULT.md).
-
-## V2 end-to-end flow
-
-1. A user encrypts a deposit client-side with the Zama Relayer SDK.
-2. `VeilPool` records confidential principal and encrypted draw weight.
-3. A temporary draw seat makes the position eligible for the next snapshot.
-4. A permissionless snapshot freezes the scheduled close-time roster and encrypted participant weights.
-5. `blindDraw` selects over encrypted weights without revealing balances or odds.
-6. Zama public decryption produces a proof for the encrypted winner handle.
-7. `finalizeWinner` verifies the proof and stores the public winner, or records a proven zero-weight cancellation.
-8. `VeilStrategyManagerV2` values simulated ERC-4626 strategy shares and processes rounds in order.
-9. A safe confidential surplus is delivered to the finalized winner through `VeilPrizeVaultV2`.
-10. Only the finalized winner can decrypt the delivered prize; V2 has no winner claim transaction.
+The historical asset is the explicit test-only `MockConfidentialToken`. The
+older V1 smoke record is preserved in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPOLIA_SMOKE_RESULT.md)
+and must not be confused with the active V2 evidence.
 
 ## Confidential transfer semantics
 
@@ -115,7 +128,7 @@ post-close entrants to backfill it.
 State changes that cross scheduled closes cost `O(MAX_PLAYERS)`, historical epoch lookup is `O(log stateEpochCount)`,
 and materializing one historical round is `O(MAX_PLAYERS + log stateEpochCount)`; missed rounds are not replayed one by one.
 
-## Legacy V1 architecture reference
+### Legacy V1 architecture reference
 
 The following diagram and V1 contract descriptions are preserved for historical context. The active frontend uses the
 V2 route and addresses in `docs/DEPLOYMENT.md`.
@@ -148,9 +161,9 @@ Wallet + Zama Relayer SDK
  - confidential claim
 ```
 
-## Legacy V1 contracts
+### Legacy V1 contracts
 
-### `VeilPool.sol`
+#### `VeilPool.sol`
 
 Owns confidential user positions and the draw lifecycle.
 
@@ -164,7 +177,7 @@ Key responsibilities:
 - Blind weighted selection
 - KMS-backed winner finalization and cancellation recovery
 
-### `VeilYieldSource.sol`
+#### `VeilYieldSource.sol`
 
 Represents the confidential demo yield layer.
 
@@ -176,7 +189,7 @@ Key responsibilities:
 - Allocates only to finalized rounds
 - Keeps prize funding separate from user principal and draw weight
 
-### `VeilPrizeVault.sol`
+#### `VeilPrizeVault.sol`
 
 Stores confidential prize assets separately from pool principal.
 
@@ -188,7 +201,7 @@ Key responsibilities:
 - Authorizes only the finalized winner
 - Allows only that winner to decrypt and claim the prize
 
-### `MockConfidentialToken.sol`
+#### `MockConfidentialToken.sol`
 
 Test-only confidential asset used for the Sepolia integration demo. Its permissionless mint is deliberate demo infrastructure and not a production token design.
 
@@ -214,6 +227,9 @@ The frontend deliberately does not show an exact winning percentage. A wallet ma
 weight, but V2 does not grant it decryption rights for the encrypted aggregate snapshot weight. Dividing by the public
 participant count would be mathematically incorrect for a weighted draw.
 
+Production hosting requirements are documented in [`docs/FRONTEND_HOSTING.md`](docs/FRONTEND_HOSTING.md). No hosting
+provider has been selected or configured in this release candidate.
+
 ### Run the frontend
 
 ```bash
@@ -226,6 +242,7 @@ Production build:
 
 ```bash
 npm run build
+npm run verify:dist
 ```
 
 ## Local contract setup
@@ -259,7 +276,10 @@ Run coverage:
 npm run coverage
 ```
 
-## Sepolia deployment and smoke test
+## Legacy V1 deployment and smoke test (historical)
+
+The commands in this section are retained only for the historical V1 records.
+Use the V2 commands near the top of this README for the active architecture.
 
 Store secrets with Hardhat's encrypted variables rather than committing them:
 
@@ -268,14 +288,14 @@ npx hardhat vars set MNEMONIC
 npx hardhat vars set SEPOLIA_RPC_URL
 ```
 
-Deploy the explicit demo asset stack:
+Deploy the historical V1 demo asset stack:
 
 ```bash
 VEIL_DEPLOY_DEMO_ASSET=true \
 npx hardhat deploy --network sepolia --tags VEIL --reset
 ```
 
-Run the live end-to-end flow:
+Run the historical V1 end-to-end flow:
 
 ```bash
 npx hardhat run scripts/sepolia-smoke.ts --network sepolia
@@ -317,26 +337,37 @@ Important limitations:
 
 ```text
 contracts/
-  VeilPool.sol
-  VeilPrizeVault.sol
-  VeilYieldSource.sol
-  MockConfidentialToken.sol
+  VeilPoolV2.sol
+  VeilPrizeVaultV2.sol
+  strategy/
+    VeilStrategyManagerV2.sol
+  VeilPool.sol                 # Legacy V1 / historical
+  VeilPrizeVault.sol           # Legacy V1 / historical
+  VeilYieldSource.sol          # Legacy V1 / historical
 
 deploy/
-  deploy.ts
+  deploy-v2.ts
+  deploy.ts                    # Legacy V1 / historical
+
+batchers/
+  routes are implemented under contracts/strategy/
 
 scripts/
+  sepolia-v2-smoke.ts
   sepolia-smoke.ts
-  sepolia-next-round.ts
+  sepolia-next-round.ts         # Legacy V1 / historical
 
 frontend/
+  src/components/
+  src/pages/
+  src/hooks/
   React + Vite demo
 
 test/
   VEIL FHEVM protocol tests
 
 docs/
-  audit and Sepolia verification evidence
+  hosting, deployment, live evidence, and demo documentation
 ```
 
 ## Built with
@@ -354,6 +385,6 @@ docs/
 
 ## Status
 
-**Final Sepolia deployment live. End-to-end confidential smoke test passed. Browser deposit, private reveal, and oversized-withdrawal regression passed.**
+**UNVEIL V2 Sepolia TEST/DEMO deployment documented. Live V2 smoke passed. Frontend release candidate is locally verified; hosting remains a separate next slice.**
 
-VEIL is built for the Zama Developer Program Mainnet Season 4.
+UNVEIL is built for the Zama Developer Program Mainnet Season 4.
