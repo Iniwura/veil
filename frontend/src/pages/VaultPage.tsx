@@ -1,42 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { VeilReveal } from "../components/VeilReveal";
 import type { UnveilController } from "../hooks/useUnveil";
 
-function MotionDebugVault() {
-  const [state, setState] = useState<"sealed" | "busy" | "revealed">("sealed");
-  const revealed = state === "revealed";
-  const busy = state === "busy";
-  return (
-    <section className="motion-debug" aria-label="Development-only private reveal motion harness">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">LOCAL MOTION HARNESS · NO PROTOCOL DATA</span>
-          <h2>PRIVATE REVEAL STATES.</h2>
-        </div>
-        <div className="motion-debug-controls">
-          <button className="button-secondary" onClick={() => setState("sealed")}>
-            SEALED
-          </button>
-          <button className="button-secondary" onClick={() => setState("busy")}>
-            IN PROGRESS
-          </button>
-          <button className="button-secondary" onClick={() => setState("revealed")}>
-            REVEALED
-          </button>
-        </div>
-      </div>
-      <div className="motion-debug-grid">
-        <VeilReveal label="Harness principal" value={12n} revealed={revealed} busy={busy} unit=" TEST UNITS" />
-        <VeilReveal label="Harness reserved" value={3n} revealed={revealed} busy={busy} unit=" TEST UNITS" />
-        <VeilReveal label="Harness shares" value={37n} revealed={revealed} busy={busy} unit=" TEST SHARE UNITS" />
-      </div>
-      <p>These local constants exist only in the development motion gallery and never enter the product controller.</p>
-    </section>
-  );
-}
+const MotionDebugVault = import.meta.env.DEV ? lazy(() => import("../dev/MotionDebugVault")) : null;
 
 export function VaultPage({ unveil }: { unveil: UnveilController }) {
-  const showMotionDebug = new URLSearchParams(window.location.search).get("motionDebug") === "1";
+  const showMotionDebug =
+    import.meta.env.DEV && new URLSearchParams(window.location.search).get("motionDebug") === "1";
   const roundIds = useMemo(() => unveil.history.map((round) => round.id), [unveil.history]);
   const [roundId, setRoundId] = useState("");
   const selectedRoundId = roundIds.some((id) => id.toString() === roundId) ? roundId : (roundIds[0]?.toString() ?? "");
@@ -171,7 +141,11 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
           decrypt. Public participant count is not a mathematically valid denominator for a weighted draw.
         </p>
       </section>
-      {showMotionDebug && <MotionDebugVault />}
+      {showMotionDebug && MotionDebugVault && (
+        <Suspense fallback={null}>
+          <MotionDebugVault />
+        </Suspense>
+      )}
     </div>
   );
 }
