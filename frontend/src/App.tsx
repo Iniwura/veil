@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { Onboarding } from "./components/Onboarding";
 import { useRoute } from "./hooks/useRoute";
+import { useDocumentMotion } from "./hooks/useMotion";
 import { useUnveil } from "./hooks/useUnveil";
 import { DrawsPage } from "./pages/DrawsPage";
 import { HistoryPage } from "./pages/HistoryPage";
@@ -13,6 +14,7 @@ import { SavePage } from "./pages/SavePage";
 import { VaultPage } from "./pages/VaultPage";
 
 export default function App() {
+  useDocumentMotion();
   const route = useRoute();
   const unveil = useUnveil();
   const [replayToken, setReplayToken] = useState(0);

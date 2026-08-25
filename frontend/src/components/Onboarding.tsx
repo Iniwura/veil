@@ -15,6 +15,52 @@ const STEPS = [
   ],
 ] as const;
 
+function GuideVisual({ step }: { step: number }) {
+  return (
+    <div className={`guide-visual guide-visual--${step}`} aria-hidden="true">
+      {step === 0 && (
+        <>
+          <span>100 TEST</span>
+          <i>→</i>
+          <strong>████████</strong>
+        </>
+      )}
+      {step === 1 && (
+        <>
+          <strong>████████</strong>
+          <div className="guide-field">
+            <i />
+            <i />
+            <i />
+            <i />
+          </div>
+        </>
+      )}
+      {step === 2 && (
+        <div className="guide-timeline">
+          <i>OPEN</i>
+          <i>CLOSE</i>
+          <i>NEXT</i>
+        </div>
+      )}
+      {step === 3 && (
+        <>
+          <span>WALLET SIGNATURE</span>
+          <i>→</i>
+          <strong>UNVEIL</strong>
+        </>
+      )}
+      {step === 4 && (
+        <>
+          <span>DELIVERED</span>
+          <i>↓</i>
+          <strong>••••••</strong>
+        </>
+      )}
+    </div>
+  );
+}
+
 function onboardingCompleted() {
   return window.localStorage.getItem(STORAGE_KEY) === "true";
 }
@@ -64,6 +110,7 @@ export function Onboarding({ replayToken }: { replayToken: number }) {
             <span className="eyebrow">STEP {step + 1}</span>
             <h2 id="guide-title">{STEPS[step][0]}</h2>
             <p>{STEPS[step][1]}</p>
+            <GuideVisual step={step} />
             <div className="guide-progress" aria-hidden="true">
               {STEPS.map((_, index) => (
                 <i className={index <= step ? "active" : ""} key={index} />

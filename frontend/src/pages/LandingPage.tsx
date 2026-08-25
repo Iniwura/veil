@@ -2,10 +2,12 @@ import { useState } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { DemoBadge } from "../components/DemoBadge";
 import { DrawCountdown } from "../components/DrawCountdown";
+import { EncryptedDrawField, type EncryptedDrawFieldState } from "../components/EncryptedDrawField";
 import { RouteLink } from "../components/RouteLink";
 import { RoundHistory } from "../components/RoundHistory";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
+import { useRevealOnScroll } from "../hooks/useMotion";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
 const STORY = [
@@ -16,8 +18,16 @@ const STORY = [
 ] as const;
 
 export function LandingPage({ unveil }: { unveil: UnveilController }) {
+  useRevealOnScroll();
   const [storyStep, setStoryStep] = useState(0);
   const schedule = unveil.schedule;
+  const drawFieldState: EncryptedDrawFieldState = schedule?.insufficientParticipants
+    ? "INSUFFICIENT"
+    : schedule?.overdue
+      ? "OVERDUE"
+      : schedule?.ready || schedule?.timeReady
+        ? "READY"
+        : "OPEN";
   return (
     <main className="landing-page">
       <header className="landing-nav">
@@ -69,6 +79,12 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
             <span>PUBLIC LIFECYCLE</span>
             <span>PRIVATE VALUES</span>
           </div>
+          <EncryptedDrawField
+            compact
+            roundId={schedule?.currentRoundId}
+            participantCount={unveil.publicProtocol?.playerCount}
+            state={drawFieldState}
+          />
           <div className="protocol-selector" role="tablist" aria-label="Protocol story">
             {STORY.map((item, index) => (
               <button
@@ -83,7 +99,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
               </button>
             ))}
           </div>
-          <div className="protocol-focus">
+          <div className="protocol-focus protocol-focus--unveil" key={storyStep}>
             <span>0{storyStep + 1}</span>
             <div>
               <small>{STORY[storyStep][0]}</small>
@@ -110,7 +126,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         </div>
       </section>
 
-      <div className="trust-strip">
+      <div className="trust-strip" data-reveal>
         <span>ZAMA FHE</span>
         <span>SEPOLIA V2 LIVE</span>
         <span>AUTONOMOUS BLIND DRAW</span>
@@ -118,7 +134,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         <DemoBadge />
       </div>
 
-      <section className="editorial-section problem-section" id="privacy">
+      <section className="editorial-section problem-section" id="privacy" data-reveal>
         <div>
           <p className="eyebrow">THE PRIVACY PROBLEM</p>
           <h2>SAVING SHOULDN'T PUBLISH YOUR FINANCIAL POSITION.</h2>
@@ -135,7 +151,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         </div>
       </section>
 
-      <section className="numbered-process">
+      <section className="numbered-process" data-reveal>
         {[
           ["01", "SAVE", "TEST token becomes confidential principal before an encrypted pool deposit."],
           ["02", "ENTER", "An active seat makes the encrypted balance eligible for the scheduled draw."],
@@ -151,7 +167,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         ))}
       </section>
 
-      <section className="comparison-section">
+      <section className="comparison-section" data-reveal>
         <div className="comparison-head">
           <p className="eyebrow">VISIBLE BY DESIGN</p>
           <h2>
@@ -188,7 +204,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         </p>
       </section>
 
-      <section className="live-proof-section">
+      <section className="live-proof-section" data-reveal>
         <div className="live-proof-head">
           <div>
             <p className="eyebrow">CURRENT DRAW · LIVE SEPOLIA</p>
@@ -225,7 +241,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         </a>
       </section>
 
-      <section className="security-section" id="security">
+      <section className="security-section" id="security" data-reveal>
         <div>
           <p className="eyebrow">SECURITY + ARCHITECTURE</p>
           <h2>ENCRYPTION IS THE PRODUCT BOUNDARY.</h2>
@@ -254,7 +270,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         </div>
       </section>
 
-      <section className="faq-section">
+      <section className="faq-section" data-reveal>
         <p className="eyebrow">FAQ</p>
         <h2>THE IMPORTANT DETAILS.</h2>
         <details>
@@ -287,7 +303,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
         </details>
       </section>
 
-      <section className="final-cta">
+      <section className="final-cta" data-reveal>
         <BrandMark />
         <p className="eyebrow">ENCRYPTED TO EVERYONE. UNVEILED ONLY TO YOU.</p>
         <h2>

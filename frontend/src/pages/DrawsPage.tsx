@@ -1,10 +1,19 @@
 import { DrawCountdown } from "../components/DrawCountdown";
+import { EncryptedDrawField, type EncryptedDrawFieldState } from "../components/EncryptedDrawField";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
 export function DrawsPage({ unveil }: { unveil: UnveilController }) {
   const schedule = unveil.schedule;
+  const participantCount = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
+  const fieldState: EncryptedDrawFieldState = schedule?.insufficientParticipants
+    ? "INSUFFICIENT"
+    : schedule?.overdue
+      ? "OVERDUE"
+      : schedule?.ready || schedule?.timeReady
+        ? "READY"
+        : "OPEN";
   const steps = ["OPEN", "SNAPSHOT", "BLIND DRAW", "FINALIZE", "DELIVER"];
   return (
     <div className="page-stack route-enter">
@@ -17,13 +26,8 @@ export function DrawsPage({ unveil }: { unveil: UnveilController }) {
         </h1>
         <p>The draw is weighted by encrypted balances. Participant count is public; individual weights are private.</p>
       </header>
-      <section className="draw-focus">
-        <div className="draw-orbit" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <span>{schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</span>
-        </div>
+      <section className="draw-focus draw-focus--field">
+        <EncryptedDrawField roundId={schedule?.currentRoundId} participantCount={participantCount} state={fieldState} />
         <div className="draw-focus-copy">
           <span className="eyebrow">ROUND {schedule?.currentRoundId.toString() ?? "—"}</span>
           <DrawCountdown
@@ -46,7 +50,7 @@ export function DrawsPage({ unveil }: { unveil: UnveilController }) {
         </div>
         <div>
           <span>PARTICIPANTS</span>
-          <strong>{unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
+          <strong>{participantCount ?? "—"}</strong>
         </div>
         <div>
           <span>UNSETTLED ROUNDS</span>

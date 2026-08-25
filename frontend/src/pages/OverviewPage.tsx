@@ -1,5 +1,5 @@
 import { DrawCountdown } from "../components/DrawCountdown";
-import { PrivateStat } from "../components/PrivateStat";
+import { VeilReveal } from "../components/VeilReveal";
 import { RoundHistory } from "../components/RoundHistory";
 import { RouteLink } from "../components/RouteLink";
 import { WithdrawalStatus } from "../components/WithdrawalStatus";
@@ -82,20 +82,29 @@ export function OverviewPage({ unveil }: { unveil: UnveilController }) {
             </RouteLink>
           </div>
           <div className="private-stat-grid">
-            <PrivateStat
+            <VeilReveal
+              compact
               label="Active principal"
               value={unveil.vault?.activePrincipal}
               revealed={Boolean(unveil.vault)}
+              busy={unveil.busy === "reveal-vault"}
+              unit=" TEST"
             />
-            <PrivateStat
+            <VeilReveal
+              compact
               label="Reserved withdrawal"
               value={unveil.vault?.reservedPrincipal}
               revealed={Boolean(unveil.vault)}
+              busy={unveil.busy === "reveal-vault"}
+              unit=" TEST"
             />
-            <PrivateStat
+            <VeilReveal
+              compact
               label="TEST strategy shares"
               value={unveil.vault?.strategySharePrizeBalance}
               revealed={Boolean(unveil.vault)}
+              busy={unveil.busy === "reveal-vault"}
+              unit=" SHARE UNITS"
             />
           </div>
           <button

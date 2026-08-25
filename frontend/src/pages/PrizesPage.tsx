@@ -1,3 +1,4 @@
+import { VeilReveal } from "../components/VeilReveal";
 import type { UnveilController } from "../hooks/useUnveil";
 import { shortAddress } from "../lib/format";
 
@@ -23,16 +24,27 @@ export function PrizesPage({ unveil }: { unveil: UnveilController }) {
           <h2>{status}</h2>
           <p>{round?.winner ? `Finalized winner ${shortAddress(round.winner)}` : "No finalized winner is loaded."}</p>
         </div>
-        <div className="prize-private">
-          <span>CONFIDENTIAL TEST STRATEGY SHARES</span>
-          <strong>{latestReveal ? latestReveal.value.toString() : "••••••"}</strong>
-          <small>
-            {latestReveal
-              ? "UNVEILED LOCALLY"
-              : unveil.connectedWinner && round?.processedPrize
-                ? "WINNER AUTHORIZED TO REVEAL"
-                : "WINNER ONLY"}
-          </small>
+        <div className="prize-delivery-flow">
+          <div>
+            <span>{round ? `ROUND ${round.id.toString().padStart(2, "0")}` : "ROUND —"}</span>
+            <strong>{status}</strong>
+          </div>
+          <i aria-hidden="true">↓</i>
+          <VeilReveal
+            label="Confidential strategy shares"
+            value={latestReveal?.value}
+            revealed={Boolean(latestReveal)}
+            busy={Boolean(round && unveil.busy === `reveal-prize-${round.id}`)}
+            revealedLabel="UNVEILED TO WINNER"
+            detail={
+              latestReveal
+                ? "Delivered before reveal · winner-local display"
+                : unveil.connectedWinner && round?.processedPrize
+                  ? "Delivered · winner authorized to reveal"
+                  : "Delivered amount · winner only"
+            }
+            unit=" TEST SHARE UNITS"
+          />
         </div>
       </section>
       <section className="my-prizes">
@@ -68,10 +80,16 @@ export function PrizesPage({ unveil }: { unveil: UnveilController }) {
                     <span>STATUS</span>
                     <strong>DELIVERED</strong>
                   </div>
-                  <div className="prize-list-value">
-                    <span>CONFIDENTIAL SHARES</span>
-                    <strong>{revealed ? unveil.prize?.value.toString() : "••••••"}</strong>
-                  </div>
+                  <VeilReveal
+                    compact
+                    label="Confidential strategy shares"
+                    value={revealed ? unveil.prize?.value : undefined}
+                    revealed={revealed}
+                    busy={revealing}
+                    revealedLabel="UNVEILED TO WINNER"
+                    detail="Already delivered · no claim"
+                    unit=" TEST SHARE UNITS"
+                  />
                   <button
                     className="button-secondary"
                     disabled={Boolean(unveil.busy)}

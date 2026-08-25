@@ -1,8 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
-import { PrivateStat } from "../components/PrivateStat";
+import { VeilReveal } from "../components/VeilReveal";
 import type { UnveilController } from "../hooks/useUnveil";
 
+function MotionDebugVault() {
+  const [state, setState] = useState<"sealed" | "busy" | "revealed">("sealed");
+  const revealed = state === "revealed";
+  const busy = state === "busy";
+  return (
+    <section className="motion-debug" aria-label="Development-only private reveal motion harness">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">LOCAL MOTION HARNESS · NO PROTOCOL DATA</span>
+          <h2>PRIVATE REVEAL STATES.</h2>
+        </div>
+        <div className="motion-debug-controls">
+          <button className="button-secondary" onClick={() => setState("sealed")}>
+            SEALED
+          </button>
+          <button className="button-secondary" onClick={() => setState("busy")}>
+            IN PROGRESS
+          </button>
+          <button className="button-secondary" onClick={() => setState("revealed")}>
+            REVEALED
+          </button>
+        </div>
+      </div>
+      <div className="motion-debug-grid">
+        <VeilReveal label="Harness principal" value={12n} revealed={revealed} busy={busy} unit=" TEST UNITS" />
+        <VeilReveal label="Harness reserved" value={3n} revealed={revealed} busy={busy} unit=" TEST UNITS" />
+        <VeilReveal label="Harness shares" value={37n} revealed={revealed} busy={busy} unit=" TEST SHARE UNITS" />
+      </div>
+      <p>These local constants exist only in the development motion gallery and never enter the product controller.</p>
+    </section>
+  );
+}
+
 export function VaultPage({ unveil }: { unveil: UnveilController }) {
+  const showMotionDebug = new URLSearchParams(window.location.search).get("motionDebug") === "1";
   const roundIds = useMemo(() => unveil.history.map((round) => round.id), [unveil.history]);
   const [roundId, setRoundId] = useState("");
   const selectedRoundId = roundIds.some((id) => id.toString() === roundId) ? roundId : (roundIds[0]?.toString() ?? "");
@@ -26,32 +60,40 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
         </span>
       </header>
       <section className={`vault-surface ${revealed ? "vault-surface--revealed" : ""}`}>
+        {unveil.busy === "reveal-vault" && (
+          <div className="vault-reveal-progress" role="status" aria-label="Private vault reveal in progress">
+            <i className="active">01 · WALLET AUTHORIZATION</i>
+            <i>02 · DECRYPTING AUTHORIZED CIPHERTEXTS</i>
+            <i>03 · LOCAL REVEAL</i>
+          </div>
+        )}
         <div className="vault-grid">
-          <PrivateStat
+          <VeilReveal
             label="Your private balance"
             value={unveil.vault?.activePrincipal}
             revealed={revealed}
+            busy={unveil.busy === "reveal-vault"}
             detail="TEST confidential principal"
+            unit=" TEST UNITS"
+            stagger={0}
           />
-          <PrivateStat
+          <VeilReveal
             label="Reserved withdrawal"
             value={unveil.vault?.reservedPrincipal}
             revealed={revealed}
+            busy={unveil.busy === "reveal-vault"}
             detail="Accepted principal awaiting settlement"
+            unit=" TEST UNITS"
+            stagger={1}
           />
-          <PrivateStat
+          <VeilReveal
             label="Private strategy shares"
             value={unveil.vault?.strategySharePrizeBalance}
             revealed={revealed}
+            busy={unveil.busy === "reveal-vault"}
             detail="TEST/DEMO confidential shares"
-          />
-          <PrivateStat
-            label="Your draw weight"
-            value={unveil.roundWeight?.value}
-            revealed={Boolean(unveil.roundWeight)}
-            detail={
-              unveil.roundWeight ? `Historical Round ${unveil.roundWeight.roundId}` : "Choose a settled round below"
-            }
+            unit=" TEST SHARE UNITS"
+            stagger={2}
           />
           <div className="private-stat private-stat--odds">
             <span>Your odds</span>
@@ -75,6 +117,7 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
             Veiling clears these values from local presentation only. It does not change ciphertext ACLs or blockchain
             state.
           </p>
+          {revealed && <strong className="vault-local-note">UNVEILED ONLY TO THIS WALLET</strong>}
         </div>
       </section>
       <section className="weight-reveal">
@@ -109,6 +152,17 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
             </button>
           )}
         </div>
+        <VeilReveal
+          compact
+          label={unveil.roundWeight ? "My weight" : "My encrypted weight"}
+          value={unveil.roundWeight?.value}
+          revealed={Boolean(unveil.roundWeight)}
+          busy={unveil.busy === "reveal-weight"}
+          detail={
+            selectedRoundId ? `Immutable snapshot · Round ${selectedRoundId.padStart(2, "0")}` : "No round selected"
+          }
+          unit=" TEST UNITS"
+        />
       </section>
       <section className="odds-explanation">
         <span>WHY NO EXACT ODDS?</span>
@@ -117,6 +171,7 @@ export function VaultPage({ unveil }: { unveil: UnveilController }) {
           decrypt. Public participant count is not a mathematically valid denominator for a weighted draw.
         </p>
       </section>
+      {showMotionDebug && <MotionDebugVault />}
     </div>
   );
 }
