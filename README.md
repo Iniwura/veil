@@ -2,7 +2,7 @@
 
 Private prize savings on Ethereum, powered by Zama FHE.
 
-VEIL lets users deposit confidential balances into a shared prize pool, freeze encrypted round snapshots, run BlindDraw over encrypted weights, route confidential yield into an encrypted prize, and let only the finalized winner decrypt and claim that prize.
+VEIL lets users deposit confidential balances into a shared prize pool, freeze encrypted round snapshots, run BlindDraw over encrypted weights, route confidential simulated yield into an encrypted prize, and let only the finalized winner decrypt the automatically delivered prize.
 
 The core idea is simple: **balances stay private, selection stays blind, winners stay verifiable.**
 
@@ -25,13 +25,26 @@ Public:
 - Active draw-seat membership
 - Round lifecycle
 - Finalized winner or proven cancellation
-- Prize authorization and claim state
+- Prize processing and automatic-delivery state
 
 VEIL does not claim full metadata privacy. That boundary is intentional and explicit.
 
-## Final Sepolia deployment
+## Live UNVEIL V2 Sepolia TEST/DEMO deployment
 
-VEIL is deployed and tested on Ethereum Sepolia.
+The active frontend uses the nine-address V2 stack documented in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Its pool is
+`0xFC5E4b552f16975d9d0B28Ab8cd14eE4a3d3Dc76`, its manager is
+`0xFF4106998079309500Ad07d41382436f3fC681E7`, and its prize vault is
+`0x0Dc3d8978ee509EFb71183377E5EAf2f28420525`.
+
+This deployment uses a TEST token and simulated ERC-4626 strategy. It is not real USDC/cUSDC, official csteakcUSDC,
+Steakhouse/Morpho yield, or production market yield. The live smoke passed for contract source SHA
+`1b959b756c8bec732b4613eb8433322e0062a861`; offchain smoke/test evidence is pinned at
+`24018fda961400a1f5ea344373d90bec2ba83c2a`.
+
+## Legacy VEIL V1 Sepolia deployment
+
+The original owner-funded V1 deployment is retained as historical evidence and is not used by the active frontend.
 
 | Contract | Address |
 | --- | --- |
@@ -52,7 +65,7 @@ The final Sepolia end-to-end smoke test passed on **23 August 2026**:
 
 The execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPOLIA_SMOKE_RESULT.md).
 
-## End-to-end flow
+## V2 end-to-end flow
 
 1. A user encrypts a deposit client-side with the Zama Relayer SDK.
 2. `VeilPool` records confidential principal and encrypted draw weight.
@@ -61,9 +74,9 @@ The execution record is documented in [`docs/SEPOLIA_SMOKE_RESULT.md`](docs/SEPO
 5. `blindDraw` selects over encrypted weights without revealing balances or odds.
 6. Zama public decryption produces a proof for the encrypted winner handle.
 7. `finalizeWinner` verifies the proof and stores the public winner, or records a proven zero-weight cancellation.
-8. `VeilYieldSource` records asset-backed confidential demo yield.
-9. Yield is allocated to a finalized round as an encrypted prize in `VeilPrizeVault`.
-10. Only the finalized winner is authorized to decrypt and claim the prize.
+8. `VeilStrategyManagerV2` values simulated ERC-4626 strategy shares and processes rounds in order.
+9. A safe confidential surplus is delivered to the finalized winner through `VeilPrizeVaultV2`.
+10. Only the finalized winner can decrypt the delivered prize; V2 has no winner claim transaction.
 
 ## Confidential transfer semantics
 
@@ -102,7 +115,10 @@ post-close entrants to backfill it.
 State changes that cross scheduled closes cost `O(MAX_PLAYERS)`, historical epoch lookup is `O(log stateEpochCount)`,
 and materializing one historical round is `O(MAX_PLAYERS + log stateEpochCount)`; missed rounds are not replayed one by one.
 
-## Architecture
+## Legacy V1 architecture reference
+
+The following diagram and V1 contract descriptions are preserved for historical context. The active frontend uses the
+V2 route and addresses in `docs/DEPLOYMENT.md`.
 
 ```text
 Wallet + Zama Relayer SDK
@@ -132,7 +148,7 @@ Wallet + Zama Relayer SDK
  - confidential claim
 ```
 
-## Contracts
+## Legacy V1 contracts
 
 ### `VeilPool.sol`
 
@@ -187,16 +203,22 @@ It includes:
 - Relayer `/v2` configuration using the connected EIP-1193 wallet provider
 - Client-side FHE encryption for deposits and withdrawals
 - Explicit wallet-scoped private balance reveal
+- Wallet-scoped active principal, reserved principal, historical weight, prize, and strategy-share reveals
 - Active draw-seat state and renewal
-- Dynamic onchain finalized/cancelled round history
+- Contract-derived draw schedule and withdrawal-request lifecycle
+- Dynamic onchain finalized/cancelled/skipped round history
 - Direct explorer links for the live contracts and public winner evidence
 - Responsive desktop, tablet, and mobile layouts
+
+The frontend deliberately does not show an exact winning percentage. A wallet may decrypt its own historical snapshot
+weight, but V2 does not grant it decryption rights for the encrypted aggregate snapshot weight. Dividing by the public
+participant count would be mathematically incorrect for a weighted draw.
 
 ### Run the frontend
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 

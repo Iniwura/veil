@@ -1,4 +1,7 @@
-# VEIL Sepolia deployment
+# VEIL and UNVEIL Sepolia deployments
+
+> The owner-funded VEIL V1 workflow in sections 1–4 is retained as legacy documentation. The active frontend uses the
+> verified UNVEIL V2 TEST/DEMO deployment documented below.
 
 VEIL uses Hardhat Deploy and Zama's fhEVM Hardhat integration. The deployment script creates and wires the pool, yield
 source, and prize vault in one reviewable flow.
@@ -82,16 +85,37 @@ The deployment script performs these steps in order:
 
 The final console output prints the four addresses needed by the demo frontend.
 
-## UNVEIL V2 — pending fresh deployment
+## UNVEIL V2 — verified Sepolia TEST/DEMO deployment
 
 The V2 deployment path is versioned separately from the legacy V1 `deploy/deploy.ts` and `scripts/sepolia-smoke.ts`
 paths. It uses the hardhat-deploy tag `UNVEIL_V2` and deployment records prefixed with `UNVEIL_V2_`; it does not read or
 overwrite V1 records or canonical addresses.
 
-V2 is explicitly a TEST/DEMO simulated strategy deployment. `MockYieldVault4626.donate()` simulates ERC-4626
-appreciation only. It is not Steakhouse yield, Morpho yield, or production yield. The route is intended to exercise real
-Zama/FHE execution, public decryption/KMS callbacks, ERC-7984 wrappers, V2 custody/accounting, autonomous draws,
-withdrawal settlement, and direct confidential prize delivery.
+The live V2 stack is explicitly a TEST/DEMO simulated strategy deployment. `MockYieldVault4626.donate()` simulates
+ERC-4626 appreciation only. It is not Steakhouse yield, Morpho yield, or production yield. The route is intended to
+exercise real Zama/FHE execution, public decryption/KMS callbacks, ERC-7984 wrappers, V2 custody/accounting, autonomous
+draws, withdrawal settlement, and direct confidential prize delivery.
+
+Verified live addresses on Sepolia (`chainId 11155111`):
+
+| V2 component                        | Address                                      |
+| ----------------------------------- | -------------------------------------------- |
+| Underlying `MockUSDC` TEST token    | `0x54350EE95601Ed535039993a5eE05FdA1Bd0Ae0C` |
+| Principal confidential wrapper      | `0xc948EDA1EA4c29d09965d1A15C3AC5B38cBdBB13` |
+| Simulated `MockYieldVault4626`      | `0xa39F57644e77FDb6E4F705F67BC08710d366d289` |
+| Strategy-share confidential wrapper | `0x48129B9c003b69987143d2622dC632Bc651E1F61` |
+| Deposit batcher                     | `0xb7BFbb875DCF3bd7c0B30536eBf60c284f0De2f1` |
+| Withdrawal batcher                  | `0xa5f1B091ac896C01f73d47100666d80961FC4620` |
+| `VeilPoolV2`                        | `0xFC5E4b552f16975d9d0B28Ab8cd14eE4a3d3Dc76` |
+| `VeilPrizeVaultV2`                  | `0x0Dc3d8978ee509EFb71183377E5EAf2f28420525` |
+| `VeilStrategyManagerV2`             | `0xFF4106998079309500Ad07d41382436f3fC681E7` |
+
+- Contract source SHA: `1b959b756c8bec732b4613eb8433322e0062a861`
+- Live Sepolia smoke: **PASS**
+- Offchain smoke/test SHA: `24018fda961400a1f5ea344373d90bec2ba83c2a`
+
+The names `MockUSDC` and `MockYieldVault4626` are implementation identifiers only. This is not real USDC/cUSDC, not
+official csteakcUSDC, and not production market yield.
 
 The exact V2 deployment order is:
 
@@ -127,9 +151,8 @@ npm run deploy:v2:sepolia
 npm run smoke:v2:sepolia
 ```
 
-Do not run the Sepolia command as part of ordinary tests. This repository currently contains no official Sepolia
-csteakcUSDC or Steakhouse confidential-yield route, so the V2 deployment remains pending and must not be described as a
-production strategy deployment.
+Do not run the Sepolia command as part of ordinary tests. This repository contains no official Sepolia csteakcUSDC or
+Steakhouse confidential-yield route, so the verified V2 stack must not be described as a production strategy deployment.
 
 The V2 smoke script accepts explicit `UNVEIL_V2_*_ADDRESS` variables or the new hardhat-deploy records only; it never
 falls back to V1 addresses. It checks bytecode and all immutable wiring, uses `fhevm.initializeCLIApi()`, and resumes
@@ -159,9 +182,20 @@ npm test
 npm run lint
 ```
 
-This branch intentionally does not deploy to Sepolia. Its constructor and ABI require a fresh, versioned deployment
-stack before any existing address is used. After a future deployment, verify each contract with the exact constructor
-arguments used by the deployment; do not claim success until receipts and deployed bytecode are confirmed.
+This frontend branch does not deploy or modify Sepolia contracts. It pins the already verified V2 stack above. Any
+future replacement stack must be versioned and verified with the exact constructor arguments before its addresses are
+used.
+
+## Legacy VEIL V1 Sepolia addresses
+
+These addresses remain historical evidence only and are not used by the active V2 frontend:
+
+| Legacy V1 component     | Address                                      |
+| ----------------------- | -------------------------------------------- |
+| Demo confidential asset | `0x79836eCae72C3EB5423fd5D1d200CbaEA0cCEE6e` |
+| `VeilPool`              | `0xd5395972b0Cd747fAD531389E449958a343adA1b` |
+| `VeilYieldSource`       | `0xdDB2b7fe447c55576F882138d59DE00a7d8EbE3D` |
+| `VeilPrizeVault`        | `0xb580c50192f5d7C613Db4e9427a2fA0C9701Af84` |
 
 ## Privacy boundary
 
