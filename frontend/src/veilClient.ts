@@ -720,6 +720,24 @@ export async function readDashboard(signer: JsonRpcSigner) {
   };
 }
 
+export async function readPublicProtocol() {
+  const { pool } = readContracts();
+  const [schedule, playerCount, nextRoundId] = await Promise.all([
+    readSchedule(),
+    pool.playerCount(),
+    pool.nextRoundId(),
+  ]);
+  const latestRound = BigInt(nextRoundId) > 1n ? BigInt(nextRoundId) - 1n : 0n;
+  const history = await readVerifiedRounds(latestRound);
+  return {
+    schedule,
+    playerCount: Number(playerCount),
+    latestRound,
+    latestFinalized: history.find((round) => round.status === "FINALIZED"),
+    history,
+  };
+}
+
 export function isConnectedWinner(address: string, round?: VerifiedRound) {
   return Boolean(round?.winner && round.winner !== ZeroAddress && round.winner.toLowerCase() === address.toLowerCase());
 }
