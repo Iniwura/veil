@@ -4,6 +4,8 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { fhevm } from "hardhat";
 
+import { findManagerDepositBatchToResume, managerDepositResumeAction } from "../scripts/v2-smoke-state";
+
 import {
   MockLowPrecisionConfidentialWrapper,
   MockLowPrecisionConfidentialWrapper__factory,
@@ -369,6 +371,15 @@ async function decryptManagerBatchDeposit(
   return decrypt64(await system.manager.getAddress(), await system.manager.lastManagerBatchDeposit(), signer);
 }
 
+async function deployPendingManagerDepositSystem(): Promise<ManagerSystem> {
+  const system = await deployManagerSystem();
+  await mintAsset(system, signers.manager, 100n);
+  await wrap(system.asset, system.fromWrapper, signers.manager, 100n);
+  await depositThroughPool(system, signers.manager, 100n);
+  await (await system.manager.investExcess()).wait();
+  return system;
+}
+
 async function decryptManagerWithdrawalBatchDeposit(
   system: ManagerSystem,
   batchId: bigint,
@@ -582,6 +593,91 @@ describe("UNVEIL Slice 2A confidential strategy manager", function () {
     await (await fullReserve.manager.resolveDepositBatch(1)).wait();
     expect(await fullReserve.manager.managerDepositBatchResolved(1)).to.equal(true);
     expect((await expose(fullReserve)).buffer).to.equal(100n);
+  });
+
+  it("C1 resumes the recognized manager deposit while batch 1 is still Pending", async function () {
+    const system = await deployPendingManagerDepositSystem();
+    const batch = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+
+    expect(batch).to.deep.equal({ batchId: 1n, state: 0, resolved: false, current: true });
+    expect(managerDepositResumeAction(batch)).to.equal("WAIT_AND_DISPATCH");
+    expect(await decryptManagerBatchDeposit(system, 1n)).to.equal(80n);
+  });
+
+  it("C2 resumes dispatched batch 1 after currentBatchId advances to 2", async function () {
+    const system = await deployPendingManagerDepositSystem();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    expect(await system.depositBatcher.currentBatchId()).to.equal(2n);
+
+    const batch = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+    expect(batch).to.deep.equal({ batchId: 1n, state: 1, resolved: false, current: false });
+    expect(managerDepositResumeAction(batch)).to.equal("PUBLIC_CALLBACK");
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider, batch?.batchId);
+    expect(await system.depositBatcher.batchState(1)).to.equal(2n);
+  });
+
+  it("C3 resolves a finalized manager batch that has not yet been claimed", async function () {
+    const system = await deployPendingManagerDepositSystem();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+
+    const batch = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+    expect(batch).to.deep.equal({ batchId: 1n, state: 2, resolved: false, current: false });
+    expect(managerDepositResumeAction(batch)).to.equal("RESOLVE_FINALIZED");
+    await (await system.manager.resolveDepositBatch(batch?.batchId ?? 0n)).wait();
+    expect(await system.manager.managerDepositBatchResolved(1)).to.equal(true);
+    expect((await expose(system)).shareBalance).to.equal(80n);
+  });
+
+  it("C4 resolves and refunds a canceled manager deposit batch", async function () {
+    const system = await deployPendingManagerDepositSystem();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await (await system.vault.setDepositFailure(true)).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+
+    const batch = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+    expect(batch).to.deep.equal({ batchId: 1n, state: 3, resolved: false, current: false });
+    expect(managerDepositResumeAction(batch)).to.equal("RESOLVE_CANCELED");
+    await (await system.manager.resolveDepositBatch(batch?.batchId ?? 0n)).wait();
+    expect((await expose(system)).buffer).to.equal(100n);
+  });
+
+  it("C5 retries the current batch once after a canceled batch is resolved", async function () {
+    const system = await deployPendingManagerDepositSystem();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await (await system.vault.setDepositFailure(true)).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+
+    const canceled = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+    expect(canceled).to.deep.equal({ batchId: 1n, state: 3, resolved: true, current: false });
+    expect(managerDepositResumeAction(canceled)).to.equal("RETRY_CANCELED");
+    await (await system.vault.setDepositFailure(false)).wait();
+    await (await system.manager.investExcess()).wait();
+
+    const retried = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+    expect(retried).to.deep.equal({ batchId: 2n, state: 0, resolved: false, current: true });
+    expect(await decryptManagerBatchDeposit(system, 2n)).to.equal(80n);
+  });
+
+  it("C6 treats a successfully resolved deposit batch as complete without duplicate investment", async function () {
+    const system = await deployPendingManagerDepositSystem();
+    await advanceBatchAge(system.depositBatcher);
+    await (await system.depositBatcher.connect(signers.outsider).dispatchBatch()).wait();
+    await dispatchAndProve(system.depositBatcher, system.fromWrapper, signers.outsider);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+
+    const completed = await findManagerDepositBatchToResume(system.manager, system.depositBatcher);
+    expect(completed).to.deep.equal({ batchId: 1n, state: 2, resolved: true, current: false });
+    expect(managerDepositResumeAction(completed)).to.equal("COMPLETE");
+    expect(await system.depositBatcher.currentBatchId()).to.equal(2n);
+    expect(await system.manager.managerDepositBatch(2)).to.equal(false);
+    expect(await findManagerDepositBatchToResume(system.manager, system.depositBatcher)).to.deep.equal(completed);
+    expect(await system.manager.managerDepositBatch(2)).to.equal(false);
   });
 
   it("resolves a real finalized manager batch permissionlessly and never changes liability", async function () {

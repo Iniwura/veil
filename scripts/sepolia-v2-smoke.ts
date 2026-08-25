@@ -19,6 +19,8 @@ import {
   SMOKE_WITHDRAWAL_REQUEST_ID,
   demoPositionStage,
   drawResumeAction,
+  findManagerDepositBatchToResume,
+  managerDepositResumeAction,
   prizeResumeAction,
   withdrawalBatchResumeAction,
   withdrawalResumeAction,
@@ -27,6 +29,8 @@ import {
 const MAX_OPERATOR_UNTIL = 2n ** 48n - 1n;
 const DEMO_DEPOSIT = 100n;
 const DEMO_DONATION = 50n;
+const MAX_CANCELED_DEPOSIT_RETRIES = 3;
+const MAX_DEPOSIT_RESUME_STEPS = 20;
 const V2_ADDRESS_ENV = {
   asset: "UNVEIL_V2_MOCK_USDC_ADDRESS",
   principal: "UNVEIL_V2_PRINCIPAL_WRAPPER_ADDRESS",
@@ -235,6 +239,7 @@ async function printStartupSummary(
     ? await manager.withdrawalRequestQueueState(SMOKE_WITHDRAWAL_REQUEST_ID)
     : undefined;
   const depositBatchId = await deposits.currentBatchId();
+  const managerDepositBatch = await findManagerDepositBatchToResume(manager, deposits);
   const withdrawalBatchId = await manager.lastManagerWithdrawalBatchId();
   const withdrawalBatch =
     withdrawalBatchId === 0n
@@ -248,7 +253,14 @@ async function printStartupSummary(
     `    request 1: exists=${request.exists} classified=${queueState?.classified ?? false} settled=${request.settled}`,
   );
   console.log(
-    `    deposit batch: ${depositBatchId}/${namedState(batchStateNames, Number(await deposits.batchState(depositBatchId)))}`,
+    `    current deposit batch: ${depositBatchId}/${namedState(batchStateNames, Number(await deposits.batchState(depositBatchId)))}`,
+  );
+  console.log(
+    `    manager deposit batch: ${
+      managerDepositBatch
+        ? `${managerDepositBatch.batchId}/${namedState(batchStateNames, managerDepositBatch.state)} resolved=${managerDepositBatch.resolved}`
+        : "none"
+    }`,
   );
   console.log(`    withdrawal batch: ${withdrawalBatch}`);
 }
@@ -267,49 +279,47 @@ async function proveAndCallbackDeposit(
   await (await batcher.dispatchBatchCallback(batchId, clearAmount, result.decryptionProof)).wait();
 }
 
-async function resolveDepositBatch(
-  manager: VeilStrategyManagerV2,
-  batcher: VeilDepositBatcher,
-  principal: MockUSDCConfidentialWrapper,
-  batchId: bigint,
-): Promise<boolean> {
-  const state = Number(await batcher.batchState(batchId));
-  if (state === 1) {
-    await proveAndCallbackDeposit(batcher, principal, batchId);
-  }
-  const finalState = Number(await batcher.batchState(batchId));
-  if (finalState !== 2 && finalState !== 3) return false;
-  if (!(await manager.managerDepositBatchResolved(batchId))) {
-    await (await manager.resolveDepositBatch(batchId)).wait();
-  }
-  return true;
-}
-
 async function investAndResolve(
   manager: VeilStrategyManagerV2,
   batcher: VeilDepositBatcher,
   principal: MockUSDCConfidentialWrapper,
 ): Promise<boolean> {
-  const batchId = await batcher.currentBatchId();
-  const total = await batcher.totalDeposits(batchId);
-  if (batchId > 1n && total === ethers.ZeroHash) {
-    console.log("  deposit route already advanced beyond the current empty batch; not reinvesting");
-    return true;
-  }
-  if (total === ethers.ZeroHash) {
-    await (await manager.investExcess()).wait();
-  } else {
-    console.log(`  deposit batch ${batchId} already contains the manager investment`);
-  }
+  let canceledRetries = 0;
+  for (let step = 0; step < MAX_DEPOSIT_RESUME_STEPS; step++) {
+    const batch = await findManagerDepositBatchToResume(manager, batcher);
+    const action = managerDepositResumeAction(batch);
 
-  const state = Number(await batcher.batchState(batchId));
-  if (state === 0) {
-    const openedAt = Number(await batcher.currentBatchOpenedAt());
-    const age = Number(await batcher.minimumBatchAge());
-    if (!(await waitForRealTime(`deposit batch ${batchId}`, openedAt + age))) return false;
-    await (await batcher.dispatchBatch()).wait();
+    if (action === "INVEST" || action === "RETRY_CANCELED") {
+      if (action === "RETRY_CANCELED") {
+        canceledRetries++;
+        if (canceledRetries > MAX_CANCELED_DEPOSIT_RETRIES) {
+          throw new Error("Deposit strategy batches canceled repeatedly; manual review required");
+        }
+        console.log(`  manager deposit batch ${batch?.batchId} canceled and refunded; retrying current batch`);
+      }
+      await (await manager.investExcess()).wait();
+      continue;
+    }
+    if (!batch) throw new Error("Manager deposit batch discovery returned no batch for a resume action");
+
+    if (action === "WAIT_AND_DISPATCH") {
+      const openedAt = Number(await batcher.currentBatchOpenedAt());
+      const age = Number(await batcher.minimumBatchAge());
+      if (!(await waitForRealTime(`deposit batch ${batch.batchId}`, openedAt + age))) return false;
+      await (await batcher.dispatchBatch()).wait();
+      continue;
+    }
+    if (action === "PUBLIC_CALLBACK") {
+      await proveAndCallbackDeposit(batcher, principal, batch.batchId);
+      continue;
+    }
+    if (action === "RESOLVE_FINALIZED" || action === "RESOLVE_CANCELED") {
+      await (await manager.resolveDepositBatch(batch.batchId)).wait();
+      continue;
+    }
+    if (action === "COMPLETE") return true;
   }
-  return resolveDepositBatch(manager, batcher, principal, batchId);
+  throw new Error("Deposit strategy resume exceeded its bounded step limit");
 }
 
 async function proveAndCallbackWithdrawal(

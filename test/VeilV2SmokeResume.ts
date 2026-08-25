@@ -5,6 +5,7 @@ import {
   SMOKE_WITHDRAWAL_REQUEST_ID,
   demoPositionStage,
   drawResumeAction,
+  managerDepositResumeAction,
   prizeResumeAction,
   withdrawalBatchResumeAction,
   withdrawalResumeAction,
@@ -44,6 +45,19 @@ describe("UNVEIL V2 smoke resumability", function () {
     expect(withdrawalBatchResumeAction(2, true)).to.equal("SETTLE");
     expect(withdrawalBatchResumeAction(3, false)).to.equal("RESOLVE_CANCELED");
     expect(withdrawalBatchResumeAction(3, true)).to.equal("RETRY_FUND");
+  });
+
+  it("fails clearly when an old manager deposit batch remains Pending after advancement", function () {
+    expect(managerDepositResumeAction({ batchId: 1n, state: 0, resolved: false, current: true })).to.equal(
+      "WAIT_AND_DISPATCH",
+    );
+    expect(() => managerDepositResumeAction({ batchId: 1n, state: 0, resolved: false, current: false })).to.throw(
+      "Pending after the batcher advanced",
+    );
+    expect(managerDepositResumeAction({ batchId: 1n, state: 2, resolved: true, current: false })).to.equal("COMPLETE");
+    expect(managerDepositResumeAction({ batchId: 1n, state: 3, resolved: true, current: false })).to.equal(
+      "RETRY_CANCELED",
+    );
   });
 
   it("recognizes fresh, queued, and paid private position stages without aggregate plaintext", function () {

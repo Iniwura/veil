@@ -136,7 +136,9 @@ falls back to V1 addresses. It checks bytecode and all immutable wiring, uses `f
 the fixed smoke identifiers (draw round `1` and withdrawal request `1`) through their existing state machines. It never
 uses `evm_increaseTime` on Sepolia. When a real-time draw or batch age is not ready, it prints the exact timestamp and
 exits cleanly unless `UNVEIL_V2_SMOKE_WAIT=true` is set to poll until ready. The smoke flow's simulated appreciation
-phase prints `TEST/DEMO ONLY: simulating ERC4626 appreciation` and its startup summary reports only public state.
+phase prints `TEST/DEMO ONLY: simulating ERC4626 appreciation` and its startup summary reports only public state. The
+deposit phase reports the current batch separately from the recognized manager batch it must resume, and scans the small
+V2 demo batch range for an unresolved Pending, Dispatched, Finalized, or Canceled manager batch before investing.
 
 V2 deployment records are reused only when their constructor arguments and prior deployment transaction can be verified
 against the current artifact. A missing transaction or any artifact/argument mismatch fails clearly; the script does not
