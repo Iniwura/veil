@@ -241,6 +241,29 @@ async function decryptShareBalance(system: System, account: HardhatEthersSigner)
   return decrypt64(await system.shares.getAddress(), handle, account);
 }
 
+async function decryptPrincipalBalance(system: System, account: HardhatEthersSigner) {
+  const handle = await system.source.confidentialBalanceOf(account.address);
+  if (handle === ethers.ZeroHash) return 0n;
+  return decrypt64(await system.source.getAddress(), handle, account);
+}
+
+async function decryptManagerWithdrawalBatchDeposit(system: System, batchId: bigint) {
+  await (await system.manager.connect(signers.alice).exposeManagerWithdrawalBatchDepositForTest(batchId)).wait();
+  return decrypt64(await system.manager.getAddress(), await system.manager.lastManagerBatchDeposit(), signers.alice);
+}
+
+async function decryptWithdrawalRequest(system: System, requestId: bigint) {
+  await (await system.manager.connect(signers.alice).exposeWithdrawalRequestForTest(requestId)).wait();
+  const managerAddress = await system.manager.getAddress();
+  const result = await fhevm.publicDecrypt([await system.manager.lastWithdrawalCompleted()]);
+  return {
+    remaining: await decrypt64(managerAddress, await system.manager.lastWithdrawalRemaining(), signers.alice),
+    paid: await decrypt64(managerAddress, await system.manager.lastWithdrawalPaid(), signers.alice),
+    completed: result.clearValues[Object.keys(result.clearValues)[0] as keyof typeof result.clearValues] as boolean,
+    decryptionProof: result.decryptionProof,
+  };
+}
+
 async function assertPrincipalInvariant(system: System, users: HardhatEthersSigner[]) {
   const accounting = await exposeManager(system, signers.alice);
   let sum = 0n;
@@ -509,6 +532,95 @@ describe("VeilPrizeVaultV2", function () {
     await settleQueuedWithdrawal(system, requestId);
     expect(await decryptPoolReserved(system, signers.alice)).to.equal(0n);
     expect(await decryptPoolBalance(system, signers.alice)).to.equal(50n);
+  });
+
+  it("tops up the exact residual after six-decimal withdrawal-claim rounding", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice, 100);
+    await fundAndApprove(system, signers.bob, 100);
+    await deposit(system, signers.alice, 100);
+    await deposit(system, signers.bob, 100);
+    await investAndResolve(system);
+
+    await (await system.asset.mint(signers.deployer.address, 50n)).wait();
+    await (await system.asset.connect(signers.deployer).approve(await system.vault.getAddress(), 50n)).wait();
+    await (await system.vault.connect(signers.deployer).donate(50n)).wait();
+    await createDraw(system, 1);
+    const winner = await finalizeDraw(system, 1);
+    await (await system.manager.connect(signers.outsider).processNextPrizeRound()).wait();
+    const prize = await decrypt64(
+      await system.prizeVault.getAddress(),
+      await system.prizeVault.connect(winner).encryptedPrizeOf(1),
+      winner,
+    );
+    expect(prize).to.equal(37n);
+
+    const requestId = await system.manager.nextWithdrawalRequestId();
+    const input = await encryptedInput(system.pool, signers.alice, 100);
+    await (await system.pool.connect(signers.alice).withdraw(input.handles[0], input.inputProof)).wait();
+    expect(requestId).to.equal(1n);
+    expect(await classifyWithdrawal(system, requestId)).to.equal(false);
+
+    const beforeFirstFunding = await exposeManager(system, signers.alice);
+    expect(beforeFirstFunding.liability).to.equal(200n);
+    expect(beforeFirstFunding.queued).to.equal(100n);
+    expect(beforeFirstFunding.buffer).to.equal(40n);
+
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    expect(await system.manager.lastManagerWithdrawalBatchId()).to.equal(1n);
+    expect(await decryptManagerWithdrawalBatchDeposit(system, 1n)).to.equal(46n);
+    await advanceBatchAge(system.withdrawals);
+    await (await system.withdrawals.dispatchBatch()).wait();
+    await proveWithdrawalBatch(system, 1n);
+    expect(await system.withdrawals.exchangeRate(1)).to.equal(1_304_347n);
+    await (await system.manager.resolveWithdrawalBatch(1)).wait();
+
+    const afterFirstClaim = await exposeManager(system, signers.alice);
+    expect(afterFirstClaim.buffer).to.equal(99n);
+    await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
+    const firstSettlement = await decryptWithdrawalRequest(system, requestId);
+    expect(firstSettlement.completed).to.equal(false);
+    expect(firstSettlement.remaining).to.equal(100n);
+    expect(firstSettlement.paid).to.equal(0n);
+    const afterFirstSettlement = await exposeManager(system, signers.alice);
+    expect(afterFirstSettlement.liability).to.equal(beforeFirstFunding.liability);
+    expect(afterFirstSettlement.queued).to.equal(beforeFirstFunding.queued);
+    expect(await decryptPoolBalance(system, signers.alice)).to.equal(0n);
+    expect(await decryptPoolReserved(system, signers.alice)).to.equal(100n);
+    expect(await decryptPrincipalBalance(system, signers.alice)).to.equal(0n);
+
+    await (await system.manager.fundWithdrawalLiquidity()).wait();
+    expect(await system.manager.lastManagerWithdrawalBatchId()).to.equal(2n);
+    expect(await decryptManagerWithdrawalBatchDeposit(system, 2n)).to.equal(1n);
+    await advanceBatchAge(system.withdrawals);
+    await (await system.withdrawals.dispatchBatch()).wait();
+    await proveWithdrawalBatch(system, 2n);
+    await (await system.manager.resolveWithdrawalBatch(2)).wait();
+    expect((await exposeManager(system, signers.alice)).buffer).to.be.at.least(100n);
+
+    await (await system.manager.connect(signers.outsider).settleWithdrawal(requestId)).wait();
+    const secondSettlement = await decryptWithdrawalRequest(system, requestId);
+    expect(secondSettlement.completed).to.equal(true);
+    expect(secondSettlement.remaining).to.equal(0n);
+    expect(secondSettlement.paid).to.equal(100n);
+    await (
+      await system.manager
+        .connect(signers.outsider)
+        .finalizeWithdrawal(requestId, secondSettlement.completed, secondSettlement.decryptionProof)
+    ).wait();
+
+    const request = await system.manager.withdrawalRequest(requestId);
+    expect(request.settled).to.equal(true);
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(2n);
+    expect(await decryptPoolBalance(system, signers.alice)).to.equal(0n);
+    expect(await decryptPoolReserved(system, signers.alice)).to.equal(0n);
+    expect(await decryptPrincipalBalance(system, signers.alice)).to.equal(100n);
+    expect(await decryptPoolBalance(system, signers.bob)).to.equal(100n);
+    expect(await decryptPoolReserved(system, signers.bob)).to.equal(0n);
+    const finalAccounting = await exposeManager(system, signers.alice);
+    expect(finalAccounting.liability).to.equal(100n);
+    expect(finalAccounting.queued).to.equal(0n);
+    await assertPrincipalInvariant(system, [signers.alice, signers.bob]);
   });
 
   it("turns strategy loss into a valid zero prize without spending principal", async function () {

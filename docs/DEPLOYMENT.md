@@ -139,6 +139,9 @@ exits cleanly unless `UNVEIL_V2_SMOKE_WAIT=true` is set to poll until ready. The
 phase prints `TEST/DEMO ONLY: simulating ERC4626 appreciation` and its startup summary reports only public state. The
 deposit phase reports the current batch separately from the recognized manager batch it must resume, and scans the small
 V2 demo batch range for an unresolved Pending, Dispatched, Finalized, or Canceled manager batch before investing.
+Withdrawal claims inherit `BatcherConfidential`'s fixed six-decimal exchange-rate rounding and may restore slightly less
+principal than the pre-batch target. The smoke preserves all-or-zero settlement and, after a proven incomplete payout,
+uses bounded permissionless funding cycles to recompute encrypted residual liquidity and resume the same request.
 
 V2 deployment records are reused only when their constructor arguments and prior deployment transaction can be verified
 against the current artifact. A missing transaction or any artifact/argument mismatch fails clearly; the script does not

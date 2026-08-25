@@ -531,6 +531,13 @@ returns the original confidential shares. A dispatched batch that is waiting on 
 cannot be canceled; strategy losses may therefore leave a request reserved and unpaid without making the liability
 disappear.
 
+`BatcherConfidential` claims round down through its fixed six-decimal exchange rate, so a withdrawal batch can restore
+slightly less liquid principal than the manager's pre-batch valuation target. UNVEIL preserves all-or-zero user
+settlement: when the completion proof remains false after a resolved batch, principal liability and queued liability
+remain owed, the user receives zero, and permissionless `fundWithdrawalLiquidity()` recomputes the encrypted residual
+need. Another batch may top up liquidity before settlement is attempted again; one funding route cycle is not guaranteed
+to satisfy a request.
+
 Each withdrawal request records the batch ID and global funding-attempt nonce at creation. Every manager funding attempt
 increments the nonce and records the latest nonce for the current batch. A request is committed only when a later
 funding attempt exists for that same batch and the batch has left `Pending`; merely being created while an

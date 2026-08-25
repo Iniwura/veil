@@ -31,6 +31,9 @@ const DEMO_DEPOSIT = 100n;
 const DEMO_DONATION = 50n;
 const MAX_CANCELED_DEPOSIT_RETRIES = 3;
 const MAX_DEPOSIT_RESUME_STEPS = 20;
+const MAX_CANCELED_WITHDRAWAL_RETRIES = 3;
+const MAX_WITHDRAWAL_TOP_UP_CYCLES = 3;
+const MAX_WITHDRAWAL_RESUME_STEPS = 12;
 const V2_ADDRESS_ENV = {
   asset: "UNVEIL_V2_MOCK_USDC_ADDRESS",
   principal: "UNVEIL_V2_PRINCIPAL_WRAPPER_ADDRESS",
@@ -341,7 +344,7 @@ async function settleQueuedWithdrawal(
   batcher: VeilWithdrawalBatcher,
   shares: MockYieldVaultShareConfidentialWrapper,
   requestId: bigint,
-): Promise<"completed" | "waiting" | "canceled"> {
+): Promise<"completed" | "waiting" | "canceled" | "incomplete"> {
   const batchId = await manager.lastManagerWithdrawalBatchId();
   if (batchId === 0n || !(await manager.managerWithdrawalBatch(batchId))) return "waiting";
 
@@ -384,10 +387,26 @@ async function settleQueuedWithdrawal(
     const completed = result.clearValues[
       Object.keys(result.clearValues)[0] as keyof typeof result.clearValues
     ] as boolean;
-    if (!completed) throw new Error("Queued withdrawal did not complete after strategy settlement");
+    if (!completed) return "incomplete";
     await (await manager.finalizeWithdrawal(requestId, completed, result.decryptionProof)).wait();
   }
   return "completed";
+}
+
+async function fundWithdrawalLiquidityWithinBound(
+  manager: VeilStrategyManagerV2,
+  batcher: VeilWithdrawalBatcher,
+  requestId: bigint,
+): Promise<void> {
+  const request = await manager.withdrawalRequest(requestId);
+  const currentBatchId = await batcher.currentBatchId();
+  const finalAllowedBatchId = request.createdWithdrawalBatchId + BigInt(MAX_WITHDRAWAL_TOP_UP_CYCLES);
+  if (currentBatchId > finalAllowedBatchId) {
+    throw new Error(
+      `Withdrawal request ${requestId} exceeded its bounded residual-liquidity batch limit at batch ${currentBatchId}`,
+    );
+  }
+  await (await manager.fundWithdrawalLiquidity()).wait();
 }
 
 async function processQueuedWithdrawal(
@@ -396,10 +415,12 @@ async function processQueuedWithdrawal(
   shares: MockYieldVaultShareConfidentialWrapper,
   requestId: bigint,
 ): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let canceledRetries = 0;
+  let topUpCycles = 0;
+  for (let step = 0; step < MAX_WITHDRAWAL_RESUME_STEPS; step++) {
     const lastBatchId = await manager.lastManagerWithdrawalBatchId();
     if (lastBatchId === 0n || !(await manager.managerWithdrawalBatch(lastBatchId))) {
-      await (await manager.fundWithdrawalLiquidity()).wait();
+      await fundWithdrawalLiquidityWithinBound(manager, batcher, requestId);
     }
 
     const result = await settleQueuedWithdrawal(manager, batcher, shares, requestId);
@@ -408,10 +429,24 @@ async function processQueuedWithdrawal(
 
     const request = await manager.withdrawalRequest(requestId);
     if (request.settled) return true;
+    if (result === "incomplete") {
+      if (topUpCycles >= MAX_WITHDRAWAL_TOP_UP_CYCLES) {
+        throw new Error("Withdrawal remains incomplete after the bounded residual-liquidity top-up cycles");
+      }
+      topUpCycles++;
+      console.log("  Withdrawal remains unpaid after batch claim rounding; funding residual encrypted liquidity.");
+      await fundWithdrawalLiquidityWithinBound(manager, batcher, requestId);
+      continue;
+    }
+
+    canceledRetries++;
+    if (canceledRetries > MAX_CANCELED_WITHDRAWAL_RETRIES) {
+      throw new Error("Withdrawal liquidity batch canceled repeatedly; refusing to create request 2");
+    }
     console.log(`  withdrawal batch ${await manager.lastManagerWithdrawalBatchId()} canceled; retrying funding`);
-    await (await manager.fundWithdrawalLiquidity()).wait();
+    await fundWithdrawalLiquidityWithinBound(manager, batcher, requestId);
   }
-  throw new Error("Withdrawal liquidity batch canceled repeatedly; refusing to create request 2");
+  throw new Error("Withdrawal resume exceeded its bounded step limit; refusing to create request 2");
 }
 
 async function run() {
