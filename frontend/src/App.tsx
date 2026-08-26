@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppShell } from "./components/AppShell";
-import { Onboarding } from "./components/Onboarding";
+import { ProductTour } from "./components/ProductTour";
 import { useRoute } from "./hooks/useRoute";
 import { useDocumentMotion } from "./hooks/useMotion";
 import { useTheme } from "./hooks/useTheme";
@@ -23,7 +23,7 @@ export default function App() {
   return (
     <AppShell route={route} unveil={unveil} theme={theme} onReplayGuide={() => setReplayToken((value) => value + 1)}>
       {page}
-      <Onboarding replayToken={replayToken} />
+      <ProductTour route={route} replayToken={replayToken} />
     </AppShell>
   );
 }

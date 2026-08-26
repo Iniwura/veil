@@ -48,6 +48,7 @@ export function DrawAdvancePanel({
     <section
       className={`draw-advance-panel draw-advance-panel--${action?.kind.toLowerCase() ?? "loading"}`}
       aria-live="polite"
+      data-tour="draw-advance"
     >
       <div className="draw-advance-heading">
         <span className="eyebrow">{action?.kind === "WAIT" ? "NEXT STEP" : "NEXT PERMISSIONLESS STEP"}</span>
