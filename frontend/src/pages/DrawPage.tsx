@@ -1,11 +1,35 @@
-import { DrawCountdown } from "../components/DrawCountdown";
 import { DrawAdvancePanel } from "../components/DrawAdvancePanel";
-import { CryptographicChamber, type CryptographicChamberState } from "../components/CryptographicChamber";
+import {
+  CryptographicChamber,
+  type CryptographicChamberPhase,
+  type CryptographicChamberState,
+} from "../components/CryptographicChamber";
 import { RoundHistory } from "../components/RoundHistory";
 import { VeilReveal } from "../components/VeilReveal";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
+import type { DrawAction } from "../lib/drawAdvance";
 import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
+
+function chamberPhaseForAction(
+  action: DrawAction | undefined,
+  state: CryptographicChamberState,
+): CryptographicChamberPhase {
+  if (!action) {
+    if (state === "INSUFFICIENT") return "SKIP";
+    if (state === "OVERDUE") return "BACKLOG";
+    if (state === "READY") return "SNAPSHOT";
+    return "SEALED";
+  }
+  if (action.kind === "SKIP") return "SKIP";
+  if (action.kind === "BLOCKED") return "BACKLOG";
+  if (action.kind === "PROCESS_PRIZE" && action.stage === "COMPLETE") return "SKIP";
+  if (action.stage === "SNAPSHOT") return "SNAPSHOT";
+  if (action.stage === "BLIND_DRAW") return "BLIND_DRAW";
+  if (action.stage === "VERIFY") return "VERIFY";
+  if (action.stage === "DELIVER") return "DELIVER";
+  return "SEALED";
+}
 
 export function DrawPage({ unveil }: { unveil: UnveilController }) {
   const schedule = unveil.schedule;
@@ -17,8 +41,8 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       : schedule?.ready || schedule?.timeReady
         ? "READY"
         : "OPEN";
+  const chamberPhase = chamberPhaseForAction(unveil.drawAction, fieldState);
   const result = unveil.latestResult;
-  const latestReveal = result && unveil.prize?.roundId === result.id ? unveil.prize : undefined;
   const drawError = unveil.errorScope === "draw" ? unveil.error : "";
   const drawNotice = unveil.noticeScope === "draw" ? unveil.notice : "";
 
@@ -51,16 +75,13 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           roundId={schedule?.currentRoundId}
           participantCount={participantCount}
           state={fieldState}
+          phase={chamberPhase}
         />
         <div className="draw-focus-copy">
-          <span className="eyebrow">CURRENT ROUND · {schedule?.currentRoundId.toString() ?? "—"}</span>
-          <DrawCountdown
-            closesAt={schedule?.closesAt}
-            timeReady={schedule?.timeReady}
-            ready={schedule?.ready}
-            insufficientParticipants={schedule?.insufficientParticipants}
-          />
-          <strong className="state-word">{drawStateLabel(schedule)}</strong>
+          <div className="draw-current-summary">
+            <span className="eyebrow">CURRENT ROUND · {schedule?.currentRoundId.toString() ?? "—"}</span>
+            <strong>{drawStateLabel(schedule)}</strong>
+          </div>
           <div className="draw-mini-metrics">
             <span>OPENS {formatDate(schedule?.opensAt)}</span>
             <span>CLOSES {formatDate(schedule?.closesAt)}</span>

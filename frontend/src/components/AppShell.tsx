@@ -42,6 +42,13 @@ export function AppShell({
               : "CONNECT WALLET";
   const globalNotice = unveil.noticeScope === "global" ? unveil.notice : "";
   const globalError = unveil.errorScope === "global" ? unveil.error : "";
+  const publicState = unveil.publicError
+    ? unveil.publicProtocol
+      ? "PUBLIC V2 STATE STALE"
+      : "PUBLIC V2 STATE UNAVAILABLE"
+    : unveil.publicProtocol
+      ? "PUBLIC V2 STATE LIVE"
+      : "PUBLIC V2 STATE LOADING";
   const sessionLabel = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : unveil.walletState === "account-changed"
@@ -73,8 +80,10 @@ export function AppShell({
             ))}
           </nav>
           <div className="app-public-state">
-            <span className={`live-dot ${unveil.publicError ? "unavailable" : ""}`} />
-            {unveil.publicError ? "PUBLIC V2 STATE UNAVAILABLE" : "PUBLIC V2 STATE LIVE"}
+            <span
+              className={`live-dot ${unveil.publicError ? (unveil.publicProtocol ? "stale" : "unavailable") : ""}`}
+            />
+            {publicState}
           </div>
           <DemoBadge compact />
           <ThemeToggle {...theme} />

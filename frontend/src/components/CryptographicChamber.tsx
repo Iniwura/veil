@@ -2,25 +2,30 @@ import { useEffect, useRef } from "react";
 import { usePrefersReducedMotion } from "../hooks/useMotion";
 
 export type CryptographicChamberState = "OPEN" | "READY" | "INSUFFICIENT" | "OVERDUE";
+export type CryptographicChamberPhase =
+  | "SEALED"
+  | "SNAPSHOT"
+  | "BLIND_DRAW"
+  | "VERIFY"
+  | "DELIVER"
+  | "SKIP"
+  | "BACKLOG";
 
 type Fragment = {
-  angle: number;
-  curve: number;
-  distance: number;
-  length: number;
-  layer: number;
+  side: -1 | 1;
+  lane: number;
   phase: number;
   speed: number;
-  width: number;
+  length: number;
+  thickness: number;
 };
 
-type ParticipantPulse = {
-  angle: number;
-  phase: number;
+type ParticipantTick = {
+  distance: number;
 };
 
-const MAX_PARTICIPANT_PULSES = 16;
-const FRAGMENT_COUNT = 58;
+const MAX_PARTICIPANT_TICKS = 16;
+const FRAGMENT_COUNT = 42;
 
 function seeded(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
@@ -29,47 +34,83 @@ function seeded(seed: number) {
 
 function buildFragments(): Fragment[] {
   return Array.from({ length: FRAGMENT_COUNT }, (_, index) => ({
-    angle: seeded(index + 1) * Math.PI * 2,
-    curve: seeded(index + 11) * 0.48 - 0.24,
-    distance: 0.22 + seeded(index + 21) * 0.34,
-    length: 3 + seeded(index + 31) * 9,
-    layer: 0.35 + seeded(index + 41) * 0.65,
-    phase: seeded(index + 51),
-    speed: 0.018 + seeded(index + 61) * 0.026,
-    width: 0.7 + seeded(index + 71) * 1.2,
+    side: seeded(index + 1) > 0.5 ? 1 : -1,
+    lane: 0.14 + seeded(index + 11) * 0.72,
+    phase: seeded(index + 21),
+    speed: 0.025 + seeded(index + 31) * 0.035,
+    length: 4 + seeded(index + 41) * 10,
+    thickness: 0.7 + seeded(index + 51) * 1.1,
   }));
 }
 
-function buildParticipants(count: number): ParticipantPulse[] {
-  return Array.from({ length: count }, (_, index) => ({
-    angle: index * ((Math.PI * 2) / Math.max(count, 1)) - Math.PI / 2,
-    phase: index / Math.max(count, 1),
+function buildParticipantTicks(count: number): ParticipantTick[] {
+  const visibleCount = Math.min(Math.max(count, 0), MAX_PARTICIPANT_TICKS);
+  return Array.from({ length: visibleCount }, (_, index) => ({
+    distance: index / Math.max(visibleCount, 1),
   }));
 }
 
-function stateIntensity(state: CryptographicChamberState) {
-  if (state === "READY") return 1.22;
-  if (state === "INSUFFICIENT") return 0.72;
-  if (state === "OVERDUE") return 0.9;
-  return 1;
+function phaseForState(state: CryptographicChamberState): CryptographicChamberPhase {
+  if (state === "INSUFFICIENT") return "SKIP";
+  if (state === "OVERDUE") return "BACKLOG";
+  if (state === "READY") return "SNAPSHOT";
+  return "SEALED";
+}
+
+function phaseLabel(phase: CryptographicChamberPhase) {
+  return phase === "BLIND_DRAW" ? "BLIND DRAW" : phase;
+}
+
+function phaseDescription(phase: CryptographicChamberPhase, conceptual: boolean) {
+  if (conceptual) {
+    if (phase === "SNAPSHOT") return "Weights lock without becoming readable.";
+    if (phase === "BLIND_DRAW") return "Selection happens behind the sealed aperture.";
+    if (phase === "DELIVER") return "One verified path exits; private amounts stay sealed.";
+    return "Equal markers show public ingress, never private weight.";
+  }
+  if (phase === "SNAPSHOT") return "The snapshot locks without exposing private weights.";
+  if (phase === "BLIND_DRAW") return "The draw runs behind the sealed aperture.";
+  if (phase === "VERIFY") return "Verification crosses the slit without opening the veil.";
+  if (phase === "DELIVER") return "One settlement path exits; the financial interior stays sealed.";
+  if (phase === "SKIP") return "Insufficient participation; no encrypted winner exists.";
+  if (phase === "BACKLOG") return "Earlier lifecycle work remains queued; encryption stays intact.";
+  return "Equal markers represent public participants, never private weight.";
+}
+
+function perimeterPoint(distance: number, width: number, height: number) {
+  const inset = Math.min(24, Math.max(12, Math.min(width, height) * 0.06));
+  const perimeter = 2 * (width - inset * 2) + 2 * (height - inset * 2);
+  let remaining = distance * perimeter;
+  if (remaining <= width - inset * 2) return { x: inset + remaining, y: inset, dx: 0, dy: 1 };
+  remaining -= width - inset * 2;
+  if (remaining <= height - inset * 2) return { x: width - inset, y: inset + remaining, dx: -1, dy: 0 };
+  remaining -= height - inset * 2;
+  if (remaining <= width - inset * 2) {
+    return { x: width - inset - remaining, y: height - inset, dx: 0, dy: -1 };
+  }
+  remaining -= width - inset * 2;
+  return { x: inset, y: height - inset - remaining, dx: 1, dy: 0 };
 }
 
 export function CryptographicChamber({
   roundId,
   participantCount,
   state,
+  phase,
   compact = false,
   conceptual = false,
 }: {
   roundId?: bigint;
   participantCount?: number;
   state: CryptographicChamberState;
+  phase?: CryptographicChamberPhase;
   compact?: boolean;
   conceptual?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const activePhase = phase ?? phaseForState(state);
 
   useEffect(() => {
     const canvasElement = canvasRef.current;
@@ -82,10 +123,7 @@ export function CryptographicChamber({
     const context = contextElement;
 
     const fragments = buildFragments();
-    const pulseCount = conceptual ? 8 : Math.min(Math.max(participantCount ?? 0, 0), MAX_PARTICIPANT_PULSES);
-    const participants = buildParticipants(pulseCount);
-    const pointer = { x: 0, y: 0 };
-    const intensity = stateIntensity(state);
+    const participants = buildParticipantTicks(conceptual ? 8 : (participantCount ?? 0));
     let width = 0;
     let height = 0;
     let active = !document.hidden;
@@ -108,72 +146,51 @@ export function CryptographicChamber({
     function draw(timestamp: number) {
       if (!width || !height) resize();
       const time = reducedMotion ? 0 : timestamp * 0.001;
-      const centerX = width * 0.5 + pointer.x * 8;
-      const centerY = height * 0.5 + pointer.y * 6;
-      const radius = Math.min(width, height) * 0.43;
+      const centerX = width * 0.5;
+      const apertureEdge = width * 0.13;
       context.clearRect(0, 0, width, height);
+      context.lineCap = "square";
 
-      const glow = context.createRadialGradient(centerX, centerY, radius * 0.06, centerX, centerY, radius * 1.1);
-      glow.addColorStop(0, "rgba(242, 213, 21, 0.08)");
-      glow.addColorStop(0.45, "rgba(242, 213, 21, 0.025)");
-      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
-      context.fillStyle = glow;
-      context.fillRect(0, 0, width, height);
+      if (activePhase !== "SKIP" && activePhase !== "BACKLOG") {
+        fragments.forEach((fragment) => {
+          const motionScale = activePhase === "BLIND_DRAW" ? 1.35 : activePhase === "SNAPSHOT" ? 0.45 : 0.8;
+          const progress = reducedMotion ? fragment.phase : (fragment.phase + time * fragment.speed * motionScale) % 1;
+          const startX = fragment.side < 0 ? -fragment.length : width + fragment.length;
+          const endX = fragment.side < 0 ? centerX - apertureEdge : centerX + apertureEdge;
+          const x = startX + (endX - startX) * progress;
+          const y = height * fragment.lane + Math.sin((progress + fragment.phase) * Math.PI * 2) * 3;
+          const fading = progress > 0.82 ? 1 - (progress - 0.82) / 0.18 : 1;
+          context.globalAlpha = (0.16 + seeded(Math.round(fragment.phase * 1000)) * 0.18) * fading;
+          context.strokeStyle = lightTheme ? "#6b6659" : "#d8d4c8";
+          context.lineWidth = fragment.thickness;
+          context.beginPath();
+          context.moveTo(x, y);
+          context.lineTo(x - fragment.side * fragment.length, y + (fragment.side * 0.35 + fragment.phase) * 4);
+          context.stroke();
+        });
+      }
 
-      context.save();
-      context.translate(centerX, centerY);
-      context.lineCap = "round";
-      fragments.forEach((fragment) => {
-        const progress = (fragment.phase + time * fragment.speed * intensity) % 1;
-        const orbit = fragment.distance * radius * (0.72 + progress * 0.28);
-        const angle = fragment.angle + fragment.curve * Math.sin(progress * Math.PI * 2);
-        const x = Math.cos(angle) * orbit;
-        const y = Math.sin(angle) * orbit * 0.72;
-        const alpha = (0.14 + fragment.layer * 0.22) * (state === "INSUFFICIENT" ? 0.78 : 1);
-        context.globalAlpha = alpha;
-        context.strokeStyle = lightTheme ? "#5d5a50" : state === "OVERDUE" ? "#aaa79d" : "#d8d4c8";
-        context.lineWidth = fragment.width;
-        context.beginPath();
-        context.moveTo(x, y);
-        context.lineTo(x + Math.cos(angle + 0.42) * fragment.length, y + Math.sin(angle + 0.42) * fragment.length);
-        context.stroke();
-      });
-
-      const pulseRadius = radius * (state === "READY" ? 0.94 : state === "INSUFFICIENT" ? 0.82 : 0.88);
       participants.forEach((participant) => {
-        const pulse = reducedMotion ? 0 : Math.sin((time * 1.4 + participant.phase) * Math.PI * 2) * 0.5 + 0.5;
-        const x = Math.cos(participant.angle + pointer.x * 0.03) * pulseRadius;
-        const y = Math.sin(participant.angle + pointer.y * 0.03) * pulseRadius * 0.68;
-        context.globalAlpha = 0.58 + pulse * 0.15;
-        context.fillStyle = lightTheme ? "#b89400" : "#f2d515";
+        const point = perimeterPoint(participant.distance, width, height);
+        context.globalAlpha = 0.72;
+        context.strokeStyle = lightTheme ? "#8d7100" : "#f2d515";
+        context.lineWidth = 2;
         context.beginPath();
-        context.arc(x, y, 2.6, 0, Math.PI * 2);
-        context.fill();
-        context.globalAlpha = 0.18;
-        context.beginPath();
-        context.arc(x, y, 7 + pulse * 2, 0, Math.PI * 2);
-        context.strokeStyle = lightTheme ? "#b89400" : "#f2d515";
-        context.lineWidth = 1;
+        context.moveTo(point.x, point.y);
+        context.lineTo(point.x + point.dx * 7, point.y + point.dy * 7);
         context.stroke();
       });
 
-      const beamProgress = (time * (state === "OVERDUE" ? 0.12 : state === "READY" ? 0.2 : 0.065)) % 1;
-      const beamX = -width * 0.62 + beamProgress * width * 1.8;
-      context.globalAlpha = reducedMotion ? 0.45 : state === "INSUFFICIENT" ? 0.2 : 0.72;
-      context.strokeStyle = lightTheme ? "#b89400" : "#f2d515";
-      context.lineWidth = state === "READY" ? 1.5 : 1;
-      context.beginPath();
-      context.moveTo(beamX, -height * 0.65);
-      context.lineTo(beamX + height * 0.36, height * 0.65);
-      context.stroke();
-      if (state === "OVERDUE") {
-        context.globalAlpha *= 0.35;
+      if (activePhase === "BACKLOG") {
+        context.globalAlpha = 0.5;
+        context.strokeStyle = lightTheme ? "#8a836f" : "#aaa79d";
+        context.lineWidth = 2;
         context.beginPath();
-        context.moveTo(beamX - 12, -height * 0.65);
-        context.lineTo(beamX + height * 0.36 - 12, height * 0.65);
+        context.moveTo(centerX - 18, height * 0.18);
+        context.lineTo(centerX + 18, height * 0.18);
         context.stroke();
       }
-      context.restore();
+
       context.globalAlpha = 1;
     }
 
@@ -198,18 +215,6 @@ export function CryptographicChamber({
       restart();
     }
 
-    function handlePointer(event: PointerEvent) {
-      if (reducedMotion || !window.matchMedia("(pointer: fine)").matches) return;
-      const rect = stage.getBoundingClientRect();
-      pointer.x = (event.clientX - rect.left) / rect.width - 0.5;
-      pointer.y = (event.clientY - rect.top) / rect.height - 0.5;
-    }
-
-    function resetPointer() {
-      pointer.x = 0;
-      pointer.y = 0;
-    }
-
     const resizeObserver = new ResizeObserver(resize);
     const intersectionObserver = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
@@ -223,8 +228,6 @@ export function CryptographicChamber({
     intersectionObserver.observe(stage);
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     document.addEventListener("visibilitychange", handleVisibility);
-    stage.addEventListener("pointermove", handlePointer);
-    stage.addEventListener("pointerleave", resetPointer);
     resize();
     restart();
 
@@ -234,32 +237,22 @@ export function CryptographicChamber({
       intersectionObserver.disconnect();
       themeObserver.disconnect();
       document.removeEventListener("visibilitychange", handleVisibility);
-      stage.removeEventListener("pointermove", handlePointer);
-      stage.removeEventListener("pointerleave", resetPointer);
     };
-  }, [compact, conceptual, participantCount, reducedMotion, state]);
+  }, [activePhase, conceptual, participantCount, reducedMotion]);
 
-  const centerLabel =
-    state === "INSUFFICIENT"
-      ? "READY TO SKIP"
-      : state === "READY"
-        ? "DRAW READY"
-        : state === "OVERDUE"
-          ? "LIFECYCLE BACKLOG"
-          : "FHE SEALED";
-  const description = conceptual
-    ? "Conceptual identity study · encrypted inputs remain unreadable"
-    : "Public participants only · visual pulses never represent private weight";
+  const displayPhase = phaseLabel(activePhase);
+  const description = phaseDescription(activePhase, conceptual);
 
   return (
     <section
-      className={`cryptographic-chamber cryptographic-chamber--${state.toLowerCase()} ${compact ? "cryptographic-chamber--compact" : ""} ${conceptual ? "cryptographic-chamber--conceptual" : ""}`}
+      className={`cryptographic-chamber cryptographic-chamber--${state.toLowerCase()} cryptographic-chamber--phase-${activePhase.toLowerCase().replace("_", "-")} ${compact ? "cryptographic-chamber--compact" : ""} ${conceptual ? "cryptographic-chamber--conceptual" : ""}`}
       data-chamber-state={state}
-      aria-label={`${conceptual ? "Conceptual " : "Live "}cryptographic chamber. ${centerLabel}.`}
+      data-chamber-phase={activePhase}
+      aria-label={`${conceptual ? "Conceptual " : "Live "}cryptographic chamber. ${displayPhase}.`}
     >
       <div className="chamber-header">
-        <span>{conceptual ? "SIGNATURE VISUAL · CONCEPTUAL" : `ROUND ${roundId?.toString().padStart(2, "0") ?? "—"}`}</span>
-        <span>{conceptual ? "PRIVATE INPUTS" : `${participantCount ?? "—"} PUBLIC PARTICIPANTS`}</span>
+        <span>{conceptual ? "CRYPTOGRAPHIC CHAMBER" : `ROUND ${roundId?.toString().padStart(2, "0") ?? "—"}`}</span>
+        <span>{conceptual ? "CONCEPTUAL · NOT LIVE STATE" : `${participantCount ?? "—"} PUBLIC PARTICIPANTS`}</span>
       </div>
       <div className="chamber-stage" ref={stageRef} aria-hidden="true">
         <canvas ref={canvasRef} />
@@ -267,17 +260,16 @@ export function CryptographicChamber({
           <span className="chamber-shutter chamber-shutter--left" />
           <span className="chamber-shutter chamber-shutter--right" />
           <i className="chamber-slit" />
-          <div className="chamber-core-label">
-            <span>SEALED CORE</span>
-            <strong>{centerLabel}</strong>
-          </div>
+          <i className="chamber-lock-line" />
+          <i className="chamber-output" />
+          <i className="chamber-skip-mark" />
+          <i className="chamber-backlog-mark" />
         </div>
       </div>
       <div className="chamber-footer">
-        <span className="chamber-state-indicator">{state}</span>
+        <span className="chamber-state-indicator">{displayPhase}</span>
         <p>{description}</p>
       </div>
-      {state === "OVERDUE" && <small className="chamber-warning">EARLIER LIFECYCLE STEP UNSETTLED · ENCRYPTION INTACT</small>}
     </section>
   );
 }

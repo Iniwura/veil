@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BrandMark } from "../components/BrandMark";
-import { CryptographicChamber } from "../components/CryptographicChamber";
+import { CryptographicChamber, type CryptographicChamberPhase } from "../components/CryptographicChamber";
 import { DemoBadge } from "../components/DemoBadge";
 import { DrawCountdown } from "../components/DrawCountdown";
 import { RouteLink } from "../components/RouteLink";
@@ -13,11 +13,12 @@ import { useRevealOnScroll } from "../hooks/useMotion";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
 const STORY = [
-  ["PRIVATE DEPOSIT", "••••••", "Only the wallet can unveil the deposited amount."],
-  ["ENCRYPTED DRAW WEIGHT", "████████", "FHE preserves weighted selection without plaintext balances."],
-  ["BLIND DRAW", "VERIFIABLE", "The lifecycle and KMS-backed outcome remain publicly auditable."],
-  ["CONFIDENTIAL PRIZE", "••••••", "Processed TEST strategy shares are visible only to the winner."],
+  ["PRIVATE DEPOSIT", "PRIVATE INPUT", "Only the wallet can unveil the deposited amount."],
+  ["ENCRYPTED DRAW WEIGHT", "SEALED COMPUTATION", "FHE preserves weighted selection without plaintext balances."],
+  ["BLIND DRAW", "PERMISSIONLESS", "The lifecycle and KMS-backed outcome remain publicly auditable."],
+  ["CONFIDENTIAL PRIZE", "WINNER ONLY", "Processed TEST strategy shares are visible only to the winner."],
 ] as const;
+const STORY_PHASES: CryptographicChamberPhase[] = ["SEALED", "SNAPSHOT", "BLIND_DRAW", "DELIVER"];
 
 export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme: ThemeController }) {
   useRevealOnScroll();
@@ -73,7 +74,7 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
             <span>CRYPTOGRAPHIC CHAMBER</span>
             <span>CONCEPTUAL · NOT LIVE STATE</span>
           </div>
-          <CryptographicChamber conceptual state="OPEN" />
+          <CryptographicChamber conceptual state="OPEN" phase={STORY_PHASES[storyStep]} />
           <div className="protocol-selector" role="tablist" aria-label="Protocol story">
             {STORY.map((item, index) => (
               <button
@@ -95,15 +96,7 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
               <strong>{STORY[storyStep][1]}</strong>
               <p>{STORY[storyStep][2]}</p>
             </div>
-            <i>
-              {storyStep === 0
-                ? "WALLET ONLY"
-                : storyStep === 1
-                  ? "FHE SEALED"
-                  : storyStep === 2
-                    ? "PERMISSIONLESS"
-                    : "WINNER ONLY"}
-            </i>
+            <i>{STORY[storyStep][1]}</i>
           </div>
         </div>
       </section>

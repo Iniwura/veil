@@ -1,4 +1,3 @@
-import { DrawCountdown } from "../components/DrawCountdown";
 import { VeilReveal } from "../components/VeilReveal";
 import { RoundHistory } from "../components/RoundHistory";
 import { RouteLink } from "../components/RouteLink";
@@ -54,12 +53,11 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           )}
         </div>
         <div className="home-command-state" aria-label="Current draw state">
-          <DrawCountdown
-            closesAt={schedule?.closesAt}
-            timeReady={schedule?.timeReady}
-            ready={schedule?.ready}
-            insufficientParticipants={schedule?.insufficientParticipants}
-          />
+          <div className="home-command-status">
+            <span className="eyebrow">ROUND STATUS</span>
+            <strong>{drawStateLabel(schedule)}</strong>
+            <span>NEXT: {action.kind === "link" ? action.label : (data?.drawAction?.title ?? "LOADING")}</span>
+          </div>
           <div className="home-command-metrics">
             <span>
               ELIGIBILITY <strong>{seatState}</strong>
