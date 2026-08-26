@@ -118,7 +118,9 @@ a {
 .aperture-slit {
   transform-box: fill-box;
   transform-origin: center;
-  transition: transform var(--motion-fast) var(--ease-unveil), fill var(--motion-fast) var(--ease-snap);
+  transition:
+    transform var(--motion-fast) var(--ease-unveil),
+    fill var(--motion-fast) var(--ease-snap);
 }
 .aperture-plane {
   fill: currentColor;
@@ -1949,8 +1951,7 @@ a {
   border: 1px solid var(--line);
   background:
     linear-gradient(rgba(23, 23, 18, 0.7) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 23, 18, 0.7) 1px, transparent 1px),
-    #0b0b08;
+    linear-gradient(90deg, rgba(23, 23, 18, 0.7) 1px, transparent 1px), #0b0b08;
   background-size: 40px 40px;
 }
 .protocol-visual > .encrypted-draw-field {
@@ -3025,8 +3026,7 @@ body,
 .landing-hero,
 .draw-focus--field {
   background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
 }
 
 .protocol-visual-head,
@@ -3116,10 +3116,13 @@ input::placeholder {
   border: 1px solid var(--border);
   background:
     radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--signal) 8%, transparent), transparent 40%),
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px),
     var(--surface);
-  background-size: auto, 44px 44px, 44px 44px, auto;
+  background-size:
+    auto,
+    44px 44px,
+    44px 44px,
+    auto;
 }
 
 .cryptographic-chamber--compact {
@@ -3173,8 +3176,15 @@ input::placeholder {
   transform: translate(-50%, -50%);
   border: 1px solid color-mix(in srgb, var(--signal) 62%, var(--border));
   border-radius: 50%;
-  background: radial-gradient(circle, var(--surface-deep) 0 42%, color-mix(in srgb, var(--surface-deep) 88%, transparent) 70%, transparent 71%);
-  box-shadow: 0 0 60px color-mix(in srgb, var(--signal) 10%, transparent), inset 0 0 30px color-mix(in srgb, var(--signal) 9%, transparent);
+  background: radial-gradient(
+    circle,
+    var(--surface-deep) 0 42%,
+    color-mix(in srgb, var(--surface-deep) 88%, transparent) 70%,
+    transparent 71%
+  );
+  box-shadow:
+    0 0 60px color-mix(in srgb, var(--signal) 10%, transparent),
+    inset 0 0 30px color-mix(in srgb, var(--signal) 9%, transparent);
 }
 
 .chamber-aperture::before,
@@ -3282,7 +3292,9 @@ input::placeholder {
 
 .cryptographic-chamber--ready .chamber-aperture {
   transform: translate(-50%, -50%) scale(0.92);
-  box-shadow: 0 0 90px color-mix(in srgb, var(--signal) 18%, transparent), inset 0 0 40px color-mix(in srgb, var(--signal) 15%, transparent);
+  box-shadow:
+    0 0 90px color-mix(in srgb, var(--signal) 18%, transparent),
+    inset 0 0 40px color-mix(in srgb, var(--signal) 15%, transparent);
 }
 
 .cryptographic-chamber--insufficient .chamber-aperture {
@@ -3321,7 +3333,9 @@ input::placeholder {
 .transaction-panel--sealing .amount-input {
   transform: scaleX(0.97);
   opacity: 0.72;
-  transition: transform var(--motion-medium) var(--ease-snap), opacity var(--motion-medium) var(--ease-snap);
+  transition:
+    transform var(--motion-medium) var(--ease-snap),
+    opacity var(--motion-medium) var(--ease-snap);
 }
 
 .transaction-panel--sealing .amount-input::after {
@@ -4301,8 +4315,7 @@ body,
   padding: 0;
   overflow: hidden;
   background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -4321,8 +4334,7 @@ body,
 
 .landing-hero {
   background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
 }
 
 .protocol-visual-head,
@@ -4378,5 +4390,102 @@ select {
   }
   .draw-focus--field .draw-focus-copy {
     padding: 34px 22px;
+  }
+}
+
+.draw-advance-panel {
+  display: grid;
+  gap: 15px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.draw-advance-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.draw-advance-heading strong {
+  color: var(--text);
+  font-size: clamp(16px, 1.8vw, 22px);
+  letter-spacing: -0.03em;
+}
+
+.draw-advance-description,
+.draw-advance-note,
+.draw-advance-warning,
+.draw-skip-branch small {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.draw-advance-button {
+  width: 100%;
+  min-height: 48px;
+}
+
+.draw-advance-warning {
+  color: var(--danger);
+  letter-spacing: 0.09em;
+}
+
+.draw-lifecycle-mini {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  padding-top: 4px;
+}
+
+.draw-lifecycle-mini > div {
+  min-width: 0;
+  padding: 10px 8px 0;
+  border-top: 2px solid var(--border);
+}
+
+.draw-lifecycle-mini > div.active {
+  border-color: var(--signal);
+  background: color-mix(in srgb, var(--signal) 7%, transparent);
+}
+
+.draw-lifecycle-mini > div.complete {
+  border-color: var(--text-quiet);
+}
+
+.draw-lifecycle-mini span,
+.draw-skip-branch span {
+  display: block;
+  color: var(--text);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.draw-lifecycle-mini > div.active span,
+.draw-skip-branch span {
+  color: var(--signal);
+}
+
+.draw-lifecycle-mini small {
+  display: block;
+  margin-top: 7px;
+  color: var(--text-quiet);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.draw-skip-branch {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--signal);
+  background: color-mix(in srgb, var(--signal) 5%, transparent);
+}
+
+@media (max-width: 520px) {
+  .draw-lifecycle-mini {
+    grid-template-columns: 1fr 1fr;
   }
 }

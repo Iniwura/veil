@@ -3,6 +3,7 @@ import type { JsonRpcSigner } from "ethers";
 import { UNVEIL_NETWORK } from "../contracts";
 import {
   connectWallet,
+  advanceDraw as advanceDrawTransaction,
   deliveredPrizeForRound,
   deliveredPrizesForAddress,
   ensureSepolia,
@@ -22,6 +23,7 @@ import {
   withdrawPrivate,
   type MyVault,
 } from "../veilClient";
+import type { DrawAction } from "../lib/drawAdvance";
 import { productError } from "../lib/errors";
 
 type Dashboard = Awaited<ReturnType<typeof readDashboard>>;
@@ -408,6 +410,39 @@ export function useUnveil() {
     }
   }
 
+  async function advanceDraw(expectedAction: DrawAction) {
+    const wallet = privateWallet();
+    if (!wallet) return;
+    try {
+      setScopedError("draw", "");
+      setBusy("advance-draw");
+      setScopedNotice(
+        "draw",
+        expectedAction.kind === "FINALIZE_WINNER" ? "REQUESTING KMS PROOF…" : expectedAction.description,
+      );
+      await advanceDrawTransaction(
+        wallet.signer,
+        expectedAction,
+        (nextNotice) => {
+          if (walletEpoch.current === wallet.epoch) setScopedNotice("draw", nextNotice);
+        },
+        () => walletEpoch.current === wallet.epoch,
+      );
+      if (walletEpoch.current !== wallet.epoch) return;
+      await refresh(wallet.signer, "draw");
+      if (walletEpoch.current === wallet.epoch) {
+        setScopedNotice(
+          "draw",
+          `Round ${expectedAction.roundId} advanced. The next permissionless step is now loaded.`,
+        );
+      }
+    } catch (cause) {
+      if (walletEpoch.current === wallet.epoch) setScopedError("draw", productError(cause));
+    } finally {
+      if (walletEpoch.current === wallet.epoch) setBusy("");
+    }
+  }
+
   return {
     signer,
     address,
@@ -419,6 +454,7 @@ export function useUnveil() {
     publicProtocol,
     publicError,
     schedule,
+    drawAction: dashboard?.drawAction ?? publicProtocol?.drawAction,
     history,
     latestResult,
     latestFinalized,
@@ -441,6 +477,7 @@ export function useUnveil() {
     revealRound,
     revealPrizeForRound,
     renewSeat,
+    advanceDraw,
     hideVault: () => setVault(undefined),
     hideRoundWeight: () => setRoundWeight(undefined),
     hidePrize: () => setPrize(undefined),

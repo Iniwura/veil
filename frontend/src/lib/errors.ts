@@ -22,6 +22,12 @@ export function productError(error: unknown) {
     return "Your wallet was not included in that historical round.";
   if (message.startsWith("UNVEIL_MANAGER_REQUEST_UNAVAILABLE:"))
     return "The strategy manager cannot provide this withdrawal request yet.";
+  if (message.includes("UNVEIL_DRAW_STATE_CHANGED:"))
+    return "Protocol state changed before submission. The latest state has been loaded; review the next step.";
+  if (message.startsWith("UNVEIL_DRAW_NOT_ACTIONABLE:"))
+    return "That draw step is no longer available. Review the latest public state.";
+  if (message.startsWith("UNVEIL_DRAW_ADVANCE_FAILED:"))
+    return "The permissionless draw step could not be completed. Check the wallet and retry.";
   if (message.toLowerCase().includes("timed out") || message.toLowerCase().includes("did not respond"))
     return "The wallet, relayer, or Sepolia request timed out. Check pending wallet activity.";
   if (message.toLowerCase().includes("network") || message.toLowerCase().includes("sepolia"))

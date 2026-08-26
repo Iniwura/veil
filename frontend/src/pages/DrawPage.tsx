@@ -1,4 +1,5 @@
 import { DrawCountdown } from "../components/DrawCountdown";
+import { DrawAdvancePanel } from "../components/DrawAdvancePanel";
 import { CryptographicChamber, type CryptographicChamberState } from "../components/CryptographicChamber";
 import { RoundHistory } from "../components/RoundHistory";
 import { VeilReveal } from "../components/VeilReveal";
@@ -25,11 +26,16 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
     <div className="page-stack route-enter">
       <header className="draw-page-intro">
         <span className="eyebrow">DRAW · CRYPTOGRAPHIC CHAMBER</span>
-        <p>Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.</p>
+        <p>
+          Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.
+        </p>
       </header>
 
       {(drawError || drawNotice) && (
-        <div className={`action-notice ${drawError ? "action-notice--error" : ""}`} role={drawError ? "alert" : "status"}>
+        <div
+          className={`action-notice ${drawError ? "action-notice--error" : ""}`}
+          role={drawError ? "alert" : "status"}
+        >
           <span>{drawError ? "DRAW ERROR" : "DRAW UPDATE"}</span>
           <p>{drawError || drawNotice}</p>
           {drawError && (
@@ -41,7 +47,11 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       )}
 
       <section className="draw-focus draw-focus--field" data-tour="draw-current">
-        <CryptographicChamber roundId={schedule?.currentRoundId} participantCount={participantCount} state={fieldState} />
+        <CryptographicChamber
+          roundId={schedule?.currentRoundId}
+          participantCount={participantCount}
+          state={fieldState}
+        />
         <div className="draw-focus-copy">
           <span className="eyebrow">CURRENT ROUND · {schedule?.currentRoundId.toString() ?? "—"}</span>
           <DrawCountdown
@@ -59,6 +69,15 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           {schedule?.insufficientParticipants && (
             <p className="draw-note">This round can be marked SKIPPED. No draw or encrypted winner exists for it.</p>
           )}
+          <DrawAdvancePanel
+            action={unveil.drawAction}
+            connected={unveil.connected}
+            wrongNetwork={unveil.wrongNetwork}
+            busy={unveil.busy}
+            onAdvance={unveil.advanceDraw}
+            onConnect={unveil.connect}
+            onSwitchNetwork={unveil.switchToSepolia}
+          />
         </div>
       </section>
 

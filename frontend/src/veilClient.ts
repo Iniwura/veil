@@ -11,6 +11,7 @@ import {
 } from "ethers";
 import { UNVEIL_CONTRACTS, UNVEIL_NETWORK } from "./contracts";
 import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/bundle";
+import { deriveNextDrawAction, sameDrawAction, type DrawAction } from "./lib/drawAdvance";
 
 type ZamaRelayerSDK = {
   initSDK: (options?: Record<string, unknown>) => Promise<boolean>;
@@ -62,6 +63,11 @@ const POOL_ABI = [
   "function nextDrawOpensAt() view returns (uint64)",
   "function nextDrawClosesAt() view returns (uint64)",
   "function getDrawSchedule() view returns (uint256 currentRoundId,uint256 unsettledRounds,uint64 opensAt,uint64 closesAt,bool timeReady,bool ready,bool canAdvance,bool insufficientParticipants,bool overdue)",
+  "function snapshotRound() returns (uint256 roundId)",
+  "function cancelInsufficientRound() returns (uint256 roundId)",
+  "function blindDraw(uint256 roundId)",
+  "function getEncryptedWinner(uint256 roundId) view returns (bytes32)",
+  "function finalizeWinner(uint256 roundId,bytes abiEncodedClearWinner,bytes decryptionProof)",
   "function getDrawInfo(uint256 roundId) view returns (uint64 snapshotBlock,uint8 participantCount,uint8 state)",
   "function getDrawState(uint256 roundId) view returns (uint8)",
   "function getWinner(uint256 roundId) view returns (address)",
@@ -101,6 +107,7 @@ const PRIZE_ABI = [
 
 const MANAGER_ABI = [
   "function nextPrizeRoundId() view returns (uint256)",
+  "function processNextPrizeRound()",
   "function nextWithdrawalRequestId() view returns (uint256)",
   "function withdrawalRequest(uint256 requestId) view returns (address account,bytes32 amount,bytes32 remaining,bytes32 paid,bytes32 completed,uint256 createdWithdrawalBatchId,uint256 createdWithdrawalFundingNonce,bool exists,bool canceled,bool settled)",
   "function withdrawalRequestQueueState(uint256 requestId) view returns (bool classified,bool queued,uint256 queueSequence)",
@@ -128,6 +135,12 @@ export type DrawSchedule = {
   canAdvance: boolean;
   insufficientParticipants: boolean;
   overdue: boolean;
+};
+
+export type DrawAdvancement = {
+  schedule: DrawSchedule;
+  nextPrizeRoundId: bigint;
+  action: DrawAction;
 };
 
 export type VerifiedRound = {
@@ -655,6 +668,83 @@ export async function leaveDrawSeat(signer: JsonRpcSigner) {
   }
 }
 
+export async function advanceDraw(
+  signer: JsonRpcSigner,
+  expectedAction: DrawAction,
+  onStep?: (message: string) => void,
+  isCurrent?: () => boolean,
+) {
+  const live = await readDrawAdvancement();
+  if (!sameDrawAction(live.action, expectedAction)) {
+    throw new Error("UNVEIL_DRAW_STATE_CHANGED: Protocol state changed before submission. Review the latest step.");
+  }
+  if (!live.action.actionable) throw new Error("UNVEIL_DRAW_NOT_ACTIONABLE: This protocol step is not available yet.");
+  if (isCurrent && !isCurrent()) throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
+
+  const { pool, manager } = contracts(signer);
+  try {
+    if (live.action.kind === "SNAPSHOT") {
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(pool.snapshotRound(), 30_000, "Wallet did not respond to round snapshot.");
+      onStep?.("SNAPSHOT SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Round snapshot is still pending on Sepolia.");
+    }
+
+    if (live.action.kind === "SKIP") {
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(pool.cancelInsufficientRound(), 30_000, "Wallet did not respond to round advance.");
+      onStep?.("ROUND ADVANCE SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Round advance is still pending on Sepolia.");
+    }
+
+    if (live.action.kind === "BLIND_DRAW") {
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        pool.blindDraw(live.action.roundId),
+        30_000,
+        "Wallet did not respond to the blind draw.",
+      );
+      onStep?.("BLIND DRAW SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Blind draw is still pending on Sepolia.");
+    }
+
+    if (live.action.kind === "FINALIZE_WINNER") {
+      const encryptedWinner = (await pool.getEncryptedWinner(live.action.roundId)) as string;
+      onStep?.("REQUESTING KMS PROOF…");
+      const result = await withTimeout(
+        (await relayer()).publicDecrypt([encryptedWinner]),
+        60_000,
+        "Public winner decryption timed out. Check Zama relayer connectivity and retry.",
+      );
+      if (isCurrent && !isCurrent())
+        throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        pool.finalizeWinner(live.action.roundId, result.abiEncodedClearValues, result.decryptionProof),
+        30_000,
+        "Wallet did not respond to winner verification.",
+      );
+      onStep?.("WINNER VERIFICATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Winner verification is still pending on Sepolia.");
+    }
+
+    if (live.action.kind === "PROCESS_PRIZE") {
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.processNextPrizeRound(),
+        30_000,
+        "Wallet did not respond to prize delivery.",
+      );
+      onStep?.("PRIZE STEP SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Prize processing is still pending on Sepolia.");
+    }
+
+    throw new Error("UNVEIL_DRAW_NOT_ACTIONABLE: This protocol step is not available yet.");
+  } catch (error) {
+    actionError("UNVEIL_DRAW_ADVANCE_FAILED:", error);
+  }
+}
+
 export async function revealMyVault(signer: JsonRpcSigner): Promise<MyVault> {
   const address = await signer.getAddress();
   const { pool, shares } = contracts(signer);
@@ -694,8 +784,17 @@ export async function revealPrize(signer: JsonRpcSigner, roundId: bigint) {
   }
 }
 
-async function readSchedule(): Promise<DrawSchedule> {
-  const schedule = await readContracts().pool.getDrawSchedule();
+function normalizeSchedule(schedule: {
+  currentRoundId: bigint | string | number;
+  unsettledRounds: bigint | string | number;
+  opensAt: bigint | string | number;
+  closesAt: bigint | string | number;
+  timeReady: boolean;
+  ready: boolean;
+  canAdvance: boolean;
+  insufficientParticipants: boolean;
+  overdue: boolean;
+}): DrawSchedule {
   return {
     currentRoundId: BigInt(schedule.currentRoundId),
     unsettledRounds: BigInt(schedule.unsettledRounds),
@@ -707,6 +806,24 @@ async function readSchedule(): Promise<DrawSchedule> {
     insufficientParticipants: Boolean(schedule.insufficientParticipants),
     overdue: Boolean(schedule.overdue),
   };
+}
+
+async function readDrawAdvancementFromContracts(pool: Contract, manager: Contract): Promise<DrawAdvancement> {
+  const [rawSchedule, rawNextPrizeRoundId] = await Promise.all([pool.getDrawSchedule(), manager.nextPrizeRoundId()]);
+  const schedule = normalizeSchedule(rawSchedule);
+  const nextPrizeRoundId = BigInt(rawNextPrizeRoundId);
+  const behindState =
+    nextPrizeRoundId < schedule.currentRoundId ? Number(await pool.getDrawState(nextPrizeRoundId)) : undefined;
+  return {
+    schedule,
+    nextPrizeRoundId,
+    action: deriveNextDrawAction(schedule, nextPrizeRoundId, behindState),
+  };
+}
+
+export async function readDrawAdvancement() {
+  const { pool, manager } = readContracts();
+  return readDrawAdvancementFromContracts(pool, manager);
 }
 
 async function readVerifiedRounds(latestRound: bigint): Promise<VerifiedRound[]> {
@@ -774,18 +891,15 @@ async function readLatestWithdrawal(address: string, nextRequestId: bigint) {
 export async function readDashboard(signer: JsonRpcSigner) {
   const address = await signer.getAddress();
   const { pool, manager } = readContracts();
-  const [joined, seated, seatExpiresAt, playerCount, nextRoundId, schedule, nextPrizeRoundId, nextWithdrawalRequestId] =
-    await Promise.all([
-      pool.joined(address),
-      pool.seated(address),
-      pool.seatExpiresAt(address),
-      pool.playerCount(),
-      pool.nextRoundId(),
-      readSchedule(),
-      manager.nextPrizeRoundId(),
-      manager.nextWithdrawalRequestId(),
-    ]);
-  const latestRound = BigInt(nextRoundId) > 1n ? BigInt(nextRoundId) - 1n : 0n;
+  const [joined, seated, seatExpiresAt, playerCount, advancement, nextWithdrawalRequestId] = await Promise.all([
+    pool.joined(address),
+    pool.seated(address),
+    pool.seatExpiresAt(address),
+    pool.playerCount(),
+    readDrawAdvancementFromContracts(pool, manager),
+    manager.nextWithdrawalRequestId(),
+  ]);
+  const latestRound = advancement.schedule.currentRoundId > 1n ? advancement.schedule.currentRoundId - 1n : 0n;
   const [history, latestWithdrawal] = await Promise.all([
     readVerifiedRounds(latestRound),
     readLatestWithdrawal(address, BigInt(nextWithdrawalRequestId)),
@@ -796,10 +910,11 @@ export async function readDashboard(signer: JsonRpcSigner) {
     seated: Boolean(seated),
     seatExpiresAt: BigInt(seatExpiresAt),
     playerCount: Number(playerCount),
-    nextRoundId: BigInt(nextRoundId),
+    nextRoundId: advancement.schedule.currentRoundId,
     latestRound,
-    schedule,
-    nextPrizeRoundId: BigInt(nextPrizeRoundId),
+    schedule: advancement.schedule,
+    nextPrizeRoundId: advancement.nextPrizeRoundId,
+    drawAction: advancement.action,
     nextWithdrawalRequestId: BigInt(nextWithdrawalRequestId),
     latestWithdrawal,
     latestFinalized,
@@ -808,16 +923,17 @@ export async function readDashboard(signer: JsonRpcSigner) {
 }
 
 export async function readPublicProtocol() {
-  const { pool } = readContracts();
-  const [schedule, playerCount, nextRoundId] = await Promise.all([
-    readSchedule(),
+  const { pool, manager } = readContracts();
+  const [advancement, playerCount] = await Promise.all([
+    readDrawAdvancementFromContracts(pool, manager),
     pool.playerCount(),
-    pool.nextRoundId(),
   ]);
-  const latestRound = BigInt(nextRoundId) > 1n ? BigInt(nextRoundId) - 1n : 0n;
+  const latestRound = advancement.schedule.currentRoundId > 1n ? advancement.schedule.currentRoundId - 1n : 0n;
   const history = await readVerifiedRounds(latestRound);
   return {
-    schedule,
+    schedule: advancement.schedule,
+    nextPrizeRoundId: advancement.nextPrizeRoundId,
+    drawAction: advancement.action,
     playerCount: Number(playerCount),
     latestRound,
     latestFinalized: history.find((round) => round.status === "FINALIZED"),
