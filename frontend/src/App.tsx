@@ -4,14 +4,10 @@ import { Onboarding } from "./components/Onboarding";
 import { useRoute } from "./hooks/useRoute";
 import { useDocumentMotion } from "./hooks/useMotion";
 import { useUnveil } from "./hooks/useUnveil";
-import { DrawsPage } from "./pages/DrawsPage";
-import { HistoryPage } from "./pages/HistoryPage";
+import { DrawPage } from "./pages/DrawPage";
 import { LandingPage } from "./pages/LandingPage";
-import { MorePage } from "./pages/MorePage";
-import { OverviewPage } from "./pages/OverviewPage";
-import { PrizesPage } from "./pages/PrizesPage";
+import { HomePage } from "./pages/HomePage";
 import { SavePage } from "./pages/SavePage";
-import { VaultPage } from "./pages/VaultPage";
 
 export default function App() {
   useDocumentMotion();
@@ -20,25 +16,10 @@ export default function App() {
   const [replayToken, setReplayToken] = useState(0);
   if (route === "/") return <LandingPage unveil={unveil} />;
 
-  const page =
-    route === "/app/save" ? (
-      <SavePage unveil={unveil} />
-    ) : route === "/app/draws" ? (
-      <DrawsPage unveil={unveil} />
-    ) : route === "/app/vault" ? (
-      <VaultPage unveil={unveil} />
-    ) : route === "/app/prizes" ? (
-      <PrizesPage unveil={unveil} />
-    ) : route === "/app/history" ? (
-      <HistoryPage unveil={unveil} />
-    ) : route === "/app/more" ? (
-      <MorePage replayGuide={() => setReplayToken((value) => value + 1)} />
-    ) : (
-      <OverviewPage unveil={unveil} />
-    );
+  const page = route === "/app/save" ? <SavePage unveil={unveil} /> : route === "/app/draw" ? <DrawPage unveil={unveil} /> : <HomePage unveil={unveil} />;
 
   return (
-    <AppShell route={route} unveil={unveil}>
+    <AppShell route={route} unveil={unveil} onReplayGuide={() => setReplayToken((value) => value + 1)}>
       {page}
       <Onboarding replayToken={replayToken} />
     </AppShell>

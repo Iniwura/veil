@@ -6,32 +6,22 @@ import type { UnveilController } from "../hooks/useUnveil";
 import type { AppRoute } from "../lib/routes";
 import { shortAddress } from "../lib/format";
 
-const DESKTOP_NAV: Array<[AppRoute, string, string]> = [
-  ["/app", "01", "Overview"],
+const NAV: Array<[AppRoute, string, string]> = [
+  ["/app", "01", "Home"],
   ["/app/save", "02", "Save"],
-  ["/app/draws", "03", "Draws"],
-  ["/app/vault", "04", "My Vault"],
-  ["/app/prizes", "05", "Prizes"],
-  ["/app/history", "06", "History"],
-  ["/app/more", "07", "More"],
-];
-
-const MOBILE_NAV: Array<[AppRoute, string]> = [
-  ["/app", "Home"],
-  ["/app/save", "Save"],
-  ["/app/draws", "Draws"],
-  ["/app/prizes", "Prizes"],
-  ["/app/vault", "Me"],
+  ["/app/draw", "03", "Draw"],
 ];
 
 export function AppShell({
   route,
   unveil,
   children,
+  onReplayGuide,
 }: {
   route: AppRoute;
   unveil: UnveilController;
   children: ReactNode;
+  onReplayGuide: () => void;
 }) {
   const walletAction = unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect;
   const walletLabel =
@@ -46,6 +36,7 @@ export function AppShell({
             : unveil.walletState === "reconnect-required" || unveil.walletState === "account-changed"
               ? "RECONNECT WALLET"
               : "CONNECT WALLET";
+  const globalNotice = unveil.noticeScope === "global" ? unveil.notice : "";
   const sessionLabel = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : unveil.walletState === "account-changed"
@@ -54,55 +45,51 @@ export function AppShell({
         ? "RECONNECT REQUIRED"
         : unveil.error
           ? "ACTION NEEDS ATTENTION"
-          : unveil.busy
-            ? "ACTION IN PROGRESS"
-            : "SESSION";
+          : "WALLET SESSION";
   return (
     <div className="app-shell">
-      <aside className="app-sidebar">
-        <RouteLink to="/" className="wordmark">
-          <BrandMark compact />
-          <strong>UNVEIL</strong>
-        </RouteLink>
-        <nav aria-label="Application navigation">
-          {DESKTOP_NAV.map(([to, index, label]) => (
-            <RouteLink to={to} className={route === to ? "active" : ""} key={to}>
-              <span>{index}</span>
-              <strong>{label}</strong>
-            </RouteLink>
-          ))}
-        </nav>
-        <div className="sidebar-foot">
-          <DemoBadge compact />
-          <p>
-            Encrypted to everyone.
-            <br />
-            Unveiled only to you.
-          </p>
-        </div>
-      </aside>
       <div className="app-workspace">
         <header className="app-topbar">
-          <RouteLink to="/" className="wordmark mobile-brand">
+          <RouteLink to="/" className="wordmark app-brand">
             <BrandMark compact />
             <strong>UNVEIL</strong>
           </RouteLink>
-          <div>
+          <nav className="app-nav" aria-label="Application navigation">
+            {NAV.map(([to, index, label]) => (
+              <RouteLink
+                to={to}
+                className={route === to ? "active" : ""}
+                dataTour={to === "/app/save" ? "nav-save" : to === "/app/draw" ? "nav-draw" : "nav-home"}
+                key={to}
+              >
+                <span>{index}</span>
+                <strong>{label}</strong>
+              </RouteLink>
+            ))}
+          </nav>
+          <div className="app-public-state">
             <span className={`live-dot ${unveil.publicError ? "unavailable" : ""}`} />
             {unveil.publicError ? "PUBLIC V2 STATE UNAVAILABLE" : "PUBLIC V2 STATE LIVE"}
           </div>
           <DemoBadge compact />
-          <button className="wallet-button" onClick={walletAction} disabled={Boolean(unveil.busy)}>
+          <span className="theme-chip" aria-label="Current theme: dark">
+            DARK
+          </span>
+          <button className="help-button" onClick={onReplayGuide}>
+            HELP
+          </button>
+          <span className="network-chip">SEPOLIA</span>
+          <button className="wallet-button" onClick={walletAction} disabled={Boolean(unveil.busy)} data-tour="wallet">
             {walletLabel}
           </button>
         </header>
-        {(unveil.error || unveil.notice) && (
+        {(unveil.error || unveil.wrongNetwork || globalNotice) && (
           <div
             className={`session-status ${unveil.error || unveil.wrongNetwork ? "session-status--error" : ""}`}
             role={unveil.error || unveil.wrongNetwork ? "alert" : "status"}
           >
             <span>{sessionLabel}</span>
-            <p>{unveil.error || unveil.notice}</p>
+            <p>{unveil.error || globalNotice || "Switch to Sepolia to continue."}</p>
             {unveil.error && (
               <button onClick={unveil.clearError} aria-label="Dismiss error">
                 ×
@@ -113,7 +100,7 @@ export function AppShell({
         <main className="app-content">{children}</main>
       </div>
       <nav className="mobile-nav" aria-label="Mobile application navigation">
-        {MOBILE_NAV.map(([to, label]) => (
+        {NAV.map(([to, , label]) => (
           <RouteLink to={to} className={route === to ? "active" : ""} key={to}>
             <i aria-hidden="true" />
             <span>{label}</span>

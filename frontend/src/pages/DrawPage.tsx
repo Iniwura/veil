@@ -1,0 +1,162 @@
+import { DrawCountdown } from "../components/DrawCountdown";
+import { EncryptedDrawField, type EncryptedDrawFieldState } from "../components/EncryptedDrawField";
+import { RoundHistory } from "../components/RoundHistory";
+import { VeilReveal } from "../components/VeilReveal";
+import { UNVEIL_CONTRACTS } from "../contracts";
+import type { UnveilController } from "../hooks/useUnveil";
+import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
+
+export function DrawPage({ unveil }: { unveil: UnveilController }) {
+  const schedule = unveil.schedule;
+  const participantCount = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
+  const fieldState: EncryptedDrawFieldState = schedule?.insufficientParticipants
+    ? "INSUFFICIENT"
+    : schedule?.overdue
+      ? "OVERDUE"
+      : schedule?.ready || schedule?.timeReady
+        ? "READY"
+        : "OPEN";
+  const result = unveil.latestFinalized;
+  const latestReveal = result && unveil.prize?.roundId === result.id ? unveil.prize : undefined;
+
+  return (
+    <div className="page-stack route-enter">
+      <header className="page-heading page-heading--compact">
+        <span className="eyebrow">DRAW</span>
+        <h1>FOLLOW THE DRAW.</h1>
+        <p>Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.</p>
+      </header>
+
+      {unveil.noticeScope === "draw" && unveil.notice && (
+        <div className="action-notice" role="status">
+          <span>DRAW UPDATE</span>
+          <p>{unveil.notice}</p>
+        </div>
+      )}
+
+      <section className="draw-focus draw-focus--field" data-tour="draw-current">
+        <EncryptedDrawField roundId={schedule?.currentRoundId} participantCount={participantCount} state={fieldState} />
+        <div className="draw-focus-copy">
+          <span className="eyebrow">CURRENT ROUND · {schedule?.currentRoundId.toString() ?? "—"}</span>
+          <DrawCountdown
+            closesAt={schedule?.closesAt}
+            timeReady={schedule?.timeReady}
+            ready={schedule?.ready}
+            insufficientParticipants={schedule?.insufficientParticipants}
+          />
+          <strong className="state-word">{drawStateLabel(schedule)}</strong>
+          <div className="draw-mini-metrics">
+            <span>OPENS {formatDate(schedule?.opensAt)}</span>
+            <span>CLOSES {formatDate(schedule?.closesAt)}</span>
+            <span>{schedule?.unsettledRounds.toString() ?? "—"} UNSETTLED</span>
+          </div>
+          {schedule?.insufficientParticipants && (
+            <p className="draw-note">This round can be marked SKIPPED. No draw or encrypted winner exists for it.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="draw-result-card" data-tour="draw-result">
+        <div>
+          <span className="eyebrow">LATEST RESULT</span>
+          <h2>{result ? `ROUND ${result.id}` : "NO SETTLED RESULT"}</h2>
+          <p>
+            {result?.winner
+              ? `Verified winner ${shortAddress(result.winner)}.`
+              : result?.status === "CANCELLED"
+                ? "KMS-proven zero-weight draw. No prize was delivered."
+                : result?.status === "SKIPPED"
+                  ? "Skipped at the scheduled close because fewer than two seats were eligible."
+                  : "The latest finalized, cancelled, or skipped round will appear here."}
+          </p>
+        </div>
+        <div className="draw-result-state">
+          <span>STATE</span>
+          <strong>{result?.status ?? "—"}</strong>
+          {result?.winner && (
+            <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer">
+              VERIFY WINNER ↗
+            </a>
+          )}
+        </div>
+      </section>
+
+      <section className="draw-prize" data-tour="draw-prize">
+        <div className="home-section-head">
+          <div>
+            <span className="eyebrow">MY PRIZE</span>
+            <h2>DELIVERED AUTOMATICALLY.</h2>
+          </div>
+          <span className="draw-prize-note">NO CLAIM TRANSACTION</span>
+        </div>
+        <p className="draw-prize-intro">
+          Winners receive confidential TEST strategy shares directly. Only the winning wallet can unveil the delivered
+          amount.
+        </p>
+        {!unveil.connected ? (
+          <div className="empty-state">
+            <span>WALLET DISCONNECTED</span>
+            <p>Connect the winner wallet to find its recent delivered prizes.</p>
+          </div>
+        ) : unveil.myDeliveredPrizes.length === 0 ? (
+          <div className="empty-state">
+            <span>NO DELIVERED PRIZE IN RECENT HISTORY</span>
+            <p>This wallet is not the processed winner of a loaded finalized round.</p>
+          </div>
+        ) : (
+          <div className="prize-list">
+            {unveil.myDeliveredPrizes.map((deliveredRound) => {
+              const revealed = unveil.prize?.roundId === deliveredRound.id;
+              const revealing = unveil.busy === `reveal-prize-${deliveredRound.id}`;
+              return (
+                <article className={revealed ? "revealed" : ""} key={deliveredRound.id.toString()}>
+                  <div>
+                    <span>ROUND</span>
+                    <strong>{deliveredRound.id.toString().padStart(2, "0")}</strong>
+                  </div>
+                  <div>
+                    <span>STATUS</span>
+                    <strong>DELIVERED</strong>
+                  </div>
+                  <VeilReveal
+                    compact
+                    label="Confidential strategy shares"
+                    value={revealed ? unveil.prize?.value : undefined}
+                    revealed={revealed}
+                    busy={revealing}
+                    revealedLabel="UNVEILED TO WINNER"
+                    detail="Already delivered · no claim"
+                    unit=" TEST SHARE UNITS"
+                  />
+                  <button
+                    className="button-secondary"
+                    disabled={Boolean(unveil.busy)}
+                    onClick={() => (revealed ? unveil.hidePrize() : unveil.revealPrizeForRound(deliveredRound.id))}
+                  >
+                    {revealing ? "UNVEILING…" : revealed ? "VEIL PRIZE" : "UNVEIL PRIZE"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="draw-history-section">
+        <div className="home-section-head">
+          <div>
+            <span className="eyebrow">PAST DRAWS</span>
+            <h2>VERIFIED ONCHAIN.</h2>
+          </div>
+        </div>
+        <RoundHistory rounds={unveil.history} />
+      </section>
+
+      <div className="contract-links">
+        <a href={explorerAddress(UNVEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
+          VERIFY V2 POOL ↗
+        </a>
+      </div>
+    </div>
+  );
+}

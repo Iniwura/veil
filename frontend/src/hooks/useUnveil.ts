@@ -27,6 +27,7 @@ import { productError } from "../lib/errors";
 type Dashboard = Awaited<ReturnType<typeof readDashboard>>;
 type PublicProtocol = Awaited<ReturnType<typeof readPublicProtocol>>;
 type WalletState = "disconnected" | "connected" | "account-changed" | "wrong-network" | "reconnect-required";
+type NoticeScope = "global" | "save" | "draw";
 
 export function useUnveil() {
   const walletEpoch = useRef(0);
@@ -46,7 +47,13 @@ export function useUnveil() {
   const [prize, setPrize] = useState<{ roundId: bigint; value: bigint }>();
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("Connect a Sepolia wallet to access private account actions.");
+  const [noticeScope, setNoticeScope] = useState<NoticeScope>("global");
   const [error, setError] = useState("");
+
+  const setScopedNotice = useCallback((scope: NoticeScope, message: string) => {
+    setNoticeScope(scope);
+    setNotice(message);
+  }, []);
 
   const updateWalletState = useCallback((next: WalletState) => {
     walletStateRef.current = next;
@@ -108,17 +115,21 @@ export function useUnveil() {
       setWalletChainId(wallet.chainId);
       if (wallet.chainId === UNVEIL_NETWORK.chainId) {
         updateWalletState("reconnect-required");
-        setNotice("A Sepolia wallet is available. Reconnect to load its private account state.");
+        setScopedNotice("global", "A Sepolia wallet is available. Reconnect to load its private account state.");
       } else {
         updateWalletState("wrong-network");
-        setNotice("Connected wallet is on the wrong network. Public Sepolia V2 state remains available.");
+        setScopedNotice(
+          "global",
+          "Connected wallet is on the wrong network. Public Sepolia V2 state remains available.",
+        );
       }
     });
     const unsubscribe = subscribeWalletLifecycle({
       accountsChanged(accounts) {
         clearAccountState();
         updateWalletState(accounts.length === 0 ? "disconnected" : "account-changed");
-        setNotice(
+        setScopedNotice(
+          "global",
           accounts.length === 0
             ? "Wallet disconnected. Private values were cleared."
             : "Wallet account changed. Reconnect to load this account.",
@@ -130,31 +141,34 @@ export function useUnveil() {
         setWalletChainId(nextChainId);
         if (nextChainId === UNVEIL_NETWORK.chainId) {
           updateWalletState("reconnect-required");
-          setNotice("Wallet returned to Sepolia. Reconnect before using private account actions.");
+          setScopedNotice("global", "Wallet returned to Sepolia. Reconnect before using private account actions.");
         } else {
           updateWalletState("wrong-network");
-          setNotice("Connected wallet is on the wrong network. Public Sepolia V2 state remains available.");
+          setScopedNotice(
+            "global",
+            "Connected wallet is on the wrong network. Public Sepolia V2 state remains available.",
+          );
         }
       },
       disconnect() {
         clearAccountState();
         setWalletChainId(undefined);
         updateWalletState("disconnected");
-        setNotice("Wallet disconnected. Private values were cleared.");
+        setScopedNotice("global", "Wallet disconnected. Private values were cleared.");
       },
     });
     return () => {
       active = false;
       unsubscribe();
     };
-  }, [clearAccountState, updateWalletState]);
+  }, [clearAccountState, setScopedNotice, updateWalletState]);
 
   async function connect() {
     const attempt = ++connectAttempt.current;
     clearAccountState();
     updateWalletState("reconnect-required");
     setBusy("connect");
-    setNotice("Waiting for wallet connection and Sepolia network confirmation…");
+    setScopedNotice("global", "Waiting for wallet connection and Sepolia network confirmation…");
     try {
       const wallet = await connectWallet();
       if (connectAttempt.current !== attempt) return;
@@ -170,7 +184,8 @@ export function useUnveil() {
       const next = await readDashboard(wallet.signer);
       if (connectAttempt.current !== attempt || walletEpoch.current !== connectedEpoch) return;
       setDashboard(next);
-      setNotice(
+      setScopedNotice(
+        "global",
         next.joined
           ? "Your V2 position is connected and remains sealed."
           : "Wallet connected. Save TEST principal to enter the pool.",
@@ -183,10 +198,13 @@ export function useUnveil() {
       setWalletChainId(wallet?.chainId);
       if (wallet?.accounts.length && wallet.chainId !== UNVEIL_NETWORK.chainId) {
         updateWalletState("wrong-network");
-        setNotice("Connected wallet is on the wrong network. Public Sepolia V2 state remains available.");
+        setScopedNotice(
+          "global",
+          "Connected wallet is on the wrong network. Public Sepolia V2 state remains available.",
+        );
       } else if (wallet?.accounts.length) {
         updateWalletState("reconnect-required");
-        setNotice("Reconnect to load the current Sepolia account.");
+        setScopedNotice("global", "Reconnect to load the current Sepolia account.");
       } else {
         updateWalletState("disconnected");
       }
@@ -200,13 +218,13 @@ export function useUnveil() {
     clearAccountState();
     updateWalletState("reconnect-required");
     setBusy("switch-network");
-    setNotice("Requesting a wallet switch to Sepolia…");
+    setScopedNotice("global", "Requesting a wallet switch to Sepolia…");
     const epoch = walletEpoch.current;
     try {
       await ensureSepolia();
       if (walletEpoch.current !== epoch) return;
       setWalletChainId(UNVEIL_NETWORK.chainId);
-      setNotice("Wallet is on Sepolia. Reconnect before using private account actions.");
+      setScopedNotice("global", "Wallet is on Sepolia. Reconnect before using private account actions.");
     } catch (cause) {
       if (walletEpoch.current !== epoch) return;
       updateWalletState("wrong-network");
@@ -236,10 +254,11 @@ export function useUnveil() {
     try {
       setError("");
       setBusy("fund");
-      setNotice("Checking confidential TEST principal before minting or wrapping…");
+      setScopedNotice("save", "Checking confidential TEST principal before minting or wrapping…");
       const result = await fundDemoWallet(wallet.signer, 100n);
       if (walletEpoch.current !== wallet.epoch) return;
-      setNotice(
+      setScopedNotice(
+        "save",
         result.alreadyFunded
           ? "This wallet already has enough wrapped TEST principal."
           : `${result.wrapped} TEST units wrapped into confidential principal.`,
@@ -258,13 +277,16 @@ export function useUnveil() {
       setError("");
       setBusy("deposit");
       await sealDeposit(wallet.signer, amount, (nextNotice) => {
-        if (walletEpoch.current === wallet.epoch) setNotice(nextNotice);
+        if (walletEpoch.current === wallet.epoch) setScopedNotice("save", nextNotice);
       });
       if (walletEpoch.current !== wallet.epoch) return;
       setVault(undefined);
       await refresh(wallet.signer);
       if (walletEpoch.current === wallet.epoch) {
-        setNotice("Encrypted deposit confirmed. Your position is eligible according to the live seat state.");
+        setScopedNotice(
+          "save",
+          "Encrypted deposit confirmed. Your position is eligible according to the live seat state.",
+        );
       }
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setError(productError(cause));
@@ -279,13 +301,13 @@ export function useUnveil() {
     try {
       setError("");
       setBusy("withdraw");
-      setNotice("Encrypting your withdrawal request for the V2 pool…");
+      setScopedNotice("save", "Encrypting your withdrawal request for the V2 pool…");
       const result = await withdrawPrivate(wallet.signer, amount);
       if (walletEpoch.current !== wallet.epoch) return;
       setVault(undefined);
       await refresh(wallet.signer);
       if (walletEpoch.current === wallet.epoch) {
-        setNotice(`Withdrawal request #${result.requestId} recorded · ${result.request.status}.`);
+        setScopedNotice("save", `Withdrawal request #${result.requestId} recorded · ${result.request.status}.`);
       }
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setError(productError(cause));
@@ -301,11 +323,11 @@ export function useUnveil() {
       setError("");
       setVault(undefined);
       setBusy("reveal-vault");
-      setNotice("Awaiting your wallet signature for private decryption…");
+      setScopedNotice("save", "Awaiting your wallet signature for private decryption…");
       const nextVault = await revealMyVault(wallet.signer);
       if (walletEpoch.current !== wallet.epoch) return;
       setVault(nextVault);
-      setNotice("Private values are unveiled locally for this browser session only.");
+      setScopedNotice("save", "Private values are unveiled locally for this browser session only.");
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setError(productError(cause));
     } finally {
@@ -320,11 +342,11 @@ export function useUnveil() {
       setError("");
       setRoundWeight(undefined);
       setBusy("reveal-weight");
-      setNotice(`Awaiting signature to unveil your Round ${roundId} weight…`);
+      setScopedNotice("save", `Awaiting signature to unveil your Round ${roundId} weight…`);
       const value = await revealMyRoundWeight(wallet.signer, roundId);
       if (walletEpoch.current !== wallet.epoch) return;
       setRoundWeight({ roundId, value });
-      setNotice(`Your Round ${roundId} weight is displayed locally. Exact odds remain unavailable.`);
+      setScopedNotice("save", `Your Round ${roundId} weight is displayed locally. Exact odds remain unavailable.`);
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setError(productError(cause));
     } finally {
@@ -353,11 +375,11 @@ export function useUnveil() {
       setError("");
       setPrize(undefined);
       setBusy(`reveal-prize-${roundId}`);
-      setNotice(`Awaiting the winner wallet signature for Round ${roundId} prize decryption…`);
+      setScopedNotice("draw", `Awaiting the winner wallet signature for Round ${roundId} prize decryption…`);
       const value = await revealPrize(wallet.signer, roundId);
       if (walletEpoch.current !== wallet.epoch) return;
       setPrize({ roundId, value });
-      setNotice(`Round ${roundId} TEST strategy shares are unveiled locally for this wallet.`);
+      setScopedNotice("draw", `Round ${roundId} TEST strategy shares are unveiled locally for this wallet.`);
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setError(productError(cause));
     } finally {
@@ -371,12 +393,12 @@ export function useUnveil() {
     try {
       setError("");
       setBusy("renew-seat");
-      setNotice("Waiting for wallet confirmation to renew the draw seat…");
+      setScopedNotice("draw", "Waiting for wallet confirmation to renew the draw seat…");
       await renewDrawSeat(wallet.signer);
       if (walletEpoch.current !== wallet.epoch) return;
       await refresh(wallet.signer);
       if (walletEpoch.current === wallet.epoch) {
-        setNotice("Draw seat renewed without exposing or changing private principal.");
+        setScopedNotice("draw", "Draw seat renewed without exposing or changing private principal.");
       }
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setError(productError(cause));
@@ -405,6 +427,7 @@ export function useUnveil() {
     prize,
     busy,
     notice,
+    noticeScope,
     error,
     connect,
     switchToSepolia,
