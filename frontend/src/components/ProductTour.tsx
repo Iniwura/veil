@@ -21,8 +21,8 @@ function coachmarkPosition(target: TourRect | null, size: CoachmarkSize): Positi
   const gap = 18;
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const narrow = viewportWidth <= 520;
-  const safeBottom = viewportHeight - (narrow ? 84 : margin);
+  const hasMobileNavigation = viewportWidth <= 780;
+  const safeBottom = viewportHeight - (hasMobileNavigation ? 84 : margin);
   const clampLeft = (left: number) => Math.max(margin, Math.min(viewportWidth - size.width - margin, left));
   const candidates = [
     { left: target.right + gap, top: target.top },
