@@ -32,9 +32,11 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
     <div className="page-stack route-enter">
       <section className="home-command-row">
         <div>
-          <span className="eyebrow">YOUR UNVEIL DASHBOARD</span>
-          <h1>WELCOME BACK.</h1>
-          <p>Private position, scheduled draw, and verified result in one place.</p>
+          <span className="eyebrow">HOME · CURRENT DRAW</span>
+          <h1>
+            ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"} · {drawStateLabel(schedule)}
+          </h1>
+          <p>Public timing and eligibility first. Your private position stays sealed until you choose to unveil it.</p>
         </div>
         <div className="home-command-actions">
           {action.kind === "link" ? (
@@ -50,49 +52,29 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
               {unveil.busy === "renew-seat" ? "RENEWING…" : action.label}
             </button>
           )}
-          <RouteLink className="text-link" to="/app/draw">
-            SEE DRAW STATUS →
-          </RouteLink>
+        </div>
+        <div className="home-command-state" aria-label="Current draw state">
+          <DrawCountdown
+            closesAt={schedule?.closesAt}
+            timeReady={schedule?.timeReady}
+            ready={schedule?.ready}
+            insufficientParticipants={schedule?.insufficientParticipants}
+          />
+          <div className="home-command-metrics">
+            <span>
+              ELIGIBILITY <strong>{seatState}</strong>
+            </span>
+            <span>
+              PARTICIPANTS <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
+            </span>
+            <span>
+              CLOSES <strong>{formatDate(schedule?.closesAt)}</strong>
+            </span>
+          </div>
         </div>
       </section>
 
       <section className="home-dashboard-grid">
-        <article className="home-draw-card">
-          <div className="home-section-head">
-            <div>
-              <span className="eyebrow">CURRENT DRAW</span>
-              <h2>ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</h2>
-            </div>
-            <DrawCountdown
-              closesAt={schedule?.closesAt}
-              timeReady={schedule?.timeReady}
-              ready={schedule?.ready}
-              insufficientParticipants={schedule?.insufficientParticipants}
-            />
-          </div>
-          <div className="home-draw-metrics">
-            <div>
-              <span>STATE</span>
-              <strong>{drawStateLabel(schedule)}</strong>
-            </div>
-            <div>
-              <span>PARTICIPANTS</span>
-              <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
-            </div>
-            <div>
-              <span>ELIGIBILITY</span>
-              <strong>{seatState}</strong>
-            </div>
-            <div>
-              <span>CLOSES</span>
-              <strong>{formatDate(schedule?.closesAt)}</strong>
-            </div>
-          </div>
-          <RouteLink className="text-link" to="/app/draw">
-            OPEN DRAW DETAILS →
-          </RouteLink>
-        </article>
-
         <article className="private-panel" data-tour="private-position">
           <div className="home-section-head">
             <div>
@@ -142,55 +124,51 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
                 : "UNVEIL PRIVATE POSITION"}
           </button>
         </article>
-      </section>
-
-      <section className="home-result-card">
-        <div className="home-section-head">
-          <div>
-            <span className="eyebrow">LATEST RESULT</span>
-            <h2>{result ? `ROUND ${result.id}` : "NO RESULT YET"}</h2>
-          </div>
-          <RouteLink className="text-link" to="/app/draw">
-            OPEN DRAW →
-          </RouteLink>
-        </div>
-        {!result ? (
-          <p>Verified results will appear here after the first settled round.</p>
-        ) : result.status === "FINALIZED" ? (
-          <div className="home-result-details">
+        <section className="home-result-card">
+          <div className="home-section-head">
             <div>
-              <span>WINNER</span>
-              {result.winner ? (
-                <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer">
-                  {shortAddress(result.winner)} ↗
-                </a>
-              ) : (
-                <strong>WINNER VERIFIED</strong>
-              )}
+              <span className="eyebrow">LATEST RESULT</span>
+              <h2>{result ? `ROUND ${result.id}` : "NO RESULT YET"}</h2>
             </div>
-            <div>
-              <span>PROOF</span>
-              <strong>KMS VERIFIED</strong>
-            </div>
-            <p>The winner is public; any delivered prize remains confidential to the winner wallet.</p>
           </div>
-        ) : result.status === "CANCELLED" ? (
-          <div className="home-result-details">
-            <div>
-              <span>OUTCOME</span>
-              <strong>CANCELLED</strong>
+          {!result ? (
+            <p>Verified results will appear here after the first settled round.</p>
+          ) : result.status === "FINALIZED" ? (
+            <div className="home-result-details">
+              <div>
+                <span>WINNER</span>
+                {result.winner ? (
+                  <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer">
+                    {shortAddress(result.winner)} ↗
+                  </a>
+                ) : (
+                  <strong>WINNER VERIFIED</strong>
+                )}
+              </div>
+              <div>
+                <span>PROOF</span>
+                <strong>KMS VERIFIED</strong>
+              </div>
+              <p>The winner is public; any delivered prize remains confidential to the winner wallet.</p>
             </div>
-            <p>KMS-proven zero-weight draw. No winner or prize was delivered.</p>
-          </div>
-        ) : (
-          <div className="home-result-details">
-            <div>
-              <span>OUTCOME</span>
-              <strong>SKIPPED</strong>
+          ) : result.status === "CANCELLED" ? (
+            <div className="home-result-details">
+              <div>
+                <span>OUTCOME</span>
+                <strong>CANCELLED</strong>
+              </div>
+              <p>KMS-proven zero-weight draw. No winner or prize was delivered.</p>
             </div>
-            <p>Insufficient participants at the scheduled close. No BlindDraw or encrypted winner exists.</p>
-          </div>
-        )}
+          ) : (
+            <div className="home-result-details">
+              <div>
+                <span>OUTCOME</span>
+                <strong>SKIPPED</strong>
+              </div>
+              <p>Insufficient participants at the scheduled close. No BlindDraw or encrypted winner exists.</p>
+            </div>
+          )}
+        </section>
       </section>
 
       <section className="home-history">

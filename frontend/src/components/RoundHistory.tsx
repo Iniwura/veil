@@ -10,7 +10,15 @@ function prizeLabel(round: VerifiedRound) {
   return round.processedPrize ? "DELIVERED" : "PROCESSING";
 }
 
-export function RoundHistory({ rounds, compact = false }: { rounds: VerifiedRound[]; compact?: boolean }) {
+export function RoundHistory({
+  rounds,
+  compact = false,
+  showExplorerLink = !compact,
+}: {
+  rounds: VerifiedRound[];
+  compact?: boolean;
+  showExplorerLink?: boolean;
+}) {
   const [replay, setReplay] = useState<{ id: bigint; token: number }>();
   if (rounds.length === 0) {
     return (
@@ -103,7 +111,7 @@ export function RoundHistory({ rounds, compact = false }: { rounds: VerifiedRoun
           )}
         </article>
       ))}
-      {!compact && (
+      {showExplorerLink && (
         <a className="text-link" href={explorerAddress(UNVEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
           VERIFY ALL POOL STATE ON ETHERSCAN ↗
         </a>

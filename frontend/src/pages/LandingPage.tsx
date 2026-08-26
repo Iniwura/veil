@@ -32,11 +32,10 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
         </a>
         <nav aria-label="Landing navigation">
           <a href="#product">Product</a>
-          <a href="#how">How it works</a>
           <a href="#privacy">Privacy</a>
-          <a href="#security">Security</a>
+          <a href="#live">Live</a>
           <a href="https://github.com/Iniwura/veil" target="_blank" rel="noreferrer">
-            Docs
+            GitHub
           </a>
         </nav>
         <div className="landing-nav-actions">
@@ -56,23 +55,20 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
             <em>WIN VERIFIABLY.</em>
           </h1>
           <p className="hero-lede">
-            Your balance stays encrypted.
-            <br />
-            Your draw stays verifiable.
-            <br />
-            Your prize is unveiled only to you.
+            Save into an encrypted position, participate in verifiable weighted draws, and receive confidential prizes
+            without publishing your balance.
           </p>
           <div className="hero-actions">
             <RouteLink className="button-primary" to="/app">
               Launch app <span>↗</span>
             </RouteLink>
-            <a className="button-text" href="#how">
+            <a className="button-text" href="#privacy">
               See how it works <span>↓</span>
             </a>
           </div>
           <p className="campaign">Nothing to see. Everything to verify.</p>
         </div>
-        <div className="protocol-visual landing-chamber" id="how">
+        <div className="protocol-visual landing-chamber">
           <div className="protocol-visual-head">
             <span>CRYPTOGRAPHIC CHAMBER</span>
             <span>CONCEPTUAL · NOT LIVE STATE</span>
@@ -109,99 +105,49 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
                     : "WINNER ONLY"}
             </i>
           </div>
-          <div className="protocol-wire" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-          </div>
         </div>
       </section>
 
-      <div className="trust-strip" data-reveal>
-        <span>ZAMA FHE</span>
-        <span>SEPOLIA V2 LIVE</span>
-        <span>AUTONOMOUS BLIND DRAW</span>
-        <span>CONFIDENTIAL PRIZES</span>
-        <DemoBadge />
-      </div>
-
-      <section className="editorial-section problem-section" id="privacy" data-reveal>
-        <div>
-          <p className="eyebrow">THE PRIVACY PROBLEM</p>
-          <h2>SAVING SHOULDN'T PUBLISH YOUR FINANCIAL POSITION.</h2>
+      <section className="privacy-boundary" id="privacy" data-reveal>
+        <div className="privacy-boundary-heading">
+          <p className="eyebrow">PRIVACY BOUNDARY</p>
+          <h2>WHAT THE PROTOCOL REVEALS.</h2>
+          <p>Verification stays public while individual financial state stays encrypted.</p>
         </div>
-        <div className="editorial-copy">
-          <p>
-            Transparent prize savings makes verification easy by exposing financial state. UNVEIL separates those
-            concerns.
-          </p>
-          <p>
-            Addresses and lifecycle metadata remain public. Individual deposits, balances, withdrawals, weights, and
-            prizes remain encrypted.
-          </p>
-        </div>
-      </section>
-
-      <section className="numbered-process" data-reveal>
-        {[
-          ["01", "SAVE", "TEST token becomes confidential principal before an encrypted pool deposit."],
-          ["02", "ENTER", "An active seat makes the encrypted balance eligible for the scheduled draw."],
-          ["03", "DRAW", "Permissionless BlindDraw selects against immutable encrypted weights."],
-          ["04", "VERIFY", "Zama/KMS proof validation makes the winner public without publishing weights."],
-          ["05", "RECEIVE", "Processed TEST strategy-share prizes arrive automatically and stay confidential."],
-        ].map(([number, title, copy]) => (
-          <article key={number}>
-            <span>{number}</span>
-            <h3>{title}</h3>
-            <p>{copy}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="comparison-section" data-reveal>
-        <div className="comparison-head">
-          <p className="eyebrow">VISIBLE BY DESIGN</p>
-          <h2>
-            PUBLICLY VERIFIABLE.
-            <br />
-            PRIVATELY HIDDEN.
-          </h2>
-        </div>
-        <div className="comparison-grid">
-          <div>
-            <span>PUBLIC</span>
-            {["Round timing", "Participant addresses", "Draw state", "Final winner", "Proof and lifecycle"].map(
-              (item) => (
-                <p key={item}>
-                  {item}
-                  <i>VISIBLE</i>
-                </p>
-              ),
-            )}
+        <div className="privacy-ledger">
+          <div className="privacy-ledger-column">
+            <span className="privacy-ledger-label">PUBLIC</span>
+            <ul>
+              <li>Round timing</li>
+              <li>Participant addresses</li>
+              <li>Draw lifecycle</li>
+              <li>Finalized winner</li>
+              <li>Proof and lifecycle events</li>
+            </ul>
           </div>
-          <div className="comparison-private">
-            <span>PRIVATE</span>
-            {["Deposit amount", "Current balance", "Withdrawal amount", "Draw weight", "Prize amount"].map((item) => (
-              <p key={item}>
-                {item}
-                <i>ENCRYPTED</i>
-              </p>
-            ))}
+          <div className="privacy-ledger-column privacy-ledger-column--private">
+            <span className="privacy-ledger-label">PRIVATE</span>
+            <ul>
+              <li>Deposit amount</li>
+              <li>Active principal</li>
+              <li>Withdrawal amount</li>
+              <li>Draw weight</li>
+              <li>Prize amount</li>
+            </ul>
           </div>
         </div>
-        <p className="comparison-note">
-          UNVEIL provides verifiability without making individual financial state public. It does not claim address or
-          transaction anonymity.
+        <p className="privacy-boundary-note">
+          UNVEIL does not provide address or transaction anonymity. Participant count is public, but it is not a
+          denominator for exact weighted odds.
         </p>
       </section>
 
-      <section className="live-proof-section" data-reveal>
+      <section className="live-proof-section" id="live" data-reveal>
         <div className="live-proof-head">
           <div>
-            <p className="eyebrow">CURRENT DRAW · LIVE SEPOLIA</p>
-            <h2>ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</h2>
+            <p className="eyebrow">PUBLIC PROOF</p>
+            <h2>LIVE ON SEPOLIA.</h2>
+            <p>Current public state, read directly from the deployed V2 contracts.</p>
           </div>
           <DrawCountdown
             closesAt={schedule?.closesAt}
@@ -234,76 +180,9 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
         </a>
       </section>
 
-      <section className="security-section" id="security" data-reveal>
-        <div>
-          <p className="eyebrow">SECURITY + ARCHITECTURE</p>
-          <h2>ENCRYPTION IS THE PRODUCT BOUNDARY.</h2>
-        </div>
-        <div className="security-grid">
-          <article>
-            <span>01</span>
-            <h3>WALLET-SCOPED REVEAL</h3>
-            <p>Your authorized ciphertexts are decrypted after a wallet signature. Values are never auto-revealed.</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>FIXED SCHEDULE</h3>
-            <p>Draw timing derives from the contract anchor. Delayed settlement cannot move future windows.</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>PROOF-GATED WINNER</h3>
-            <p>Finalization accepts only the valid public decryption proof for the encrypted winner.</p>
-          </article>
-          <article>
-            <span>04</span>
-            <h3>SEPARATE CUSTODY</h3>
-            <p>Principal liability, strategy shares, withdrawal reservations, and prizes remain distinct.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="faq-section" data-reveal>
-        <p className="eyebrow">FAQ</p>
-        <h2>THE IMPORTANT DETAILS.</h2>
-        <details>
-          <summary>Can anyone see my balance?</summary>
-          <p>
-            No. Your active and reserved principal are encrypted and revealed only through your wallet-authorized
-            decryption.
-          </p>
-        </details>
-        <details>
-          <summary>Can I calculate my exact odds?</summary>
-          <p>
-            No. V2 does not grant participants decryption permission for aggregate snapshot weight. Participant count is
-            not a valid denominator for a weighted draw.
-          </p>
-        </details>
-        <details>
-          <summary>Do winners claim prizes?</summary>
-          <p>
-            No. V2 prize processing delivers confidential TEST strategy shares automatically. The winner only chooses
-            whether to reveal the amount locally.
-          </p>
-        </details>
-        <details>
-          <summary>Is this production yield?</summary>
-          <p>
-            No. The Sepolia deployment is TEST/DEMO infrastructure using a simulated ERC4626 strategy—not USDC, cUSDC,
-            csteakcUSDC, Steakhouse, Morpho, or production market yield.
-          </p>
-        </details>
-      </section>
-
       <section className="final-cta" data-reveal>
-        <BrandMark />
-        <p className="eyebrow">ENCRYPTED TO EVERYONE. UNVEILED ONLY TO YOU.</p>
-        <h2>
-          START SAVING
-          <br />
-          WITHOUT SHOWING.
-        </h2>
+        <p className="eyebrow">TEST/DEMO · ZAMA FHE</p>
+        <h2>PRIVATE SAVINGS. PUBLIC PROOF.</h2>
         <RouteLink className="button-primary" to="/app/save">
           Launch UNVEIL <span>↗</span>
         </RouteLink>

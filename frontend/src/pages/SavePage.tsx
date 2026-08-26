@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { VeilReveal } from "../components/VeilReveal";
 import { WithdrawalStatus } from "../components/WithdrawalStatus";
 import type { UnveilController } from "../hooks/useUnveil";
+import { shortAddress } from "../lib/format";
 
 const MotionDebugVault = import.meta.env.DEV ? lazy(() => import("../dev/MotionDebugVault")) : null;
 
@@ -15,6 +16,16 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
   const saveError = unveil.errorScope === "save" ? unveil.error : "";
   const saveNotice = unveil.noticeScope === "save" ? unveil.notice : "";
   const showMotionDebug = import.meta.env.DEV && new URLSearchParams(window.location.search).get("motionDebug") === "1";
+  const eligibility = unveil.wrongNetwork
+    ? "WRONG NETWORK"
+    : !unveil.connected
+      ? "CONNECT WALLET"
+      : unveil.dashboard?.seated
+        ? "ACTIVE"
+        : unveil.dashboard?.joined
+          ? "EXPIRED"
+          : "NOT JOINED";
+  const latestWithdrawal = unveil.dashboard?.latestWithdrawal;
 
   useEffect(() => {
     if (selectedRoundId !== roundId) setRoundId(selectedRoundId);
@@ -38,11 +49,16 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
       <header className="page-heading page-heading--compact">
         <span className="eyebrow">SAVE</span>
         <h1>SAVE PRIVATELY.</h1>
-        <p>Save TEST principal into a confidential position. The draw uses your encrypted balance without publishing it.</p>
+        <p>
+          Save TEST principal into a confidential position. The draw uses your encrypted balance without publishing it.
+        </p>
       </header>
 
       {(saveError || saveNotice) && (
-        <div className={`action-notice ${saveError ? "action-notice--error" : ""}`} role={saveError ? "alert" : "status"}>
+        <div
+          className={`action-notice ${saveError ? "action-notice--error" : ""}`}
+          role={saveError ? "alert" : "status"}
+        >
           <span>{saveError ? "SAVE ERROR" : "SAVE UPDATE"}</span>
           <p>{saveError || saveNotice}</p>
           {saveError && (
@@ -113,35 +129,37 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           <p className="form-note">The faucet is demo infrastructure for TEST token only.</p>
         </article>
 
-        <aside className="transaction-story">
+        <aside className="account-status-region">
+          <div className="account-status-heading">
+            <span className="eyebrow">ACCOUNT STATUS</span>
+            <h2>{mode === "deposit" ? "READY TO SAVE." : "WITHDRAWAL STATUS."}</h2>
+          </div>
+          <dl className="account-status-list">
+            <div>
+              <dt>WALLET</dt>
+              <dd>{unveil.connected ? shortAddress(unveil.address) : "DISCONNECTED"}</dd>
+            </div>
+            <div>
+              <dt>DRAW ELIGIBILITY</dt>
+              <dd>{eligibility}</dd>
+            </div>
+            <div>
+              <dt>NETWORK</dt>
+              <dd>{unveil.wrongNetwork ? "SWITCH TO SEPOLIA" : "SEPOLIA"}</dd>
+            </div>
+            <div>
+              <dt>LATEST WITHDRAWAL</dt>
+              <dd>{latestWithdrawal?.status ?? "NONE LOADED"}</dd>
+            </div>
+          </dl>
           {mode === "deposit" ? (
-            <>
-              <span className="eyebrow">HOW SAVING WORKS</span>
-              <h2>YOUR POSITION STAYS YOURS.</h2>
-              <div className="save-benefits">
-                <div>
-                  <strong>01</strong>
-                  <span>DEPOSIT</span>
-                  <p>TEST becomes confidential principal before entering the pool.</p>
-                </div>
-                <div>
-                  <strong>02</strong>
-                  <span>DRAW WEIGHT</span>
-                  <p>Your balance becomes an encrypted weight for eligible rounds.</p>
-                </div>
-                <div>
-                  <strong>03</strong>
-                  <span>UNVEIL</span>
-                  <p>Only your wallet can locally decrypt authorized private values.</p>
-                </div>
-              </div>
-            </>
+            <p>
+              Deposits become confidential principal and contribute encrypted weight while your draw seat is eligible.
+            </p>
           ) : (
             <>
-              <span className="eyebrow">WITHDRAWAL STATUS</span>
-              <h2>LIQUID WHEN AVAILABLE.</h2>
               <p>Requests settle instantly when liquid or remain queued until strategy liquidity is available.</p>
-              <WithdrawalStatus request={unveil.dashboard?.latestWithdrawal} />
+              <WithdrawalStatus request={latestWithdrawal} />
             </>
           )}
         </aside>
@@ -205,52 +223,60 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           >
             {unveil.busy === "reveal-vault" ? "UNVEILING…" : revealed ? "VEIL POSITION" : "UNVEIL MY POSITION"}
           </button>
-          <p>Your private values are decrypted only after your wallet authorizes the request and remain local to this session.</p>
+          <p>
+            Your private values are decrypted only after your wallet authorizes the request and remain local to this
+            session.
+          </p>
         </div>
       </section>
 
-      <section className="weight-reveal">
-        <div>
-          <span className="eyebrow">HISTORICAL WEIGHT</span>
-          <h2>UNVEIL ONE ROUND.</h2>
-          <p>If this wallet was included, it can decrypt only its own immutable snapshot weight.</p>
-        </div>
-        <div className="weight-control">
-          <label htmlFor="round-select">ROUND</label>
-          <select id="round-select" value={selectedRoundId} onChange={(event) => setRoundId(event.target.value)}>
-            {roundIds.length ? (
-              roundIds.map((id) => (
-                <option key={id.toString()} value={id.toString()}>
-                  {id.toString()}
-                </option>
-              ))
-            ) : (
-              <option value="">NO SETTLED ROUND</option>
-            )}
-          </select>
-          <button
-            className="button-secondary"
-            disabled={Boolean(unveil.busy) || !selectedRoundId}
-            onClick={() => selectedRoundId && unveil.revealRound(BigInt(selectedRoundId))}
-          >
-            {unveil.busy === "reveal-weight" ? "UNVEILING…" : "UNVEIL MY DRAW WEIGHT"}
-          </button>
-          {unveil.roundWeight && (
-            <button className="button-quiet" onClick={unveil.hideRoundWeight}>
-              VEIL WEIGHT
+      <details className="weight-reveal">
+        <summary>INSPECT HISTORICAL DRAW WEIGHT</summary>
+        <div className="weight-reveal-body">
+          <div>
+            <span className="eyebrow">ADVANCED PRIVATE DATA</span>
+            <h2>UNVEIL ONE ROUND.</h2>
+            <p>If this wallet was included, it can decrypt only its own immutable snapshot weight.</p>
+          </div>
+          <div className="weight-control">
+            <label htmlFor="round-select">ROUND</label>
+            <select id="round-select" value={selectedRoundId} onChange={(event) => setRoundId(event.target.value)}>
+              {roundIds.length ? (
+                roundIds.map((id) => (
+                  <option key={id.toString()} value={id.toString()}>
+                    {id.toString()}
+                  </option>
+                ))
+              ) : (
+                <option value="">NO SETTLED ROUND</option>
+              )}
+            </select>
+            <button
+              className="button-secondary"
+              disabled={Boolean(unveil.busy) || !selectedRoundId}
+              onClick={() => selectedRoundId && unveil.revealRound(BigInt(selectedRoundId))}
+            >
+              {unveil.busy === "reveal-weight" ? "UNVEILING…" : "UNVEIL MY DRAW WEIGHT"}
             </button>
-          )}
+            {unveil.roundWeight && (
+              <button className="button-quiet" onClick={unveil.hideRoundWeight}>
+                VEIL WEIGHT
+              </button>
+            )}
+          </div>
+          <VeilReveal
+            compact
+            label={unveil.roundWeight ? "My weight" : "My encrypted weight"}
+            value={unveil.roundWeight?.value}
+            revealed={Boolean(unveil.roundWeight)}
+            busy={unveil.busy === "reveal-weight"}
+            detail={
+              selectedRoundId ? `Immutable snapshot · Round ${selectedRoundId.padStart(2, "0")}` : "No round selected"
+            }
+            unit=" TEST UNITS"
+          />
         </div>
-        <VeilReveal
-          compact
-          label={unveil.roundWeight ? "My weight" : "My encrypted weight"}
-          value={unveil.roundWeight?.value}
-          revealed={Boolean(unveil.roundWeight)}
-          busy={unveil.busy === "reveal-weight"}
-          detail={selectedRoundId ? `Immutable snapshot · Round ${selectedRoundId.padStart(2, "0")}` : "No round selected"}
-          unit=" TEST UNITS"
-        />
-      </section>
+      </details>
 
       <div className="demo-disclaimer">TEST/DEMO ONLY · NOT PRODUCTION MARKET YIELD.</div>
 
