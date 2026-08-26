@@ -3,11 +3,12 @@ import { VeilReveal } from "../components/VeilReveal";
 import { RoundHistory } from "../components/RoundHistory";
 import { RouteLink } from "../components/RouteLink";
 import type { UnveilController } from "../hooks/useUnveil";
-import { drawStateLabel, formatDate } from "../lib/format";
+import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
 
 export function HomePage({ unveil }: { unveil: UnveilController }) {
   const data = unveil.dashboard;
   const schedule = unveil.schedule;
+  const result = unveil.latestResult;
   const privateState = unveil.busy === "reveal-vault" ? "UNVEILING" : unveil.vault ? "UNVEILED TO YOU" : "SEALED";
   const seatState = unveil.wrongNetwork
     ? "WRONG NETWORK"
@@ -19,75 +20,79 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           ? "EXPIRED"
           : "NOT JOINED";
 
+  const action = !unveil.connected
+    ? { kind: "button" as const, label: unveil.wrongNetwork ? "SWITCH TO SEPOLIA" : "CONNECT WALLET" }
+    : data?.joined && !data.seated
+      ? { kind: "button" as const, label: "RENEW SEAT" }
+      : data?.seated
+        ? { kind: "link" as const, label: "VIEW DRAW" }
+        : { kind: "link" as const, label: "SAVE PRIVATELY" };
+
   return (
     <div className="page-stack route-enter">
-      <section className="home-hero">
+      <section className="home-command-row">
         <div>
-          <span className="eyebrow">PRIVATE PRIZE SAVINGS</span>
-          <h1>
-            SAVE PRIVATELY.
-            <br />
-            DRAW PUBLICLY.
-          </h1>
-          <p>One quiet place to save, follow the draw, and unveil only what belongs to your wallet.</p>
+          <span className="eyebrow">YOUR UNVEIL DASHBOARD</span>
+          <h1>WELCOME BACK.</h1>
+          <p>Private position, scheduled draw, and verified result in one place.</p>
         </div>
-        <div className="home-hero-actions">
-          <RouteLink className="button-primary" to="/app/save">
-            SAVE PRIVATELY <span>↗</span>
-          </RouteLink>
+        <div className="home-command-actions">
+          {action.kind === "link" ? (
+            <RouteLink className="button-primary" to={action.label === "VIEW DRAW" ? "/app/draw" : "/app/save"}>
+              {action.label} <span>↗</span>
+            </RouteLink>
+          ) : (
+            <button
+              className="button-primary"
+              onClick={unveil.wrongNetwork ? unveil.switchToSepolia : data?.joined ? unveil.renewSeat : unveil.connect}
+              disabled={Boolean(unveil.busy)}
+            >
+              {unveil.busy === "renew-seat" ? "RENEWING…" : action.label}
+            </button>
+          )}
           <RouteLink className="text-link" to="/app/draw">
-            SEE THE DRAW →
+            SEE DRAW STATUS →
           </RouteLink>
         </div>
       </section>
 
-      <section className="home-draw-card">
-        <div className="home-section-head">
-          <div>
-            <span className="eyebrow">CURRENT DRAW</span>
-            <h2>ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</h2>
+      <section className="home-dashboard-grid">
+        <article className="home-draw-card">
+          <div className="home-section-head">
+            <div>
+              <span className="eyebrow">CURRENT DRAW</span>
+              <h2>ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</h2>
+            </div>
+            <DrawCountdown
+              closesAt={schedule?.closesAt}
+              timeReady={schedule?.timeReady}
+              ready={schedule?.ready}
+              insufficientParticipants={schedule?.insufficientParticipants}
+            />
           </div>
-          <DrawCountdown
-            closesAt={schedule?.closesAt}
-            timeReady={schedule?.timeReady}
-            ready={schedule?.ready}
-            insufficientParticipants={schedule?.insufficientParticipants}
-          />
-        </div>
-        <div className="home-draw-metrics">
-          <div>
-            <span>STATE</span>
-            <strong>{drawStateLabel(schedule)}</strong>
+          <div className="home-draw-metrics">
+            <div>
+              <span>STATE</span>
+              <strong>{drawStateLabel(schedule)}</strong>
+            </div>
+            <div>
+              <span>PARTICIPANTS</span>
+              <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
+            </div>
+            <div>
+              <span>ELIGIBILITY</span>
+              <strong>{seatState}</strong>
+            </div>
+            <div>
+              <span>CLOSES</span>
+              <strong>{formatDate(schedule?.closesAt)}</strong>
+            </div>
           </div>
-          <div>
-            <span>PARTICIPANTS</span>
-            <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
-          </div>
-          <div>
-            <span>SEAT</span>
-            <strong>{seatState}</strong>
-          </div>
-          <div>
-            <span>CLOSES</span>
-            <strong>{formatDate(schedule?.closesAt)}</strong>
-          </div>
-        </div>
-        {!unveil.connected ? (
-          <button className="button-primary" onClick={unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect}>
-            {unveil.wrongNetwork ? "SWITCH TO SEPOLIA" : "CONNECT WALLET"}
-          </button>
-        ) : data?.joined && !data.seated ? (
-          <button className="button-secondary" onClick={unveil.renewSeat} disabled={Boolean(unveil.busy)}>
-            RENEW DRAW SEAT
-          </button>
-        ) : (
           <RouteLink className="text-link" to="/app/draw">
             OPEN DRAW DETAILS →
           </RouteLink>
-        )}
-      </section>
+        </article>
 
-      <section className="home-private-grid">
         <article className="private-panel" data-tour="private-position">
           <div className="home-section-head">
             <div>
@@ -137,26 +142,55 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
                 : "UNVEIL PRIVATE POSITION"}
           </button>
         </article>
-        <article className="status-panel home-result-preview">
-          <span className="eyebrow">LATEST RESULT</span>
-          <h2>
-            {!unveil.latestFinalized
-              ? "NO RESULT YET"
-              : unveil.latestFinalized.status === "FINALIZED"
-                ? `ROUND ${unveil.latestFinalized.id}`
-                : unveil.latestFinalized.status}
-          </h2>
-          <p>
-            {!unveil.latestFinalized
-              ? "Verified results will appear here after the first settled round."
-              : unveil.latestFinalized.winner
-                ? "A public winner is verified. Any delivered prize remains confidential."
-                : "The lifecycle is verified without a public winner or prize amount."}
-          </p>
+      </section>
+
+      <section className="home-result-card">
+        <div className="home-section-head">
+          <div>
+            <span className="eyebrow">LATEST RESULT</span>
+            <h2>{result ? `ROUND ${result.id}` : "NO RESULT YET"}</h2>
+          </div>
           <RouteLink className="text-link" to="/app/draw">
-            VIEW RESULT + PRIZES →
+            OPEN DRAW →
           </RouteLink>
-        </article>
+        </div>
+        {!result ? (
+          <p>Verified results will appear here after the first settled round.</p>
+        ) : result.status === "FINALIZED" ? (
+          <div className="home-result-details">
+            <div>
+              <span>WINNER</span>
+              {result.winner ? (
+                <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer">
+                  {shortAddress(result.winner)} ↗
+                </a>
+              ) : (
+                <strong>WINNER VERIFIED</strong>
+              )}
+            </div>
+            <div>
+              <span>PROOF</span>
+              <strong>KMS VERIFIED</strong>
+            </div>
+            <p>The winner is public; any delivered prize remains confidential to the winner wallet.</p>
+          </div>
+        ) : result.status === "CANCELLED" ? (
+          <div className="home-result-details">
+            <div>
+              <span>OUTCOME</span>
+              <strong>CANCELLED</strong>
+            </div>
+            <p>KMS-proven zero-weight draw. No winner or prize was delivered.</p>
+          </div>
+        ) : (
+          <div className="home-result-details">
+            <div>
+              <span>OUTCOME</span>
+              <strong>SKIPPED</strong>
+            </div>
+            <p>Insufficient participants at the scheduled close. No BlindDraw or encrypted winner exists.</p>
+          </div>
+        )}
       </section>
 
       <section className="home-history">

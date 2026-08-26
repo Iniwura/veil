@@ -16,8 +16,10 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       : schedule?.ready || schedule?.timeReady
         ? "READY"
         : "OPEN";
-  const result = unveil.latestFinalized;
+  const result = unveil.latestResult;
   const latestReveal = result && unveil.prize?.roundId === result.id ? unveil.prize : undefined;
+  const drawError = unveil.errorScope === "draw" ? unveil.error : "";
+  const drawNotice = unveil.noticeScope === "draw" ? unveil.notice : "";
 
   return (
     <div className="page-stack route-enter">
@@ -27,10 +29,15 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
         <p>Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.</p>
       </header>
 
-      {unveil.noticeScope === "draw" && unveil.notice && (
-        <div className="action-notice" role="status">
-          <span>DRAW UPDATE</span>
-          <p>{unveil.notice}</p>
+      {(drawError || drawNotice) && (
+        <div className={`action-notice ${drawError ? "action-notice--error" : ""}`} role={drawError ? "alert" : "status"}>
+          <span>{drawError ? "DRAW ERROR" : "DRAW UPDATE"}</span>
+          <p>{drawError || drawNotice}</p>
+          {drawError && (
+            <button className="action-notice-dismiss" onClick={unveil.clearError} aria-label="Dismiss draw error">
+              ×
+            </button>
+          )}
         </div>
       )}
 

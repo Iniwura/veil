@@ -37,13 +37,14 @@ export function AppShell({
               ? "RECONNECT WALLET"
               : "CONNECT WALLET";
   const globalNotice = unveil.noticeScope === "global" ? unveil.notice : "";
+  const globalError = unveil.errorScope === "global" ? unveil.error : "";
   const sessionLabel = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : unveil.walletState === "account-changed"
       ? "WALLET ACCOUNT CHANGED"
       : unveil.walletState === "reconnect-required"
         ? "RECONNECT REQUIRED"
-        : unveil.error
+        : globalError
           ? "ACTION NEEDS ATTENTION"
           : "WALLET SESSION";
   return (
@@ -83,14 +84,14 @@ export function AppShell({
             {walletLabel}
           </button>
         </header>
-        {(unveil.error || unveil.wrongNetwork || globalNotice) && (
+        {(globalError || unveil.wrongNetwork || globalNotice) && (
           <div
-            className={`session-status ${unveil.error || unveil.wrongNetwork ? "session-status--error" : ""}`}
-            role={unveil.error || unveil.wrongNetwork ? "alert" : "status"}
+            className={`session-status ${globalError || unveil.wrongNetwork ? "session-status--error" : ""}`}
+            role={globalError || unveil.wrongNetwork ? "alert" : "status"}
           >
             <span>{sessionLabel}</span>
-            <p>{unveil.error || globalNotice || "Switch to Sepolia to continue."}</p>
-            {unveil.error && (
+            <p>{globalError || globalNotice || "Switch to Sepolia to continue."}</p>
+            {globalError && (
               <button onClick={unveil.clearError} aria-label="Dismiss error">
                 ×
               </button>
@@ -101,7 +102,12 @@ export function AppShell({
       </div>
       <nav className="mobile-nav" aria-label="Mobile application navigation">
         {NAV.map(([to, , label]) => (
-          <RouteLink to={to} className={route === to ? "active" : ""} key={to}>
+          <RouteLink
+            to={to}
+            className={route === to ? "active" : ""}
+            dataTour={to === "/app/save" ? "nav-save" : to === "/app/draw" ? "nav-draw" : "nav-home"}
+            key={to}
+          >
             <i aria-hidden="true" />
             <span>{label}</span>
           </RouteLink>

@@ -12,6 +12,8 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
   const [roundId, setRoundId] = useState("");
   const selectedRoundId = roundIds.some((id) => id.toString() === roundId) ? roundId : (roundIds[0]?.toString() ?? "");
   const revealed = Boolean(unveil.vault);
+  const saveError = unveil.errorScope === "save" ? unveil.error : "";
+  const saveNotice = unveil.noticeScope === "save" ? unveil.notice : "";
   const showMotionDebug = import.meta.env.DEV && new URLSearchParams(window.location.search).get("motionDebug") === "1";
 
   useEffect(() => {
@@ -39,15 +41,20 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <p>Save TEST principal into a confidential position. The draw uses your encrypted balance without publishing it.</p>
       </header>
 
-      {unveil.noticeScope === "save" && unveil.notice && (
-        <div className="action-notice" role="status">
-          <span>SAVE UPDATE</span>
-          <p>{unveil.notice}</p>
+      {(saveError || saveNotice) && (
+        <div className={`action-notice ${saveError ? "action-notice--error" : ""}`} role={saveError ? "alert" : "status"}>
+          <span>{saveError ? "SAVE ERROR" : "SAVE UPDATE"}</span>
+          <p>{saveError || saveNotice}</p>
+          {saveError && (
+            <button className="action-notice-dismiss" onClick={unveil.clearError} aria-label="Dismiss save error">
+              ×
+            </button>
+          )}
         </div>
       )}
 
       <section className="save-layout save-layout--product">
-        <article className="transaction-panel" data-tour="save-amount">
+        <article className="transaction-panel">
           <div className="mode-switch" role="tablist" aria-label="Save action">
             <button
               role="tab"
@@ -70,7 +77,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
             <span>{mode === "deposit" ? "AMOUNT TO SAVE" : "AMOUNT TO REQUEST"}</span>
             <small>WHOLE TEST UNITS</small>
           </div>
-          <div className="amount-input">
+          <div className="amount-input" data-tour="save-amount">
             <input
               aria-label={mode === "deposit" ? "Deposit amount" : "Withdrawal amount"}
               inputMode="numeric"
