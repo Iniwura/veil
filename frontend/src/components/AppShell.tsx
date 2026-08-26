@@ -5,6 +5,8 @@ import { RouteLink } from "./RouteLink";
 import type { UnveilController } from "../hooks/useUnveil";
 import type { AppRoute } from "../lib/routes";
 import { shortAddress } from "../lib/format";
+import type { ThemeController } from "../hooks/useTheme";
+import { ThemeToggle } from "./ThemeToggle";
 
 const NAV: Array<[AppRoute, string, string]> = [
   ["/app", "01", "Home"],
@@ -15,11 +17,13 @@ const NAV: Array<[AppRoute, string, string]> = [
 export function AppShell({
   route,
   unveil,
+  theme,
   children,
   onReplayGuide,
 }: {
   route: AppRoute;
   unveil: UnveilController;
+  theme: ThemeController;
   children: ReactNode;
   onReplayGuide: () => void;
 }) {
@@ -73,9 +77,7 @@ export function AppShell({
             {unveil.publicError ? "PUBLIC V2 STATE UNAVAILABLE" : "PUBLIC V2 STATE LIVE"}
           </div>
           <DemoBadge compact />
-          <span className="theme-chip" aria-label="Current theme: dark">
-            DARK
-          </span>
+          <ThemeToggle {...theme} />
           <button className="help-button" onClick={onReplayGuide}>
             HELP
           </button>

@@ -1,5 +1,5 @@
 import { DrawCountdown } from "../components/DrawCountdown";
-import { EncryptedDrawField, type EncryptedDrawFieldState } from "../components/EncryptedDrawField";
+import { CryptographicChamber, type CryptographicChamberState } from "../components/CryptographicChamber";
 import { RoundHistory } from "../components/RoundHistory";
 import { VeilReveal } from "../components/VeilReveal";
 import { UNVEIL_CONTRACTS } from "../contracts";
@@ -9,7 +9,7 @@ import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../li
 export function DrawPage({ unveil }: { unveil: UnveilController }) {
   const schedule = unveil.schedule;
   const participantCount = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
-  const fieldState: EncryptedDrawFieldState = schedule?.insufficientParticipants
+  const fieldState: CryptographicChamberState = schedule?.insufficientParticipants
     ? "INSUFFICIENT"
     : schedule?.overdue
       ? "OVERDUE"
@@ -23,9 +23,8 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
 
   return (
     <div className="page-stack route-enter">
-      <header className="page-heading page-heading--compact">
-        <span className="eyebrow">DRAW</span>
-        <h1>FOLLOW THE DRAW.</h1>
+      <header className="draw-page-intro">
+        <span className="eyebrow">DRAW · CRYPTOGRAPHIC CHAMBER</span>
         <p>Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.</p>
       </header>
 
@@ -42,7 +41,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       )}
 
       <section className="draw-focus draw-focus--field" data-tour="draw-current">
-        <EncryptedDrawField roundId={schedule?.currentRoundId} participantCount={participantCount} state={fieldState} />
+        <CryptographicChamber roundId={schedule?.currentRoundId} participantCount={participantCount} state={fieldState} />
         <div className="draw-focus-copy">
           <span className="eyebrow">CURRENT ROUND · {schedule?.currentRoundId.toString() ?? "—"}</span>
           <DrawCountdown

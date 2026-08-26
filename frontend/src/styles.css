@@ -1,24 +1,53 @@
 :root {
   font-family: Inter, "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
-  color: #f2efe6;
-  background: #080806;
+  color: var(--text);
+  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  --bg: #080806;
+  --surface: #0d0d0a;
+  --surface-raised: #10100c;
+  --surface-deep: #0a0a07;
+  --text: #f2efe6;
+  --text-muted: #8b8980;
+  --text-quiet: #5f5d55;
+  --border: #2a2923;
+  --border-soft: #1d1c18;
   --signal: #f2d515;
-  --ink: #080806;
-  --cream: #f2efe6;
-  --muted: #8b8980;
-  --quiet: #5f5d55;
-  --line: #2a2923;
-  --line-soft: #1d1c18;
-  --panel: #0d0d0a;
+  --signal-ink: #080806;
   --danger: #e37b63;
+  --grid: #171712;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --ink: var(--bg);
+  --cream: var(--text);
+  --muted: var(--text-muted);
+  --quiet: var(--text-quiet);
+  --line: var(--border);
+  --line-soft: var(--border-soft);
+  --panel: var(--surface);
   --motion-fast: 160ms;
   --motion-medium: 300ms;
   --motion-slow: 900ms;
   --ease-unveil: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-snap: cubic-bezier(0.2, 0, 0, 1);
   --reveal-stagger: 80ms;
+}
+
+:root[data-theme="light"] {
+  --bg: #f3eee3;
+  --surface: #fbf7ee;
+  --surface-raised: #fffaf2;
+  --surface-deep: #e9e2d5;
+  --text: #171611;
+  --text-muted: #5d5a50;
+  --text-quiet: #797468;
+  --border: #cbc3b4;
+  --border-soft: #ded7ca;
+  --signal: #b89400;
+  --signal-ink: #171611;
+  --danger: #a84f3f;
+  --grid: #e5ded1;
+  --shadow: rgba(75, 60, 28, 0.14);
 }
 
 * {
@@ -33,6 +62,10 @@ body {
   margin: 0;
   background: var(--ink);
   color: var(--cream);
+}
+::selection {
+  color: var(--signal-ink);
+  background: var(--signal);
 }
 button,
 input,
@@ -69,29 +102,45 @@ a {
 .unveil-mark {
   width: 44px;
   height: 44px;
-  display: inline-grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  padding: 7px;
-  color: var(--ink);
-  background: var(--signal);
+  color: var(--text);
+  overflow: visible;
 }
-.unveil-mark span {
-  border: 2px solid currentColor;
-  border-top: 0;
-  transform: skewX(-12deg);
+.unveil-mark svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
-.unveil-mark span:nth-child(2) {
-  transform: skewX(12deg);
+.aperture-plane,
+.aperture-slit {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--motion-fast) var(--ease-unveil), fill var(--motion-fast) var(--ease-snap);
+}
+.aperture-plane {
+  fill: currentColor;
+}
+.aperture-slit {
+  fill: var(--signal);
+}
+.wordmark:hover .aperture-plane--left,
+.wordmark:focus-visible .aperture-plane--left {
+  transform: translateX(-2px);
+}
+.wordmark:hover .aperture-plane--right,
+.wordmark:focus-visible .aperture-plane--right {
+  transform: translateX(2px);
+}
+.wordmark:hover .aperture-slit,
+.wordmark:focus-visible .aperture-slit {
+  transform: scaleX(1.4);
 }
 .unveil-mark--compact {
   width: 34px;
   height: 34px;
-  padding: 6px;
-}
-.unveil-mark--compact span {
-  border-width: 1.5px;
 }
 
 .eyebrow {
@@ -2830,6 +2879,563 @@ html[data-motion="paused"] .vault-reveal-progress i {
   }
 }
 
+/* Phase 2 identity, theme tokens, and cryptographic chamber */
+html,
+body,
+#root {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.button-primary,
+.wallet-button {
+  color: var(--signal-ink);
+}
+
+.button-primary:hover {
+  background: color-mix(in srgb, var(--signal) 84%, white);
+}
+
+.button-secondary,
+.button-text {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.button-secondary:hover,
+.button-text:hover {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+
+.theme-toggle {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  transition:
+    color var(--motion-fast) var(--ease-snap),
+    border-color var(--motion-fast) var(--ease-snap),
+    background-color var(--motion-fast) var(--ease-snap);
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  color: var(--signal);
+  border-color: var(--signal);
+  background: color-mix(in srgb, var(--signal) 8%, transparent);
+}
+
+.theme-toggle-icon {
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  color: var(--signal);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.landing-nav-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landing-nav-actions .button-primary {
+  justify-self: auto;
+}
+
+.app-shell,
+.app-topbar,
+.landing-page,
+.landing-nav,
+.mobile-nav {
+  background: var(--bg);
+}
+
+.app-topbar,
+.landing-nav,
+.mobile-nav,
+.session-status,
+.page-heading,
+.draw-page-intro {
+  border-color: var(--border);
+}
+
+.app-nav a:hover,
+.app-nav a.active,
+.mobile-nav a.active,
+.protocol-selector button.active,
+.contract-directory a:hover {
+  background: var(--surface-raised);
+}
+
+.app-public-state,
+.landing-nav nav a,
+.landing-footer p,
+.landing-footer > div:last-child a,
+.hero-lede,
+.campaign,
+.protocol-focus p,
+.trust-strip,
+.sidebar-foot p,
+.page-heading p,
+.draw-page-intro p,
+.session-status,
+.form-note,
+.vault-actions p,
+.home-command-row p,
+.home-result-card > p,
+.home-result-details p,
+.draw-prize-intro,
+.chamber-footer p {
+  color: var(--text-muted);
+}
+
+.protocol-visual,
+.home-draw-card,
+.home-result-card,
+.draw-focus,
+.draw-result-card,
+.draw-prize,
+.draw-history-section,
+.transaction-panel,
+.transaction-story,
+.vault-surface,
+.weight-reveal,
+.notice,
+.onboarding,
+.round-row,
+.status-panel,
+.private-panel,
+.history-panel {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.landing-hero,
+.draw-focus--field {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+}
+
+.protocol-visual-head,
+.protocol-selector button,
+.protocol-focus,
+.protocol-wire,
+.session-status,
+.onboarding,
+.notice,
+.transaction-story,
+.transaction-panel,
+.draw-focus--field > .cryptographic-chamber,
+.draw-focus--field .draw-focus-copy {
+  border-color: var(--border);
+}
+
+.protocol-visual-head,
+.protocol-selector button,
+.protocol-focus,
+.protocol-wire,
+.draw-focus--field .draw-focus-copy {
+  background: var(--surface);
+}
+
+input,
+select {
+  color: var(--text);
+  background: var(--surface-deep);
+  border-color: var(--border);
+}
+
+input::placeholder {
+  color: var(--text-quiet);
+}
+
+.draw-page-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.draw-page-intro p {
+  max-width: 620px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.draw-focus--field {
+  min-height: 580px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border-color: var(--border);
+}
+
+.draw-focus--field > .cryptographic-chamber {
+  min-height: 580px;
+  border: 0;
+  border-right: 1px solid var(--border);
+}
+
+.draw-focus--field .draw-focus-copy {
+  min-width: 0;
+  justify-content: center;
+  padding: 48px;
+}
+
+.draw-focus--field .draw-mini-metrics {
+  display: grid;
+  gap: 12px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.cryptographic-chamber {
+  position: relative;
+  min-width: 0;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--signal) 8%, transparent), transparent 40%),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--surface);
+  background-size: auto, 44px 44px, 44px 44px, auto;
+}
+
+.cryptographic-chamber--compact {
+  padding: 14px;
+}
+
+.chamber-header,
+.chamber-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chamber-header span:last-child,
+.chamber-state-indicator {
+  color: var(--signal);
+}
+
+.chamber-stage {
+  position: relative;
+  min-height: clamp(360px, 38vw, 560px);
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+.cryptographic-chamber--compact .chamber-stage {
+  min-height: clamp(300px, 34vw, 420px);
+}
+
+.chamber-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.chamber-aperture {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(164px, 28%, 270px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--signal) 62%, var(--border));
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--surface-deep) 0 42%, color-mix(in srgb, var(--surface-deep) 88%, transparent) 70%, transparent 71%);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--signal) 10%, transparent), inset 0 0 30px color-mix(in srgb, var(--signal) 9%, transparent);
+}
+
+.chamber-aperture::before,
+.chamber-aperture::after {
+  content: "";
+  position: absolute;
+  inset: 13%;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.chamber-aperture::after {
+  inset: 27%;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--signal) 56%, var(--border));
+}
+
+.chamber-shutter {
+  position: absolute;
+  top: 15%;
+  bottom: 15%;
+  z-index: 2;
+  width: 42%;
+  background: linear-gradient(115deg, var(--text) 0 13%, var(--surface-deep) 14% 100%);
+  clip-path: polygon(0 0, 64% 0, 100% 50%, 64% 100%, 0 100%, 28% 50%);
+  transition: transform var(--motion-medium) var(--ease-unveil);
+}
+
+.chamber-shutter--left {
+  left: 4%;
+}
+
+.chamber-shutter--right {
+  right: 4%;
+  transform: scaleX(-1);
+}
+
+.cryptographic-chamber:hover .chamber-shutter--left,
+.cryptographic-chamber:focus-within .chamber-shutter--left {
+  transform: translateX(-10px);
+}
+
+.cryptographic-chamber:hover .chamber-shutter--right,
+.cryptographic-chamber:focus-within .chamber-shutter--right {
+  transform: scaleX(-1) translateX(-10px);
+}
+
+.chamber-slit {
+  position: absolute;
+  z-index: 3;
+  width: 4px;
+  height: 56%;
+  border-radius: 999px;
+  background: var(--signal);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--signal) 72%, transparent);
+  transition: width var(--motion-medium) var(--ease-unveil);
+}
+
+.cryptographic-chamber:hover .chamber-slit,
+.cryptographic-chamber:focus-within .chamber-slit {
+  width: 7px;
+}
+
+.chamber-core-label {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  gap: 8px;
+  max-width: 78px;
+  color: var(--text-muted);
+  font-size: 7px;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.chamber-core-label strong {
+  color: var(--signal);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.chamber-footer {
+  align-items: center;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+
+.chamber-footer p {
+  margin: 0;
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.chamber-warning {
+  position: relative;
+  z-index: 2;
+  display: block;
+  margin-top: 10px;
+  color: var(--signal);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.cryptographic-chamber--ready .chamber-aperture {
+  transform: translate(-50%, -50%) scale(0.92);
+  box-shadow: 0 0 90px color-mix(in srgb, var(--signal) 18%, transparent), inset 0 0 40px color-mix(in srgb, var(--signal) 15%, transparent);
+}
+
+.cryptographic-chamber--insufficient .chamber-aperture {
+  border-color: var(--border);
+  box-shadow: inset 0 0 26px color-mix(in srgb, var(--text-muted) 10%, transparent);
+}
+
+.cryptographic-chamber--insufficient .chamber-slit {
+  opacity: 0.5;
+}
+
+.cryptographic-chamber--overdue .chamber-aperture {
+  border-style: dashed;
+}
+
+.landing-chamber > .cryptographic-chamber {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.route-enter {
+  animation-name: routeAperture;
+}
+
+@keyframes routeAperture {
+  from {
+    opacity: 0.82;
+    clip-path: inset(0 48% 0 48%);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0);
+  }
+}
+
+.transaction-panel--sealing .amount-input {
+  transform: scaleX(0.97);
+  opacity: 0.72;
+  transition: transform var(--motion-medium) var(--ease-snap), opacity var(--motion-medium) var(--ease-snap);
+}
+
+.transaction-panel--sealing .amount-input::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--signal);
+  transform-origin: left;
+  animation: sealInput var(--motion-medium) var(--ease-snap) both;
+  pointer-events: none;
+}
+
+@keyframes sealInput {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 1100px) {
+  .landing-nav-actions {
+    gap: 8px;
+  }
+  .app-topbar {
+    gap: 11px;
+    padding: 0 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .draw-page-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .draw-page-intro p {
+    text-align: left;
+  }
+  .draw-focus--field {
+    grid-template-columns: 1fr;
+  }
+  .draw-focus--field > .cryptographic-chamber {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .draw-focus--field .draw-focus-copy {
+    padding: 34px;
+  }
+}
+
+@media (max-width: 780px) {
+  .landing-nav-actions .theme-toggle {
+    min-width: 36px;
+    padding: 0 8px;
+  }
+  .landing-nav-actions .theme-toggle > span:last-child {
+    display: none;
+  }
+  .app-topbar {
+    grid-template-columns: 1fr auto auto;
+  }
+  .app-topbar .theme-toggle {
+    display: none;
+  }
+  .cryptographic-chamber {
+    padding: 14px;
+  }
+  .chamber-stage,
+  .cryptographic-chamber--compact .chamber-stage {
+    min-height: clamp(300px, 78vw, 430px);
+  }
+  .chamber-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .chamber-footer p {
+    text-align: left;
+  }
+}
+
+@media (max-width: 430px) {
+  .landing-nav-actions .button-primary {
+    min-height: 38px;
+    padding: 0 10px;
+  }
+  .draw-focus--field .draw-focus-copy {
+    padding: 26px 22px;
+  }
+  .chamber-header {
+    font-size: 7px;
+  }
+  .chamber-stage,
+  .cryptographic-chamber--compact .chamber-stage {
+    min-height: 300px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aperture-plane,
+  .aperture-slit,
+  .chamber-shutter,
+  .chamber-slit {
+    transition: none;
+  }
+  .cryptographic-chamber:hover .chamber-shutter--left,
+  .cryptographic-chamber:hover .chamber-shutter--right,
+  .cryptographic-chamber:hover .chamber-slit {
+    transform: none;
+    width: 4px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3613,5 +4219,164 @@ html[data-motion-reduced="true"] .encrypted-draw-verify {
   }
   .home-result-details p {
     grid-column: auto;
+  }
+}
+
+/* Phase 2 final cascade: the product shell follows the semantic theme tokens. */
+html,
+body,
+#root,
+.app-shell,
+.app-topbar,
+.landing-page,
+.landing-nav,
+.mobile-nav {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-topbar,
+.landing-nav,
+.mobile-nav,
+.session-status,
+.page-heading,
+.draw-page-intro,
+.home-draw-card,
+.home-result-card,
+.private-panel,
+.draw-focus,
+.draw-result-card,
+.draw-prize,
+.draw-history-section,
+.transaction-panel,
+.transaction-story,
+.vault-surface,
+.weight-reveal,
+.notice,
+.onboarding,
+.round-row,
+.cryptographic-chamber {
+  border-color: var(--border);
+}
+
+.app-topbar,
+.mobile-nav,
+.session-status,
+.home-draw-card,
+.home-result-card,
+.private-panel,
+.draw-focus,
+.draw-result-card,
+.draw-prize,
+.draw-history-section,
+.transaction-panel,
+.transaction-story,
+.vault-surface,
+.weight-reveal,
+.notice,
+.onboarding,
+.round-row,
+.protocol-visual,
+.cryptographic-chamber {
+  background-color: var(--surface);
+}
+
+.app-nav a:hover,
+.app-nav a.active,
+.mobile-nav a.active,
+.protocol-selector button.active,
+.contract-directory a:hover,
+.draw-lifecycle article.active {
+  background-color: var(--surface-raised);
+}
+
+.app-topbar .theme-toggle {
+  display: inline-flex;
+}
+
+.draw-focus--field {
+  min-height: 580px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.draw-focus--field > .cryptographic-chamber {
+  min-height: 580px;
+  border: 0;
+  border-right: 1px solid var(--border);
+}
+
+.draw-focus--field .draw-focus-copy {
+  min-width: 0;
+  justify-content: center;
+  padding: 48px;
+  background: var(--surface);
+}
+
+.landing-hero {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+}
+
+.protocol-visual-head,
+.protocol-selector button,
+.protocol-focus {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.hero-lede,
+.campaign,
+.protocol-focus p,
+.trust-strip,
+.page-heading p,
+.draw-page-intro p,
+.home-command-row p,
+.home-result-card > p,
+.home-result-details p,
+.draw-prize-intro,
+.app-public-state,
+.landing-footer p,
+.landing-footer > div:last-child a {
+  color: var(--text-muted);
+}
+
+input,
+select {
+  color: var(--text);
+  background: var(--surface-deep);
+  border-color: var(--border);
+}
+
+@media (max-width: 900px) {
+  .draw-focus--field {
+    grid-template-columns: 1fr;
+  }
+  .draw-focus--field > .cryptographic-chamber {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 780px) {
+  .app-topbar .theme-toggle {
+    min-width: 34px;
+    display: inline-flex;
+    justify-content: center;
+    padding: 0 8px;
+  }
+  .app-topbar .theme-toggle > span:last-child {
+    display: none;
+  }
+  .draw-focus--field .draw-focus-copy {
+    padding: 34px 22px;
   }
 }

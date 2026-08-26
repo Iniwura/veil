@@ -54,7 +54,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
       )}
 
       <section className="save-layout save-layout--product">
-        <article className="transaction-panel">
+        <article className={`transaction-panel ${unveil.busy === mode ? "transaction-panel--sealing" : ""}`}>
           <div className="mode-switch" role="tablist" aria-label="Save action">
             <button
               role="tab"

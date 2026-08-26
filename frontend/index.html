@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#050505" />
+    <meta name="theme-color" content="#080806" />
     <meta name="description" content="UNVEIL is private prize savings powered by fully homomorphic encryption." />
     <meta property="og:title" content="UNVEIL — Save privately. Win verifiably." />
     <meta property="og:description" content="Private prize savings powered by fully homomorphic encryption." />
@@ -11,7 +11,15 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="UNVEIL — Save privately. Win verifiably." />
     <meta name="twitter:description" content="Encrypted to everyone. Unveiled only to you." />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23f2d515'/%3E%3Cpath d='M12 14v36l10-36v36l10-36v36l10-36v36l10-36' fill='none' stroke='%23080806' stroke-width='4'/%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23f2efe6'/%3E%3Cpath d='M8 8h16l12 24-12 24H8l10-24zM56 8H40L28 32l12 24h16L46 32z' fill='%23080806'/%3E%3Crect x='30' y='11' width='4' height='42' rx='2' fill='%23f2d515'/%3E%3C/svg%3E" />
+    <script>
+      (() => {
+        const stored = window.localStorage.getItem("unveil.theme.v1");
+        const theme = stored === "light" || stored === "dark" ? stored : window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
     <title>UNVEIL — Save privately. Win verifiably.</title>
   </head>
   <body>

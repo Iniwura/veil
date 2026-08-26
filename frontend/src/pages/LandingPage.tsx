@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { BrandMark } from "../components/BrandMark";
+import { CryptographicChamber } from "../components/CryptographicChamber";
 import { DemoBadge } from "../components/DemoBadge";
 import { DrawCountdown } from "../components/DrawCountdown";
-import { EncryptedDrawField, type EncryptedDrawFieldState } from "../components/EncryptedDrawField";
 import { RouteLink } from "../components/RouteLink";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { RoundHistory } from "../components/RoundHistory";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
+import type { ThemeController } from "../hooks/useTheme";
 import { useRevealOnScroll } from "../hooks/useMotion";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
@@ -17,17 +19,10 @@ const STORY = [
   ["CONFIDENTIAL PRIZE", "••••••", "Processed TEST strategy shares are visible only to the winner."],
 ] as const;
 
-export function LandingPage({ unveil }: { unveil: UnveilController }) {
+export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme: ThemeController }) {
   useRevealOnScroll();
   const [storyStep, setStoryStep] = useState(0);
   const schedule = unveil.schedule;
-  const drawFieldState: EncryptedDrawFieldState = schedule?.insufficientParticipants
-    ? "INSUFFICIENT"
-    : schedule?.overdue
-      ? "OVERDUE"
-      : schedule?.ready || schedule?.timeReady
-        ? "READY"
-        : "OPEN";
   return (
     <main className="landing-page">
       <header className="landing-nav">
@@ -44,9 +39,12 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
             Docs
           </a>
         </nav>
-        <RouteLink className="button-primary button-small" to="/app">
-          Launch app
-        </RouteLink>
+        <div className="landing-nav-actions">
+          <ThemeToggle {...theme} />
+          <RouteLink className="button-primary button-small" to="/app">
+            Launch app
+          </RouteLink>
+        </div>
       </header>
 
       <section className="landing-hero" id="product">
@@ -74,17 +72,12 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
           </div>
           <p className="campaign">Nothing to see. Everything to verify.</p>
         </div>
-        <div className="protocol-visual" id="how">
+        <div className="protocol-visual landing-chamber" id="how">
           <div className="protocol-visual-head">
-            <span>PUBLIC LIFECYCLE</span>
-            <span>PRIVATE VALUES</span>
+            <span>CRYPTOGRAPHIC CHAMBER</span>
+            <span>CONCEPTUAL · NOT LIVE STATE</span>
           </div>
-          <EncryptedDrawField
-            compact
-            roundId={schedule?.currentRoundId}
-            participantCount={unveil.publicProtocol?.playerCount}
-            state={drawFieldState}
-          />
+          <CryptographicChamber conceptual state="OPEN" />
           <div className="protocol-selector" role="tablist" aria-label="Protocol story">
             {STORY.map((item, index) => (
               <button
