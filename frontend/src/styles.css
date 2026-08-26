@@ -1287,6 +1287,7 @@ a {
 .draw-lifecycle {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
+  min-width: 0;
 }
 .draw-lifecycle article {
   position: relative;
@@ -1921,6 +1922,7 @@ a {
   display: grid;
   place-items: center;
   margin: 14px auto;
+  overflow: hidden;
 }
 .encrypted-draw-field--compact .encrypted-draw-stage {
   width: min(210px, 55vw);
