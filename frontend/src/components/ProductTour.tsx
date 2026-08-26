@@ -52,10 +52,8 @@ function panelStyle(top: number, left: number, width: number, height: number): C
   return { top, left, width, height };
 }
 
-function isConflictingControl(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.closest(".product-tour-coachmark")) return false;
-  return Boolean(target.closest("input, textarea, select, [contenteditable='true'], button, a, [role='button']"));
+function focusableCoachmarkControls(coachmark: HTMLElement) {
+  return [...coachmark.querySelectorAll<HTMLButtonElement>("button:not([disabled])")];
 }
 
 function TourInvitation({ onStart, onDismiss }: { onStart: () => void; onDismiss: () => void }) {
@@ -108,7 +106,7 @@ export function ProductTour({ route, replayToken }: { route: AppRoute; replayTok
       previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     }
     if (!tour.isOpen && wasOpen.current) {
-      previousFocus.current?.focus({ preventScroll: true });
+      if (previousFocus.current?.isConnected) previousFocus.current.focus({ preventScroll: true });
       previousFocus.current = null;
     }
     wasOpen.current = tour.isOpen;
@@ -116,13 +114,60 @@ export function ProductTour({ route, replayToken }: { route: AppRoute; replayTok
 
   useEffect(() => {
     if (!tour.isOpen) return;
+    const focusFirstAction = () => {
+      const coachmark = coachmarkRef.current;
+      if (!coachmark) return;
+      focusableCoachmarkControls(coachmark)[0]?.focus({ preventScroll: true });
+    };
+    const onFocusIn = (event: FocusEvent) => {
+      const coachmark = coachmarkRef.current;
+      if (!coachmark || (event.target instanceof Node && coachmark.contains(event.target))) return;
+      focusFirstAction();
+    };
     const onKeyDown = (event: KeyboardEvent) => {
+      const coachmark = coachmarkRef.current;
+      if (!coachmark) return;
       if (event.key === "Escape") {
         event.preventDefault();
         tour.skip();
         return;
       }
-      if (isConflictingControl(event.target)) return;
+
+      const insideCoachmark = event.target instanceof Node && coachmark.contains(event.target);
+      if (!insideCoachmark) {
+        if (
+          event.key === "Tab" ||
+          event.key === "Enter" ||
+          event.key === " " ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight"
+        ) {
+          event.preventDefault();
+          focusFirstAction();
+        }
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const actions = focusableCoachmarkControls(coachmark);
+        if (actions.length === 0) {
+          event.preventDefault();
+          coachmark.focus({ preventScroll: true });
+          return;
+        }
+        const currentIndex = actions.indexOf(document.activeElement as HTMLButtonElement);
+        const nextIndex = event.shiftKey
+          ? currentIndex <= 0
+            ? actions.length - 1
+            : currentIndex - 1
+          : currentIndex < 0 || currentIndex === actions.length - 1
+            ? 0
+            : currentIndex + 1;
+        event.preventDefault();
+        actions[nextIndex].focus({ preventScroll: true });
+        return;
+      }
+
       if (event.key === "ArrowRight") {
         event.preventDefault();
         tour.next();
@@ -131,14 +176,14 @@ export function ProductTour({ route, replayToken }: { route: AppRoute; replayTok
         tour.back();
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [tour]);
-
-  useEffect(() => {
-    if (!tour.isOpen) return;
-    const frame = requestAnimationFrame(() => coachmarkRef.current?.focus({ preventScroll: true }));
-    return () => cancelAnimationFrame(frame);
+    document.addEventListener("focusin", onFocusIn, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    const frame = requestAnimationFrame(focusFirstAction);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+      cancelAnimationFrame(frame);
+    };
   }, [tour.isOpen, tour.stepIndex]);
 
   useLayoutEffect(() => {

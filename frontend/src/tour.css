@@ -18,11 +18,15 @@
   font-size: 18px;
   letter-spacing: -0.03em;
 }
+.product-tour-invite .eyebrow,
+.product-tour-coachmark .eyebrow {
+  font-size: 11px;
+}
 .product-tour-invite p {
   margin: 10px 0 18px;
   color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.5;
 }
 .product-tour-invite-actions {
   display: flex;
@@ -31,6 +35,10 @@
 }
 .product-tour-invite-actions .button-primary {
   min-height: 38px;
+  font-size: 11px;
+}
+.product-tour-invite-actions .button-quiet {
+  font-size: 10px;
 }
 
 .product-tour-layer {
@@ -103,7 +111,7 @@
 .product-tour-step {
   margin-bottom: 18px;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -117,14 +125,14 @@
 .product-tour-coachmark p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.55;
 }
 .product-tour-waiting {
   display: block;
   margin-top: 14px;
   color: var(--signal);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.1em;
 }
 .product-tour-actions {
@@ -141,7 +149,7 @@
 .product-tour-actions .button-quiet {
   min-height: 42px;
   padding: 0 7px;
-  font-size: 8px;
+  font-size: 10px;
 }
 .product-tour-actions .product-tour-skip {
   color: var(--text-quiet);
@@ -152,6 +160,8 @@
     right: 16px;
     bottom: 84px;
     width: calc(100vw - 32px);
+    max-height: calc(100vh - 104px);
+    overflow-y: auto;
     padding: 18px;
   }
   .product-tour-invite strong {
@@ -159,6 +169,8 @@
   }
   .product-tour-coachmark {
     width: calc(100vw - 32px);
+    max-height: calc(100vh - 104px);
+    overflow-y: auto;
     padding: 18px;
   }
   .product-tour-coachmark h2 {
@@ -166,7 +178,7 @@
     font-size: 25px;
   }
   .product-tour-coachmark p {
-    font-size: 10px;
+    font-size: 13px;
   }
   .product-tour-actions {
     gap: 5px;

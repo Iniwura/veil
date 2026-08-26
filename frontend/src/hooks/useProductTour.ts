@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { navigate, type AppRoute } from "../lib/routes";
 import { usePrefersReducedMotion } from "./useMotion";
 
 export const PRODUCT_TOUR_STORAGE_KEY = "unveil.guide.completed.v1";
+export const PRODUCT_TOUR_SESSION_DISMISSED_KEY = "unveil.guide.dismissed.session.v1";
 
 export const PRODUCT_TOUR_STEPS = [
   {
@@ -90,6 +91,10 @@ function completed() {
   return window.localStorage.getItem(PRODUCT_TOUR_STORAGE_KEY) === "true";
 }
 
+function dismissedForSession() {
+  return window.sessionStorage.getItem(PRODUCT_TOUR_SESSION_DISMISSED_KEY) === "true";
+}
+
 function isVisibleTarget(element: HTMLElement) {
   if (!element.isConnected || element.hidden || element.getAttribute("aria-hidden") === "true") return false;
   if (element.closest('[hidden], [aria-hidden="true"]')) return false;
@@ -140,7 +145,8 @@ function sufficientlyVisible(element: HTMLElement, rect: TourRect) {
 
 export function useProductTour({ route, replayToken }: { route: AppRoute; replayToken: number }) {
   const reducedMotion = usePrefersReducedMotion();
-  const [mode, setMode] = useState<ProductTourMode>(() => (route === "/app" && !completed() ? "invite" : null));
+  const hasEnteredApp = useRef(false);
+  const [mode, setMode] = useState<ProductTourMode>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<TourRect | null>(null);
 
@@ -151,8 +157,15 @@ export function useProductTour({ route, replayToken }: { route: AppRoute; replay
   }, [replayToken]);
 
   useEffect(() => {
-    if (mode === "invite" && route !== "/app") setMode(null);
-  }, [mode, route]);
+    if (route === "/app") {
+      if (!hasEnteredApp.current) {
+        hasEnteredApp.current = true;
+        if (replayToken === 0 && mode !== "tour" && !completed() && !dismissedForSession()) setMode("invite");
+      }
+      return;
+    }
+    if (mode === "invite") setMode(null);
+  }, [mode, replayToken, route]);
 
   useEffect(() => {
     if (mode !== "tour") {
@@ -266,6 +279,7 @@ export function useProductTour({ route, replayToken }: { route: AppRoute; replay
   }
 
   function dismiss() {
+    window.sessionStorage.setItem(PRODUCT_TOUR_SESSION_DISMISSED_KEY, "true");
     setMode(null);
   }
 

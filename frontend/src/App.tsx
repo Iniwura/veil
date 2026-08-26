@@ -16,14 +16,30 @@ export default function App() {
   const unveil = useUnveil();
   const theme = useTheme();
   const [replayToken, setReplayToken] = useState(0);
-  if (route === "/") return <LandingPage unveil={unveil} theme={theme} />;
-
-  const page = route === "/app/save" ? <SavePage unveil={unveil} /> : route === "/app/draw" ? <DrawPage unveil={unveil} /> : <HomePage unveil={unveil} />;
+  const page =
+    route === "/app/save" ? (
+      <SavePage unveil={unveil} />
+    ) : route === "/app/draw" ? (
+      <DrawPage unveil={unveil} />
+    ) : (
+      <HomePage unveil={unveil} />
+    );
 
   return (
-    <AppShell route={route} unveil={unveil} theme={theme} onReplayGuide={() => setReplayToken((value) => value + 1)}>
-      {page}
+    <>
+      {route === "/" ? (
+        <LandingPage unveil={unveil} theme={theme} />
+      ) : (
+        <AppShell
+          route={route}
+          unveil={unveil}
+          theme={theme}
+          onReplayGuide={() => setReplayToken((value) => value + 1)}
+        >
+          {page}
+        </AppShell>
+      )}
       <ProductTour route={route} replayToken={replayToken} />
-    </AppShell>
+    </>
   );
 }
