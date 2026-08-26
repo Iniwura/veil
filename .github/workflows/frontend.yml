@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "frontend/**"
+      - "scripts/verify-frontend-dist.mjs"
       - ".github/workflows/frontend.yml"
   push:
     branches:
       - main
     paths:
       - "frontend/**"
+      - "scripts/verify-frontend-dist.mjs"
       - ".github/workflows/frontend.yml"
 
 jobs:

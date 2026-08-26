@@ -1,8 +1,6 @@
 # UNVEIL V2 live Sepolia result
 
-Status: **PASS**
-Network: Sepolia
-Label: **SEPOLIA TEST/DEMO**
+Status: **PASS** Network: Sepolia Label: **SEPOLIA TEST/DEMO**
 
 This is the preserved result of the verified V2 live smoke. It is evidence for the current canonical address set, not a
 new deployment and not a claim of market yield.
