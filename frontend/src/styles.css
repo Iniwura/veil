@@ -2299,7 +2299,8 @@ input::placeholder {
 .chamber-lock-line,
 .chamber-output,
 .chamber-skip-mark,
-.chamber-backlog-mark {
+.chamber-backlog-mark,
+.chamber-complete-mark {
   position: absolute;
   z-index: 4;
   display: block;
@@ -2387,6 +2388,32 @@ input::placeholder {
 .cryptographic-chamber--phase-backlog .chamber-slit {
   background: var(--text-muted);
   box-shadow: none;
+}
+
+.cryptographic-chamber--phase-complete .chamber-slit {
+  background: var(--text-muted);
+  box-shadow: none;
+}
+
+.cryptographic-chamber--phase-complete .chamber-complete-mark {
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--text-muted);
+  opacity: 0.9;
+  transform: translate(-50%, -50%);
+}
+
+.cryptographic-chamber--phase-complete .chamber-complete-mark::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--signal);
+  transform: translate(-50%, -50%);
 }
 
 .landing-chamber > .cryptographic-chamber {

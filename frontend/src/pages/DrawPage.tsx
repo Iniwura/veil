@@ -23,7 +23,7 @@ function chamberPhaseForAction(
   }
   if (action.kind === "SKIP") return "SKIP";
   if (action.kind === "BLOCKED") return "BACKLOG";
-  if (action.kind === "PROCESS_PRIZE" && action.stage === "COMPLETE") return "SKIP";
+  if (action.kind === "PROCESS_PRIZE" && action.stage === "COMPLETE") return "COMPLETE";
   if (action.stage === "SNAPSHOT") return "SNAPSHOT";
   if (action.stage === "BLIND_DRAW") return "BLIND_DRAW";
   if (action.stage === "VERIFY") return "VERIFY";

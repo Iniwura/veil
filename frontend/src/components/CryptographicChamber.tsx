@@ -9,7 +9,8 @@ export type CryptographicChamberPhase =
   | "VERIFY"
   | "DELIVER"
   | "SKIP"
-  | "BACKLOG";
+  | "BACKLOG"
+  | "COMPLETE";
 
 type Fragment = {
   side: -1 | 1;
@@ -74,6 +75,7 @@ function phaseDescription(phase: CryptographicChamberPhase, conceptual: boolean)
   if (phase === "DELIVER") return "One settlement path exits; the financial interior stays sealed.";
   if (phase === "SKIP") return "Insufficient participation; no encrypted winner exists.";
   if (phase === "BACKLOG") return "Earlier lifecycle work remains queued; encryption stays intact.";
+  if (phase === "COMPLETE") return "Round settled with no prize due; the lifecycle can advance.";
   return "Equal markers represent public participants, never private weight.";
 }
 
@@ -151,7 +153,7 @@ export function CryptographicChamber({
       context.clearRect(0, 0, width, height);
       context.lineCap = "square";
 
-      if (activePhase !== "SKIP" && activePhase !== "BACKLOG") {
+      if (activePhase !== "SKIP" && activePhase !== "BACKLOG" && activePhase !== "COMPLETE") {
         fragments.forEach((fragment) => {
           const motionScale = activePhase === "BLIND_DRAW" ? 1.35 : activePhase === "SNAPSHOT" ? 0.45 : 0.8;
           const progress = reducedMotion ? fragment.phase : (fragment.phase + time * fragment.speed * motionScale) % 1;
@@ -264,6 +266,7 @@ export function CryptographicChamber({
           <i className="chamber-output" />
           <i className="chamber-skip-mark" />
           <i className="chamber-backlog-mark" />
+          <i className="chamber-complete-mark" />
         </div>
       </div>
       <div className="chamber-footer">
