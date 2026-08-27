@@ -45,6 +45,16 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
   const result = unveil.latestResult;
   const drawError = unveil.errorScope === "draw" ? unveil.error : "";
   const drawNotice = unveil.noticeScope === "draw" ? unveil.notice : "";
+  const terminalRoundStatus =
+    unveil.drawAction?.kind === "PROCESS_PRIZE" && unveil.drawAction.stage === "COMPLETE"
+      ? unveil.history.find((round) => round.id === unveil.drawAction?.roundId)?.status
+      : undefined;
+  const terminalState =
+    terminalRoundStatus === "CANCELLED" || terminalRoundStatus === "SKIPPED"
+      ? terminalRoundStatus
+      : terminalRoundStatus
+        ? "COMPLETE"
+        : undefined;
 
   return (
     <div className="page-stack route-enter">
@@ -98,6 +108,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             onAdvance={unveil.advanceDraw}
             onConnect={unveil.connect}
             onSwitchNetwork={unveil.switchToSepolia}
+            terminalState={terminalState}
           />
         </div>
       </section>

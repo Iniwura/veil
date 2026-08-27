@@ -1,20 +1,5 @@
 import type { DrawAction } from "../lib/drawAdvance";
-
-const LIFECYCLE_STEPS = [
-  ["SNAPSHOT", "Freeze encrypted weights"],
-  ["BLIND DRAW", "Select privately"],
-  ["VERIFY", "Validate KMS proof"],
-  ["DELIVER", "Send the prize"],
-] as const;
-
-function stepState(step: string, action?: DrawAction) {
-  if (!action) return "";
-  if (action.kind === "SKIP") return "";
-  if (action.stage === step) return "active";
-  const currentIndex = LIFECYCLE_STEPS.findIndex(([name]) => name === action.stage);
-  const stepIndex = LIFECYCLE_STEPS.findIndex(([name]) => name === step);
-  return currentIndex > stepIndex ? "complete" : "";
-}
+import { DrawLifecycleRail } from "./DrawLifecycleRail";
 
 export function DrawAdvancePanel({
   action,
@@ -24,6 +9,7 @@ export function DrawAdvancePanel({
   onAdvance,
   onConnect,
   onSwitchNetwork,
+  terminalState,
 }: {
   action?: DrawAction;
   connected: boolean;
@@ -32,6 +18,7 @@ export function DrawAdvancePanel({
   onAdvance: (action: DrawAction) => void;
   onConnect: () => void;
   onSwitchNetwork: () => void;
+  terminalState?: "SKIPPED" | "CANCELLED" | "COMPLETE";
 }) {
   const actionable = Boolean(action?.actionable);
   const showButton = actionable && Boolean(action);
@@ -76,20 +63,7 @@ export function DrawAdvancePanel({
       {action?.kind === "BLOCKED" && (
         <p className="draw-advance-warning">PUBLIC STATE NEEDS REVIEW · NO RECOVERY TRANSACTION</p>
       )}
-      <div className="draw-lifecycle-mini" aria-label="Draw lifecycle">
-        {LIFECYCLE_STEPS.map(([name, detail]) => (
-          <div className={stepState(name, action)} key={name}>
-            <span>{name}</span>
-            <small>{detail}</small>
-          </div>
-        ))}
-      </div>
-      {action?.kind === "SKIP" && (
-        <div className="draw-skip-branch">
-          <span>SKIP</span>
-          <small>No encrypted winner is created</small>
-        </div>
-      )}
+      <DrawLifecycleRail action={action} terminalState={terminalState} />
       <p className="draw-advance-note">
         Permissionless · any Sepolia wallet can execute · private balances and weights remain encrypted.
       </p>

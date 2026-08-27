@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { BrandMark } from "../components/BrandMark";
-import { CryptographicChamber, type CryptographicChamberPhase } from "../components/CryptographicChamber";
 import { DemoBadge } from "../components/DemoBadge";
 import { DrawCountdown } from "../components/DrawCountdown";
+import { EncryptedPositionPreview } from "../components/EncryptedPositionPreview";
 import { RouteLink } from "../components/RouteLink";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { RoundHistory } from "../components/RoundHistory";
@@ -12,18 +11,17 @@ import type { ThemeController } from "../hooks/useTheme";
 import { useRevealOnScroll } from "../hooks/useMotion";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
-const STORY = [
-  ["PRIVATE DEPOSIT", "PRIVATE INPUT", "Only the wallet can unveil the deposited amount."],
-  ["ENCRYPTED DRAW WEIGHT", "SEALED COMPUTATION", "FHE preserves weighted selection without plaintext balances."],
-  ["BLIND DRAW", "PERMISSIONLESS", "The lifecycle and KMS-backed outcome remain publicly auditable."],
-  ["CONFIDENTIAL PRIZE", "WINNER ONLY", "Processed TEST strategy shares are visible only to the winner."],
-] as const;
-const STORY_PHASES: CryptographicChamberPhase[] = ["SEALED", "SNAPSHOT", "BLIND_DRAW", "DELIVER"];
-
 export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme: ThemeController }) {
   useRevealOnScroll();
-  const [storyStep, setStoryStep] = useState(0);
   const schedule = unveil.schedule;
+  const publicParticipants = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
+  const publicState = unveil.publicError
+    ? unveil.publicProtocol
+      ? "STALE"
+      : "UNAVAILABLE"
+    : schedule
+      ? "LIVE"
+      : "LOADING";
   return (
     <main className="landing-page">
       <header className="landing-nav">
@@ -69,36 +67,12 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
           </div>
           <p className="campaign">Nothing to see. Everything to verify.</p>
         </div>
-        <div className="protocol-visual landing-chamber">
-          <div className="protocol-visual-head">
-            <span>CRYPTOGRAPHIC CHAMBER</span>
-            <span>CONCEPTUAL · NOT LIVE STATE</span>
-          </div>
-          <CryptographicChamber conceptual state="OPEN" phase={STORY_PHASES[storyStep]} />
-          <div className="protocol-selector" role="tablist" aria-label="Protocol story">
-            {STORY.map((item, index) => (
-              <button
-                role="tab"
-                aria-selected={storyStep === index}
-                className={storyStep === index ? "active" : ""}
-                onClick={() => setStoryStep(index)}
-                key={item[0]}
-              >
-                <span>0{index + 1}</span>
-                {item[0]}
-              </button>
-            ))}
-          </div>
-          <div className="protocol-focus protocol-focus--unveil" key={storyStep}>
-            <span>0{storyStep + 1}</span>
-            <div>
-              <small>{STORY[storyStep][0]}</small>
-              <strong>{STORY[storyStep][1]}</strong>
-              <p>{STORY[storyStep][2]}</p>
-            </div>
-            <i>{STORY[storyStep][1]}</i>
-          </div>
-        </div>
+        <EncryptedPositionPreview
+          roundId={schedule?.currentRoundId}
+          state={schedule ? drawStateLabel(schedule) : undefined}
+          participants={publicParticipants}
+          publicState={publicState}
+        />
       </section>
 
       <section className="privacy-boundary" id="privacy" data-reveal>

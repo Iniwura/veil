@@ -1,0 +1,81 @@
+type EncryptedPositionPreviewProps = {
+  roundId?: bigint;
+  state?: string;
+  participants?: number;
+  publicState: "LIVE" | "STALE" | "UNAVAILABLE" | "LOADING";
+};
+
+export function EncryptedPositionPreview({ roundId, state, participants, publicState }: EncryptedPositionPreviewProps) {
+  const publicRound = roundId === undefined ? "CURRENT" : `ROUND ${roundId.toString().padStart(2, "0")}`;
+  const participantLabel = participants === undefined ? "—" : participants.toString().padStart(2, "0");
+  return (
+    <section
+      className="position-preview"
+      aria-label="Conceptual product preview showing a masked private position and separate public draw proof"
+    >
+      <div className="position-preview-private">
+        <header className="position-preview-header">
+          <div>
+            <span className="eyebrow">PRIVATE POSITION</span>
+            <strong>Wallet-sealed</strong>
+          </div>
+          <span className="position-preview-state">SEALED</span>
+        </header>
+        <div className="position-preview-balance">
+          <span>ENCRYPTED PRINCIPAL</span>
+          <strong aria-label="Masked private principal">••••••</strong>
+          <small>UNVEIL ONLY TO THIS WALLET</small>
+        </div>
+        <div className="position-preview-fields">
+          <div>
+            <span>DRAW WEIGHT</span>
+            <strong>SEALED</strong>
+          </div>
+          <div>
+            <span>PRIVATE STRATEGY SHARES</span>
+            <strong aria-label="Masked private strategy shares">••••••</strong>
+          </div>
+        </div>
+        <p className="position-preview-private-note">Your financial state stays encrypted between wallet actions.</p>
+      </div>
+      <div className="position-preview-seam" aria-hidden="true">
+        <span />
+        <small>VERIFICATION BOUNDARY</small>
+        <span />
+      </div>
+      <div className="position-preview-public">
+        <header className="position-preview-header">
+          <div>
+            <span className="eyebrow">PUBLIC DRAW</span>
+            <strong>Onchain proof</strong>
+          </div>
+          <span className={`position-preview-state position-preview-state--${publicState.toLowerCase()}`}>
+            {publicState}
+          </span>
+        </header>
+        <div className="position-preview-proof-rail">
+          <div>
+            <span>ROUND</span>
+            <strong>{publicRound}</strong>
+          </div>
+          <div>
+            <span>STATE</span>
+            <strong>{state ?? "—"}</strong>
+          </div>
+          <div>
+            <span>PARTICIPANTS</span>
+            <strong>{participantLabel}</strong>
+          </div>
+        </div>
+        <div className="position-preview-proof-line">
+          <span className="position-preview-proof-mark" aria-hidden="true" />
+          <p>Timing, lifecycle, and verified outcomes remain public.</p>
+        </div>
+      </div>
+      <footer className="position-preview-footer">
+        <span>CONCEPTUAL POSITION PREVIEW</span>
+        <small>Private values are masked · no wallet data loaded</small>
+      </footer>
+    </section>
+  );
+}

@@ -21,11 +21,11 @@ type Fragment = {
   thickness: number;
 };
 
-type ParticipantTick = {
+type PublicMarker = {
   distance: number;
 };
 
-const MAX_PARTICIPANT_TICKS = 16;
+const MAX_PUBLIC_MARKERS = 16;
 const FRAGMENT_COUNT = 42;
 
 function seeded(seed: number) {
@@ -44,8 +44,8 @@ function buildFragments(): Fragment[] {
   }));
 }
 
-function buildParticipantTicks(count: number): ParticipantTick[] {
-  const visibleCount = Math.min(Math.max(count, 0), MAX_PARTICIPANT_TICKS);
+function buildPublicMarkers(count: number): PublicMarker[] {
+  const visibleCount = Math.min(Math.max(count, 0), MAX_PUBLIC_MARKERS);
   return Array.from({ length: visibleCount }, (_, index) => ({
     distance: index / Math.max(visibleCount, 1),
   }));
@@ -62,13 +62,7 @@ function phaseLabel(phase: CryptographicChamberPhase) {
   return phase === "BLIND_DRAW" ? "BLIND DRAW" : phase;
 }
 
-function phaseDescription(phase: CryptographicChamberPhase, conceptual: boolean) {
-  if (conceptual) {
-    if (phase === "SNAPSHOT") return "Weights lock without becoming readable.";
-    if (phase === "BLIND_DRAW") return "Selection happens behind the sealed aperture.";
-    if (phase === "DELIVER") return "One verified path exits; private amounts stay sealed.";
-    return "Equal markers show public ingress, never private weight.";
-  }
+function phaseDescription(phase: CryptographicChamberPhase) {
   if (phase === "SNAPSHOT") return "The snapshot locks without exposing private weights.";
   if (phase === "BLIND_DRAW") return "The draw runs behind the sealed aperture.";
   if (phase === "VERIFY") return "Verification crosses the slit without opening the veil.";
@@ -83,15 +77,15 @@ function perimeterPoint(distance: number, width: number, height: number) {
   const inset = Math.min(24, Math.max(12, Math.min(width, height) * 0.06));
   const perimeter = 2 * (width - inset * 2) + 2 * (height - inset * 2);
   let remaining = distance * perimeter;
-  if (remaining <= width - inset * 2) return { x: inset + remaining, y: inset, dx: 0, dy: 1 };
+  if (remaining <= width - inset * 2) return { x: inset + remaining, y: inset };
   remaining -= width - inset * 2;
-  if (remaining <= height - inset * 2) return { x: width - inset, y: inset + remaining, dx: -1, dy: 0 };
+  if (remaining <= height - inset * 2) return { x: width - inset, y: inset + remaining };
   remaining -= height - inset * 2;
   if (remaining <= width - inset * 2) {
-    return { x: width - inset - remaining, y: height - inset, dx: 0, dy: -1 };
+    return { x: width - inset - remaining, y: height - inset };
   }
   remaining -= width - inset * 2;
-  return { x: inset, y: height - inset - remaining, dx: 1, dy: 0 };
+  return { x: inset, y: height - inset - remaining };
 }
 
 export function CryptographicChamber({
@@ -100,14 +94,12 @@ export function CryptographicChamber({
   state,
   phase,
   compact = false,
-  conceptual = false,
 }: {
   roundId?: bigint;
   participantCount?: number;
   state: CryptographicChamberState;
   phase?: CryptographicChamberPhase;
   compact?: boolean;
-  conceptual?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -125,7 +117,7 @@ export function CryptographicChamber({
     const context = contextElement;
 
     const fragments = buildFragments();
-    const participants = buildParticipantTicks(conceptual ? 8 : (participantCount ?? 0));
+    const participants = buildPublicMarkers(participantCount ?? 0);
     let width = 0;
     let height = 0;
     let active = !document.hidden;
@@ -176,10 +168,13 @@ export function CryptographicChamber({
         const point = perimeterPoint(participant.distance, width, height);
         context.globalAlpha = 0.72;
         context.strokeStyle = lightTheme ? "#8d7100" : "#f2d515";
-        context.lineWidth = 2;
+        context.lineWidth = 1.5;
         context.beginPath();
-        context.moveTo(point.x, point.y);
-        context.lineTo(point.x + point.dx * 7, point.y + point.dy * 7);
+        context.moveTo(point.x, point.y - 5);
+        context.lineTo(point.x + 5, point.y);
+        context.lineTo(point.x, point.y + 5);
+        context.lineTo(point.x - 5, point.y);
+        context.closePath();
         context.stroke();
       });
 
@@ -240,21 +235,21 @@ export function CryptographicChamber({
       themeObserver.disconnect();
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [activePhase, conceptual, participantCount, reducedMotion]);
+  }, [activePhase, participantCount, reducedMotion]);
 
   const displayPhase = phaseLabel(activePhase);
-  const description = phaseDescription(activePhase, conceptual);
+  const description = phaseDescription(activePhase);
 
   return (
     <section
-      className={`cryptographic-chamber cryptographic-chamber--${state.toLowerCase()} cryptographic-chamber--phase-${activePhase.toLowerCase().replace("_", "-")} ${compact ? "cryptographic-chamber--compact" : ""} ${conceptual ? "cryptographic-chamber--conceptual" : ""}`}
+      className={`cryptographic-chamber cryptographic-chamber--${state.toLowerCase()} cryptographic-chamber--phase-${activePhase.toLowerCase().replace("_", "-")} ${compact ? "cryptographic-chamber--compact" : ""}`}
       data-chamber-state={state}
       data-chamber-phase={activePhase}
-      aria-label={`${conceptual ? "Conceptual " : "Live "}cryptographic chamber. ${displayPhase}.`}
+      aria-label={`Live cryptographic chamber. ${displayPhase}.`}
     >
       <div className="chamber-header">
-        <span>{conceptual ? "CRYPTOGRAPHIC CHAMBER" : `ROUND ${roundId?.toString().padStart(2, "0") ?? "—"}`}</span>
-        <span>{conceptual ? "CONCEPTUAL · NOT LIVE STATE" : `${participantCount ?? "—"} PUBLIC PARTICIPANTS`}</span>
+        <span>ROUND {roundId?.toString().padStart(2, "0") ?? "—"}</span>
+        <span>{participantCount ?? "—"} PUBLIC PARTICIPANTS</span>
       </div>
       <div className="chamber-stage" ref={stageRef} aria-hidden="true">
         <canvas ref={canvasRef} />
