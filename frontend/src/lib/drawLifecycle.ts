@@ -50,7 +50,9 @@ function terminalPresentation(terminalState: DrawLifecycleTerminalState): DrawLi
   const states: DrawLifecycleStepState[] =
     terminalState === "SKIPPED"
       ? ["complete", "inactive", "inactive", "inactive", "inactive"]
-      : ["complete", "complete", "complete", "complete", "inactive"];
+      : terminalState === "COMPLETE"
+        ? ["complete", "inactive", "inactive", "inactive", "inactive"]
+        : ["complete", "complete", "complete", "complete", "inactive"];
   const branch =
     terminalState === "SKIPPED"
       ? {
