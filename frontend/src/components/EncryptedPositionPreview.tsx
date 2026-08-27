@@ -17,7 +17,7 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
         <header className="position-preview-header">
           <div>
             <span className="eyebrow">PRIVATE POSITION</span>
-            <strong>Wallet-sealed</strong>
+            <strong>Wallet sealed</strong>
           </div>
           <span className="position-preview-state">SEALED</span>
         </header>
@@ -36,7 +36,6 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
             <strong aria-label="Masked private strategy shares">••••••</strong>
           </div>
         </div>
-        <p className="position-preview-private-note">Your financial state stays encrypted between wallet actions.</p>
       </div>
       <div className="position-preview-seam" aria-hidden="true">
         <span />
@@ -67,15 +66,7 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
             <strong>{participantLabel}</strong>
           </div>
         </div>
-        <div className="position-preview-proof-line">
-          <span className="position-preview-proof-mark" aria-hidden="true" />
-          <p>Timing, lifecycle, and verified outcomes remain public.</p>
-        </div>
       </div>
-      <footer className="position-preview-footer">
-        <span>CONCEPTUAL POSITION PREVIEW</span>
-        <small>Private values are masked · no wallet data loaded</small>
-      </footer>
     </section>
   );
 }
