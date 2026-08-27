@@ -1,0 +1,93 @@
+[
+  {
+    "test": "Landing → Home",
+    "result": "home"
+  },
+  {
+    "test": "Home → Save",
+    "result": "save"
+  },
+  {
+    "test": "Save → Draw",
+    "result": "draw-open"
+  },
+  {
+    "test": "Draw → Home",
+    "result": "home"
+  },
+  {
+    "test": "Position revealed demo only",
+    "result": {
+      "label": "DEMO VALUE · NO PROTOCOL DATA",
+      "value": "128TEST"
+    }
+  },
+  {
+    "test": "Position plaintext removed immediately on veil",
+    "result": {
+      "mask": "••••••",
+      "plaintextPresent": false
+    }
+  },
+  {
+    "test": "Prize revealed demo only",
+    "result": {
+      "label": "DEMO VALUE · NO PROTOCOL DATA",
+      "value": "4TEST SHARES"
+    }
+  },
+  {
+    "test": "Prize plaintext removed immediately on veil",
+    "result": {
+      "mask": "••••••",
+      "plaintextPresent": false
+    }
+  },
+  {
+    "test": "Pause engine",
+    "result": {
+      "css": "paused",
+      "hud": "Canvas2D · PAUSED · p95 —ms · JS 0.10ms · DPR 1.0000000149011612",
+      "paused": "true"
+    }
+  },
+  {
+    "test": "Static renderer fallback",
+    "result": {
+      "canvas": true,
+      "hud": "Canvas2D · PAUSED · p95 —ms · JS 0.10ms · DPR 1.0000000149011612",
+      "live": "false"
+    }
+  },
+  {
+    "test": "Scroll privacy rail and shutter",
+    "result": {
+      "current": "02 PRIVACY",
+      "hud": "DOM / static fallback · 58.8 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+      "occlusion": "0.6003968253968254",
+      "transform": "matrix(1, 0, 0, 1, 30.3395, 0)"
+    }
+  },
+  {
+    "test": "Offscreen pauses environment",
+    "result": {
+      "current": "04 ENTER",
+      "hud": "DOM / static fallback · OFFSCREEN · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+      "paused": true
+    }
+  },
+  {
+    "test": "Repeat intro finishes after short entrance",
+    "result": {
+      "hero": true,
+      "introClass": "intro"
+    }
+  },
+  {
+    "test": "Background-tab visibility observation",
+    "result": {
+      "hidden": false,
+      "hud": "Canvas2D · — fps · p95 —ms · JS 0.10ms · DPR 1.0000000149011612"
+    }
+  }
+]

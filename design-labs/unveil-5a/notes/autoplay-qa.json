@@ -1,0 +1,102 @@
+[
+  {
+    "elapsedMs": 0,
+    "state": "OPEN"
+  },
+  {
+    "elapsedMs": 550,
+    "state": "OPEN"
+  },
+  {
+    "elapsedMs": 1087,
+    "state": "OPEN"
+  },
+  {
+    "elapsedMs": 1636,
+    "state": "OPEN"
+  },
+  {
+    "elapsedMs": 2183,
+    "state": "SNAPSHOT"
+  },
+  {
+    "elapsedMs": 2728,
+    "state": "SNAPSHOT"
+  },
+  {
+    "elapsedMs": 3276,
+    "state": "SNAPSHOT"
+  },
+  {
+    "elapsedMs": 3819,
+    "state": "SNAPSHOT"
+  },
+  {
+    "elapsedMs": 4366,
+    "state": "BLIND DRAW"
+  },
+  {
+    "elapsedMs": 4911,
+    "state": "BLIND DRAW"
+  },
+  {
+    "elapsedMs": 5457,
+    "state": "BLIND DRAW"
+  },
+  {
+    "elapsedMs": 6000,
+    "state": "BLIND DRAW"
+  },
+  {
+    "elapsedMs": 6545,
+    "state": "VERIFY"
+  },
+  {
+    "elapsedMs": 7094,
+    "state": "VERIFY"
+  },
+  {
+    "elapsedMs": 7644,
+    "state": "VERIFY"
+  },
+  {
+    "elapsedMs": 8192,
+    "state": "DELIVER"
+  },
+  {
+    "elapsedMs": 8735,
+    "state": "DELIVER"
+  },
+  {
+    "elapsedMs": 9283,
+    "state": "DELIVER"
+  },
+  {
+    "elapsedMs": 9834,
+    "state": "DELIVER"
+  },
+  {
+    "elapsedMs": 10379,
+    "state": "DELIVERED"
+  },
+  {
+    "elapsedMs": 10922,
+    "state": "DELIVERED"
+  },
+  {
+    "elapsedMs": 11454,
+    "state": "DELIVERED"
+  },
+  {
+    "elapsedMs": 12003,
+    "state": "DELIVERED"
+  },
+  {
+    "elapsedMs": 12548,
+    "state": "DELIVERED"
+  },
+  {
+    "elapsedMs": 13093,
+    "state": "DELIVERED"
+  }
+]

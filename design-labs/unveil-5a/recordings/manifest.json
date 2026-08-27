@@ -1,0 +1,991 @@
+[
+  {
+    "name": "a-intro",
+    "direction": "a",
+    "kind": "intro",
+    "frames": [
+      {
+        "file": "a-intro-00.jpg",
+        "elapsedMs": 68,
+        "targetMs": 0,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-01.jpg",
+        "elapsedMs": 243,
+        "targetMs": 150,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-02.jpg",
+        "elapsedMs": 402,
+        "targetMs": 350,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-03.jpg",
+        "elapsedMs": 647,
+        "targetMs": 600,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-04.jpg",
+        "elapsedMs": 989,
+        "targetMs": 950,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-05.jpg",
+        "elapsedMs": 1234,
+        "targetMs": 1200,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-06.jpg",
+        "elapsedMs": 3543,
+        "targetMs": 3500,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-07.jpg",
+        "elapsedMs": 6539,
+        "targetMs": 6500,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "a-intro-08.jpg",
+        "elapsedMs": 10049,
+        "targetMs": 10000,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "a-theme",
+    "direction": "a",
+    "kind": "theme",
+    "frames": [
+      {
+        "file": "a-theme-00.jpg",
+        "elapsedMs": 43,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "light",
+        "transition": true
+      },
+      {
+        "file": "a-theme-01.jpg",
+        "elapsedMs": 215,
+        "targetMs": 120,
+        "intro": "intro",
+        "stage": "light",
+        "transition": true
+      },
+      {
+        "file": "a-theme-02.jpg",
+        "elapsedMs": 392,
+        "targetMs": 240,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "a-theme-03.jpg",
+        "elapsedMs": 540,
+        "targetMs": 400,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "a-theme-04.jpg",
+        "elapsedMs": 703,
+        "targetMs": 600,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "a-theme-05.jpg",
+        "elapsedMs": 1037,
+        "targetMs": 1000,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "a-theme-06.jpg",
+        "elapsedMs": 2537,
+        "targetMs": 2500,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "a-save",
+    "direction": "a",
+    "kind": "save",
+    "frames": [
+      {
+        "file": "a-save-00.jpg",
+        "elapsedMs": 44,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "AUTHORIZE",
+        "transition": false
+      },
+      {
+        "file": "a-save-01.jpg",
+        "elapsedMs": 736,
+        "targetMs": 700,
+        "intro": "intro",
+        "stage": "AUTHORIZE",
+        "transition": false
+      },
+      {
+        "file": "a-save-02.jpg",
+        "elapsedMs": 1545,
+        "targetMs": 1500,
+        "intro": "intro",
+        "stage": "INITIALIZE FHE",
+        "transition": false
+      },
+      {
+        "file": "a-save-03.jpg",
+        "elapsedMs": 3050,
+        "targetMs": 3000,
+        "intro": "intro",
+        "stage": "ENCRYPT LOCALLY",
+        "transition": false
+      },
+      {
+        "file": "a-save-04.jpg",
+        "elapsedMs": 4544,
+        "targetMs": 4500,
+        "intro": "intro",
+        "stage": "SUBMIT",
+        "transition": false
+      },
+      {
+        "file": "a-save-05.jpg",
+        "elapsedMs": 6038,
+        "targetMs": 6000,
+        "intro": "intro",
+        "stage": "CONFIRM",
+        "transition": false
+      },
+      {
+        "file": "a-save-06.jpg",
+        "elapsedMs": 8062,
+        "targetMs": 8000,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "a-draw",
+    "direction": "a",
+    "kind": "draw",
+    "frames": [
+      {
+        "file": "a-draw-00.jpg",
+        "elapsedMs": 43,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "OPEN",
+        "transition": false
+      },
+      {
+        "file": "a-draw-01.jpg",
+        "elapsedMs": 11973,
+        "targetMs": 1000,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      },
+      {
+        "file": "a-draw-02.jpg",
+        "elapsedMs": 12158,
+        "targetMs": 2500,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      },
+      {
+        "file": "a-draw-03.jpg",
+        "elapsedMs": 12296,
+        "targetMs": 4500,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      },
+      {
+        "file": "a-draw-04.jpg",
+        "elapsedMs": 12465,
+        "targetMs": 6500,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      },
+      {
+        "file": "a-draw-05.jpg",
+        "elapsedMs": 12613,
+        "targetMs": 8500,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      },
+      {
+        "file": "a-draw-06.jpg",
+        "elapsedMs": 12748,
+        "targetMs": 11000,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      },
+      {
+        "file": "a-draw-07.jpg",
+        "elapsedMs": 12885,
+        "targetMs": 12000,
+        "intro": "intro",
+        "stage": "DELIVERED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "a-prize",
+    "direction": "a",
+    "kind": "prize",
+    "frames": [
+      {
+        "file": "a-prize-00.jpg",
+        "elapsedMs": 45,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "a-prize-01.jpg",
+        "elapsedMs": 553,
+        "targetMs": 500,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "a-prize-02.jpg",
+        "elapsedMs": 1138,
+        "targetMs": 1100,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "a-prize-03.jpg",
+        "elapsedMs": 1546,
+        "targetMs": 1500,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "a-prize-04.jpg",
+        "elapsedMs": 2145,
+        "targetMs": 2100,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "a-prize-05.jpg",
+        "elapsedMs": 3052,
+        "targetMs": 3000,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "a-prize-06.jpg",
+        "elapsedMs": 4045,
+        "targetMs": 4000,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "a-draw-paced",
+    "direction": "a",
+    "kind": "draw-paced",
+    "mode": "Manual stage controls, paced 12s sequence; actual rendered stages, not a continuous video",
+    "frames": [
+      {
+        "file": "a-draw-paced-0.jpg",
+        "elapsedMs": 328,
+        "stage": "OPEN"
+      },
+      {
+        "file": "a-draw-paced-1.jpg",
+        "elapsedMs": 3060,
+        "stage": "SNAPSHOT"
+      },
+      {
+        "file": "a-draw-paced-2.jpg",
+        "elapsedMs": 5449,
+        "stage": "BLIND DRAW"
+      },
+      {
+        "file": "a-draw-paced-3.jpg",
+        "elapsedMs": 7842,
+        "stage": "VERIFY"
+      },
+      {
+        "file": "a-draw-paced-4.jpg",
+        "elapsedMs": 10235,
+        "stage": "DELIVER"
+      },
+      {
+        "file": "a-draw-paced-5.jpg",
+        "elapsedMs": 12156,
+        "stage": "DELIVER / packet animation finished"
+      }
+    ]
+  },
+  {
+    "name": "b-intro",
+    "direction": "b",
+    "kind": "intro",
+    "frames": [
+      {
+        "file": "b-intro-00.jpg",
+        "elapsedMs": 45,
+        "targetMs": 0,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-01.jpg",
+        "elapsedMs": 242,
+        "targetMs": 150,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-02.jpg",
+        "elapsedMs": 395,
+        "targetMs": 350,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-03.jpg",
+        "elapsedMs": 642,
+        "targetMs": 600,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-04.jpg",
+        "elapsedMs": 985,
+        "targetMs": 950,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-05.jpg",
+        "elapsedMs": 1259,
+        "targetMs": 1200,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-06.jpg",
+        "elapsedMs": 3537,
+        "targetMs": 3500,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-07.jpg",
+        "elapsedMs": 6539,
+        "targetMs": 6500,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "b-intro-08.jpg",
+        "elapsedMs": 10031,
+        "targetMs": 10000,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "b-theme",
+    "direction": "b",
+    "kind": "theme",
+    "frames": [
+      {
+        "file": "b-theme-00.jpg",
+        "elapsedMs": 37,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "light",
+        "transition": true
+      },
+      {
+        "file": "b-theme-01.jpg",
+        "elapsedMs": 204,
+        "targetMs": 120,
+        "intro": "intro",
+        "stage": "light",
+        "transition": true
+      },
+      {
+        "file": "b-theme-02.jpg",
+        "elapsedMs": 374,
+        "targetMs": 240,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "b-theme-03.jpg",
+        "elapsedMs": 552,
+        "targetMs": 400,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "b-theme-04.jpg",
+        "elapsedMs": 683,
+        "targetMs": 600,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "b-theme-05.jpg",
+        "elapsedMs": 1040,
+        "targetMs": 1000,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "b-theme-06.jpg",
+        "elapsedMs": 2542,
+        "targetMs": 2500,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "b-save",
+    "direction": "b",
+    "kind": "save",
+    "frames": [
+      {
+        "file": "b-save-00.jpg",
+        "elapsedMs": 75,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "AUTHORIZE",
+        "transition": false
+      },
+      {
+        "file": "b-save-01.jpg",
+        "elapsedMs": 763,
+        "targetMs": 700,
+        "intro": "intro",
+        "stage": "AUTHORIZE",
+        "transition": false
+      },
+      {
+        "file": "b-save-02.jpg",
+        "elapsedMs": 1560,
+        "targetMs": 1500,
+        "intro": "intro",
+        "stage": "INITIALIZE FHE",
+        "transition": false
+      },
+      {
+        "file": "b-save-03.jpg",
+        "elapsedMs": 3061,
+        "targetMs": 3000,
+        "intro": "intro",
+        "stage": "ENCRYPT LOCALLY",
+        "transition": false
+      },
+      {
+        "file": "b-save-04.jpg",
+        "elapsedMs": 4548,
+        "targetMs": 4500,
+        "intro": "intro",
+        "stage": "SUBMIT",
+        "transition": false
+      },
+      {
+        "file": "b-save-05.jpg",
+        "elapsedMs": 6038,
+        "targetMs": 6000,
+        "intro": "intro",
+        "stage": "CONFIRM",
+        "transition": false
+      },
+      {
+        "file": "b-save-06.jpg",
+        "elapsedMs": 8070,
+        "targetMs": 8000,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "b-prize",
+    "direction": "b",
+    "kind": "prize",
+    "frames": [
+      {
+        "file": "b-prize-00.jpg",
+        "elapsedMs": 38,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "b-prize-01.jpg",
+        "elapsedMs": 540,
+        "targetMs": 500,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "b-prize-02.jpg",
+        "elapsedMs": 1146,
+        "targetMs": 1100,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "b-prize-03.jpg",
+        "elapsedMs": 1548,
+        "targetMs": 1500,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "b-prize-04.jpg",
+        "elapsedMs": 2158,
+        "targetMs": 2100,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "b-prize-05.jpg",
+        "elapsedMs": 3047,
+        "targetMs": 3000,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "b-prize-06.jpg",
+        "elapsedMs": 4038,
+        "targetMs": 4000,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "b-draw-paced",
+    "direction": "b",
+    "kind": "draw-paced",
+    "mode": "Manual stage controls, paced 12s sequence; actual rendered stages, not a continuous video",
+    "frames": [
+      {
+        "file": "b-draw-paced-0.jpg",
+        "elapsedMs": 329,
+        "stage": "OPEN"
+      },
+      {
+        "file": "b-draw-paced-1.jpg",
+        "elapsedMs": 3045,
+        "stage": "SNAPSHOT"
+      },
+      {
+        "file": "b-draw-paced-2.jpg",
+        "elapsedMs": 5453,
+        "stage": "BLIND DRAW"
+      },
+      {
+        "file": "b-draw-paced-3.jpg",
+        "elapsedMs": 7843,
+        "stage": "VERIFY"
+      },
+      {
+        "file": "b-draw-paced-4.jpg",
+        "elapsedMs": 10270,
+        "stage": "DELIVER"
+      },
+      {
+        "file": "b-draw-paced-5.jpg",
+        "elapsedMs": 12169,
+        "stage": "DELIVER / packet animation finished"
+      }
+    ]
+  },
+  {
+    "name": "c-intro",
+    "direction": "c",
+    "kind": "intro",
+    "frames": [
+      {
+        "file": "c-intro-00.jpg",
+        "elapsedMs": 44,
+        "targetMs": 0,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-01.jpg",
+        "elapsedMs": 207,
+        "targetMs": 150,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-02.jpg",
+        "elapsedMs": 385,
+        "targetMs": 350,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-03.jpg",
+        "elapsedMs": 636,
+        "targetMs": 600,
+        "intro": "intro play",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-04.jpg",
+        "elapsedMs": 990,
+        "targetMs": 950,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-05.jpg",
+        "elapsedMs": 1250,
+        "targetMs": 1200,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-06.jpg",
+        "elapsedMs": 3527,
+        "targetMs": 3500,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-07.jpg",
+        "elapsedMs": 6555,
+        "targetMs": 6500,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      },
+      {
+        "file": "c-intro-08.jpg",
+        "elapsedMs": 10036,
+        "targetMs": 10000,
+        "intro": "intro",
+        "stage": "dark",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "c-theme",
+    "direction": "c",
+    "kind": "theme",
+    "frames": [
+      {
+        "file": "c-theme-00.jpg",
+        "elapsedMs": 41,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "light",
+        "transition": true
+      },
+      {
+        "file": "c-theme-01.jpg",
+        "elapsedMs": 213,
+        "targetMs": 120,
+        "intro": "intro",
+        "stage": "light",
+        "transition": true
+      },
+      {
+        "file": "c-theme-02.jpg",
+        "elapsedMs": 351,
+        "targetMs": 240,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "c-theme-03.jpg",
+        "elapsedMs": 508,
+        "targetMs": 400,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "c-theme-04.jpg",
+        "elapsedMs": 645,
+        "targetMs": 600,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "c-theme-05.jpg",
+        "elapsedMs": 1025,
+        "targetMs": 1000,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      },
+      {
+        "file": "c-theme-06.jpg",
+        "elapsedMs": 2544,
+        "targetMs": 2500,
+        "intro": "intro",
+        "stage": "light",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "c-save",
+    "direction": "c",
+    "kind": "save",
+    "frames": [
+      {
+        "file": "c-save-00.jpg",
+        "elapsedMs": 68,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "AUTHORIZE",
+        "transition": false
+      },
+      {
+        "file": "c-save-01.jpg",
+        "elapsedMs": 740,
+        "targetMs": 700,
+        "intro": "intro",
+        "stage": "AUTHORIZE",
+        "transition": false
+      },
+      {
+        "file": "c-save-02.jpg",
+        "elapsedMs": 1542,
+        "targetMs": 1500,
+        "intro": "intro",
+        "stage": "INITIALIZE FHE",
+        "transition": false
+      },
+      {
+        "file": "c-save-03.jpg",
+        "elapsedMs": 3036,
+        "targetMs": 3000,
+        "intro": "intro",
+        "stage": "ENCRYPT LOCALLY",
+        "transition": false
+      },
+      {
+        "file": "c-save-04.jpg",
+        "elapsedMs": 4544,
+        "targetMs": 4500,
+        "intro": "intro",
+        "stage": "SUBMIT",
+        "transition": false
+      },
+      {
+        "file": "c-save-05.jpg",
+        "elapsedMs": 6042,
+        "targetMs": 6000,
+        "intro": "intro",
+        "stage": "CONFIRM",
+        "transition": false
+      },
+      {
+        "file": "c-save-06.jpg",
+        "elapsedMs": 8057,
+        "targetMs": 8000,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "c-prize",
+    "direction": "c",
+    "kind": "prize",
+    "frames": [
+      {
+        "file": "c-prize-00.jpg",
+        "elapsedMs": 42,
+        "targetMs": 0,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "c-prize-01.jpg",
+        "elapsedMs": 557,
+        "targetMs": 500,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "c-prize-02.jpg",
+        "elapsedMs": 1147,
+        "targetMs": 1100,
+        "intro": "intro",
+        "stage": "SEALED",
+        "transition": false
+      },
+      {
+        "file": "c-prize-03.jpg",
+        "elapsedMs": 1536,
+        "targetMs": 1500,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "c-prize-04.jpg",
+        "elapsedMs": 2139,
+        "targetMs": 2100,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "c-prize-05.jpg",
+        "elapsedMs": 3148,
+        "targetMs": 3000,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      },
+      {
+        "file": "c-prize-06.jpg",
+        "elapsedMs": 4040,
+        "targetMs": 4000,
+        "intro": "intro",
+        "stage": "DEMO REVEALED",
+        "transition": false
+      }
+    ]
+  },
+  {
+    "name": "c-draw-paced",
+    "direction": "c",
+    "kind": "draw-paced",
+    "mode": "Manual stage controls, paced 12s sequence; actual rendered stages, not a continuous video",
+    "frames": [
+      {
+        "file": "c-draw-paced-0.jpg",
+        "elapsedMs": 327,
+        "stage": "OPEN"
+      },
+      {
+        "file": "c-draw-paced-1.jpg",
+        "elapsedMs": 3054,
+        "stage": "SNAPSHOT"
+      },
+      {
+        "file": "c-draw-paced-2.jpg",
+        "elapsedMs": 5464,
+        "stage": "BLIND DRAW"
+      },
+      {
+        "file": "c-draw-paced-3.jpg",
+        "elapsedMs": 7837,
+        "stage": "VERIFY"
+      },
+      {
+        "file": "c-draw-paced-4.jpg",
+        "elapsedMs": 10240,
+        "stage": "DELIVER"
+      },
+      {
+        "file": "c-draw-paced-5.jpg",
+        "elapsedMs": 12118,
+        "stage": "DELIVER / packet animation finished"
+      }
+    ]
+  }
+]

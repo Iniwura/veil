@@ -1,0 +1,4334 @@
+[
+  {
+    "height": 900,
+    "name": "a-dark-1440-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=landing&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 420,
+      "width": 586.5375366210938,
+      "x": 759.0625,
+      "y": 344
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.07ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Private by nature.\nPublic by proof.",
+    "files": [
+      "a-dark-1440-landing-tile0.jpg",
+      "a-dark-1440-landing-tile1.jpg",
+      "a-dark-1440-landing-tile2.jpg",
+      "a-dark-1440-landing-tile3.jpg",
+      "a-dark-1440-landing-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=privacy&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 1266.4000244140625,
+      "x": 79.20000457763672,
+      "y": 686.4000244140625
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Visible proof.Concealed value.",
+    "files": [
+      "a-dark-1440-privacy-tile0.jpg",
+      "a-dark-1440-privacy-tile1.jpg",
+      "a-dark-1440-privacy-tile2.jpg",
+      "a-dark-1440-privacy-tile3.jpg",
+      "a-dark-1440-privacy-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=save&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": [
+      "a-dark-1440-save-tile0.jpg",
+      "a-dark-1440-save-tile1.jpg",
+      "a-dark-1440-save-tile2.jpg",
+      "a-dark-1440-save-tile3.jpg",
+      "a-dark-1440-save-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=encryption&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.11ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": [
+      "a-dark-1440-encryption-tile0.jpg",
+      "a-dark-1440-encryption-tile1.jpg",
+      "a-dark-1440-encryption-tile2.jpg",
+      "a-dark-1440-encryption-tile3.jpg",
+      "a-dark-1440-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=draw-open&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.11ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "A closed world. An open draw.",
+    "files": [
+      "a-dark-1440-draw-open-tile0.jpg",
+      "a-dark-1440-draw-open-tile1.jpg",
+      "a-dark-1440-draw-open-tile2.jpg",
+      "a-dark-1440-draw-open-tile3.jpg",
+      "a-dark-1440-draw-open-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=draw-blind&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 59.0 fps · p95 16.8ms · JS 0.08ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "More computation. No exposure.",
+    "files": [
+      "a-dark-1440-draw-blind-tile0.jpg",
+      "a-dark-1440-draw-blind-tile1.jpg",
+      "a-dark-1440-draw-blind-tile2.jpg",
+      "a-dark-1440-draw-blind-tile3.jpg",
+      "a-dark-1440-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=draw-verify&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.12ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "a-dark-1440-draw-verify-tile0.jpg",
+      "a-dark-1440-draw-verify-tile1.jpg",
+      "a-dark-1440-draw-verify-tile2.jpg",
+      "a-dark-1440-draw-verify-tile3.jpg",
+      "a-dark-1440-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-dark-1440-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=prize&intro=off&reveal=1",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 1041.5999755859375,
+      "x": 191.6000061035156,
+      "y": 404.625
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "The reward is private, too.",
+    "files": [
+      "a-dark-1440-prize-tile0.jpg",
+      "a-dark-1440-prize-tile1.jpg",
+      "a-dark-1440-prize-tile2.jpg",
+      "a-dark-1440-prize-tile3.jpg",
+      "a-dark-1440-prize-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=landing&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 340,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 838.6500244140625
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Private by nature.\nPublic by proof.",
+    "files": ["a-dark-390-landing-tile0.jpg", "a-dark-390-landing-tile1.jpg", "a-dark-390-landing-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=privacy&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 535.4000244140625,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 552.7999877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Visible proof.Concealed value.",
+    "files": ["a-dark-390-privacy-tile0.jpg", "a-dark-390-privacy-tile1.jpg", "a-dark-390-privacy-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=save&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 805.4249877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.11ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": ["a-dark-390-save-tile0.jpg", "a-dark-390-save-tile1.jpg", "a-dark-390-save-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=encryption&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 805.4249877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": ["a-dark-390-encryption-tile0.jpg", "a-dark-390-encryption-tile1.jpg", "a-dark-390-encryption-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=draw-open&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 542.25
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.11ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "A closed world. An open draw.",
+    "files": ["a-dark-390-draw-open-tile0.jpg", "a-dark-390-draw-open-tile1.jpg", "a-dark-390-draw-open-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=draw-blind&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 583.0499877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.08ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "More computation. No exposure.",
+    "files": ["a-dark-390-draw-blind-tile0.jpg", "a-dark-390-draw-blind-tile1.jpg", "a-dark-390-draw-blind-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=draw-verify&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 542.25
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "a-dark-390-draw-verify-tile0.jpg",
+      "a-dark-390-draw-verify-tile1.jpg",
+      "a-dark-390-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "a-dark-390-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=dark&scene=prize&intro=off&reveal=1",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 496.5
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.12ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "The reward is private, too.",
+    "files": ["a-dark-390-prize-tile0.jpg", "a-dark-390-prize-tile1.jpg", "a-dark-390-prize-detail.jpg"]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=landing&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 420,
+      "width": 586.5375366210938,
+      "x": 759.0625,
+      "y": 344
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 59.0 fps · p95 16.8ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Private by nature.\nPublic by proof.",
+    "files": [
+      "a-light-1440-landing-tile0.jpg",
+      "a-light-1440-landing-tile1.jpg",
+      "a-light-1440-landing-tile2.jpg",
+      "a-light-1440-landing-tile3.jpg",
+      "a-light-1440-landing-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=privacy&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 1266.4000244140625,
+      "x": 79.20000457763672,
+      "y": 686.4000244140625
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Visible proof.Concealed value.",
+    "files": [
+      "a-light-1440-privacy-tile0.jpg",
+      "a-light-1440-privacy-tile1.jpg",
+      "a-light-1440-privacy-tile2.jpg",
+      "a-light-1440-privacy-tile3.jpg",
+      "a-light-1440-privacy-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=save&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "a-light-1440-save-tile0.jpg",
+      "a-light-1440-save-tile1.jpg",
+      "a-light-1440-save-tile2.jpg",
+      "a-light-1440-save-tile3.jpg",
+      "a-light-1440-save-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=encryption&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.07ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "a-light-1440-encryption-tile0.jpg",
+      "a-light-1440-encryption-tile1.jpg",
+      "a-light-1440-encryption-tile2.jpg",
+      "a-light-1440-encryption-tile3.jpg",
+      "a-light-1440-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=draw-open&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "A closed world. An open draw.",
+    "files": [
+      "a-light-1440-draw-open-tile0.jpg",
+      "a-light-1440-draw-open-tile1.jpg",
+      "a-light-1440-draw-open-tile2.jpg",
+      "a-light-1440-draw-open-tile3.jpg",
+      "a-light-1440-draw-open-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=draw-blind&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.14ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "More computation. No exposure.",
+    "files": [
+      "a-light-1440-draw-blind-tile0.jpg",
+      "a-light-1440-draw-blind-tile1.jpg",
+      "a-light-1440-draw-blind-tile2.jpg",
+      "a-light-1440-draw-blind-tile3.jpg",
+      "a-light-1440-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=draw-verify&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "a-light-1440-draw-verify-tile0.jpg",
+      "a-light-1440-draw-verify-tile1.jpg",
+      "a-light-1440-draw-verify-tile2.jpg",
+      "a-light-1440-draw-verify-tile3.jpg",
+      "a-light-1440-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "a-light-1440-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=prize&intro=off&reveal=1",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 1041.5999755859375,
+      "x": 191.6000061035156,
+      "y": 404.625
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.10ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "The reward is private, too.",
+    "files": [
+      "a-light-1440-prize-tile0.jpg",
+      "a-light-1440-prize-tile1.jpg",
+      "a-light-1440-prize-tile2.jpg",
+      "a-light-1440-prize-tile3.jpg",
+      "a-light-1440-prize-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=landing&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 340,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 838.6500244140625
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 59.0 fps · p95 16.8ms · JS 0.08ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Private by nature.\nPublic by proof.",
+    "files": ["a-light-390-landing-tile0.jpg", "a-light-390-landing-tile1.jpg", "a-light-390-landing-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=privacy&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 535.4000244140625,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 552.7999877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.08ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Visible proof.Concealed value.",
+    "files": ["a-light-390-privacy-tile0.jpg", "a-light-390-privacy-tile1.jpg", "a-light-390-privacy-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=save&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 805.4249877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.08ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": ["a-light-390-save-tile0.jpg", "a-light-390-save-tile1.jpg", "a-light-390-save-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=encryption&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 805.4249877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "a-light-390-encryption-tile0.jpg",
+      "a-light-390-encryption-tile1.jpg",
+      "a-light-390-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=draw-open&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 542.25
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.11ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "A closed world. An open draw.",
+    "files": ["a-light-390-draw-open-tile0.jpg", "a-light-390-draw-open-tile1.jpg", "a-light-390-draw-open-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=draw-blind&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 583.0499877929688
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.8ms · JS 0.11ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "More computation. No exposure.",
+    "files": [
+      "a-light-390-draw-blind-tile0.jpg",
+      "a-light-390-draw-blind-tile1.jpg",
+      "a-light-390-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=draw-verify&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 542.25
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.13ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "a-light-390-draw-verify-tile0.jpg",
+      "a-light-390-draw-verify-tile1.jpg",
+      "a-light-390-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "a-light-390-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=a&theme=light&scene=prize&intro=off&reveal=1",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 496.5
+    },
+    "direction": "a",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "Canvas2D · 60.0 fps · p95 16.9ms · JS 0.09ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "The reward is private, too.",
+    "files": ["a-light-390-prize-tile0.jpg", "a-light-390-prize-tile1.jpg", "a-light-390-prize-detail.jpg"]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=landing&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 428.5325317382813,
+      "width": 546.417724609375,
+      "x": 803.687255859375,
+      "y": 339.7337341308594
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Nothing exposed.\nEverything proven.",
+    "files": [
+      "b-dark-1440-landing-tile0.jpg",
+      "b-dark-1440-landing-tile1.jpg",
+      "b-dark-1440-landing-tile2.jpg",
+      "b-dark-1440-landing-tile3.jpg",
+      "b-dark-1440-landing-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=privacy&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 1266.4000244140625,
+      "x": 79.20000457763672,
+      "y": 686.4000244140625
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Visible proof.Concealed value.",
+    "files": [
+      "b-dark-1440-privacy-tile0.jpg",
+      "b-dark-1440-privacy-tile1.jpg",
+      "b-dark-1440-privacy-tile2.jpg",
+      "b-dark-1440-privacy-tile3.jpg",
+      "b-dark-1440-privacy-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=save&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": [
+      "b-dark-1440-save-tile0.jpg",
+      "b-dark-1440-save-tile1.jpg",
+      "b-dark-1440-save-tile2.jpg",
+      "b-dark-1440-save-tile3.jpg",
+      "b-dark-1440-save-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=encryption&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": [
+      "b-dark-1440-encryption-tile0.jpg",
+      "b-dark-1440-encryption-tile1.jpg",
+      "b-dark-1440-encryption-tile2.jpg",
+      "b-dark-1440-encryption-tile3.jpg",
+      "b-dark-1440-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=draw-open&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "A closed world. An open draw.",
+    "files": [
+      "b-dark-1440-draw-open-tile0.jpg",
+      "b-dark-1440-draw-open-tile1.jpg",
+      "b-dark-1440-draw-open-tile2.jpg",
+      "b-dark-1440-draw-open-tile3.jpg",
+      "b-dark-1440-draw-open-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=draw-blind&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "More computation. No exposure.",
+    "files": [
+      "b-dark-1440-draw-blind-tile0.jpg",
+      "b-dark-1440-draw-blind-tile1.jpg",
+      "b-dark-1440-draw-blind-tile2.jpg",
+      "b-dark-1440-draw-blind-tile3.jpg",
+      "b-dark-1440-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=draw-verify&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "b-dark-1440-draw-verify-tile0.jpg",
+      "b-dark-1440-draw-verify-tile1.jpg",
+      "b-dark-1440-draw-verify-tile2.jpg",
+      "b-dark-1440-draw-verify-tile3.jpg",
+      "b-dark-1440-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-dark-1440-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=prize&intro=off&reveal=1",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 1041.5999755859375,
+      "x": 191.6000061035156,
+      "y": 404.625
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "The reward is private, too.",
+    "files": [
+      "b-dark-1440-prize-tile0.jpg",
+      "b-dark-1440-prize-tile1.jpg",
+      "b-dark-1440-prize-tile2.jpg",
+      "b-dark-1440-prize-tile3.jpg",
+      "b-dark-1440-prize-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=landing&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 360,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 790.6500244140625
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 59.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Nothing exposed.\nEverything proven.",
+    "files": ["b-dark-390-landing-tile0.jpg", "b-dark-390-landing-tile1.jpg", "b-dark-390-landing-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=privacy&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 535.4000244140625,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 504.8000183105469
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Visible proof.Concealed value.",
+    "files": ["b-dark-390-privacy-tile0.jpg", "b-dark-390-privacy-tile1.jpg", "b-dark-390-privacy-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=save&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": ["b-dark-390-save-tile0.jpg", "b-dark-390-save-tile1.jpg", "b-dark-390-save-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=encryption&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": ["b-dark-390-encryption-tile0.jpg", "b-dark-390-encryption-tile1.jpg", "b-dark-390-encryption-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=draw-open&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "A closed world. An open draw.",
+    "files": ["b-dark-390-draw-open-tile0.jpg", "b-dark-390-draw-open-tile1.jpg", "b-dark-390-draw-open-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=draw-blind&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 535.0499877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "More computation. No exposure.",
+    "files": ["b-dark-390-draw-blind-tile0.jpg", "b-dark-390-draw-blind-tile1.jpg", "b-dark-390-draw-blind-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=draw-verify&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "b-dark-390-draw-verify-tile0.jpg",
+      "b-dark-390-draw-verify-tile1.jpg",
+      "b-dark-390-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "b-dark-390-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=dark&scene=prize&intro=off&reveal=1",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 448.5
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "The reward is private, too.",
+    "files": ["b-dark-390-prize-tile0.jpg", "b-dark-390-prize-tile1.jpg", "b-dark-390-prize-detail.jpg"]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=landing&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 428.5325317382813,
+      "width": 546.417724609375,
+      "x": 803.687255859375,
+      "y": 339.7337341308594
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Nothing exposed.\nEverything proven.",
+    "files": [
+      "b-light-1440-landing-tile0.jpg",
+      "b-light-1440-landing-tile1.jpg",
+      "b-light-1440-landing-tile2.jpg",
+      "b-light-1440-landing-tile3.jpg",
+      "b-light-1440-landing-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=privacy&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 1266.4000244140625,
+      "x": 79.20000457763672,
+      "y": 686.4000244140625
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Visible proof.Concealed value.",
+    "files": [
+      "b-light-1440-privacy-tile0.jpg",
+      "b-light-1440-privacy-tile1.jpg",
+      "b-light-1440-privacy-tile2.jpg",
+      "b-light-1440-privacy-tile3.jpg",
+      "b-light-1440-privacy-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=save&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.7ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "b-light-1440-save-tile0.jpg",
+      "b-light-1440-save-tile1.jpg",
+      "b-light-1440-save-tile2.jpg",
+      "b-light-1440-save-tile3.jpg",
+      "b-light-1440-save-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=encryption&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "b-light-1440-encryption-tile0.jpg",
+      "b-light-1440-encryption-tile1.jpg",
+      "b-light-1440-encryption-tile2.jpg",
+      "b-light-1440-encryption-tile3.jpg",
+      "b-light-1440-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=draw-open&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "A closed world. An open draw.",
+    "files": [
+      "b-light-1440-draw-open-tile0.jpg",
+      "b-light-1440-draw-open-tile1.jpg",
+      "b-light-1440-draw-open-tile2.jpg",
+      "b-light-1440-draw-open-tile3.jpg",
+      "b-light-1440-draw-open-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=draw-blind&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "More computation. No exposure.",
+    "files": [
+      "b-light-1440-draw-blind-tile0.jpg",
+      "b-light-1440-draw-blind-tile1.jpg",
+      "b-light-1440-draw-blind-tile2.jpg",
+      "b-light-1440-draw-blind-tile3.jpg",
+      "b-light-1440-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=draw-verify&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "b-light-1440-draw-verify-tile0.jpg",
+      "b-light-1440-draw-verify-tile1.jpg",
+      "b-light-1440-draw-verify-tile2.jpg",
+      "b-light-1440-draw-verify-tile3.jpg",
+      "b-light-1440-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "b-light-1440-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=prize&intro=off&reveal=1",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 1041.5999755859375,
+      "x": 191.6000061035156,
+      "y": 404.625
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "The reward is private, too.",
+    "files": [
+      "b-light-1440-prize-tile0.jpg",
+      "b-light-1440-prize-tile1.jpg",
+      "b-light-1440-prize-tile2.jpg",
+      "b-light-1440-prize-tile3.jpg",
+      "b-light-1440-prize-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=landing&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 360,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 790.6500244140625
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Nothing exposed.\nEverything proven.",
+    "files": ["b-light-390-landing-tile0.jpg", "b-light-390-landing-tile1.jpg", "b-light-390-landing-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=privacy&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 535.4000244140625,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 504.8000183105469
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Visible proof.Concealed value.",
+    "files": ["b-light-390-privacy-tile0.jpg", "b-light-390-privacy-tile1.jpg", "b-light-390-privacy-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=save&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": ["b-light-390-save-tile0.jpg", "b-light-390-save-tile1.jpg", "b-light-390-save-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=encryption&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "b-light-390-encryption-tile0.jpg",
+      "b-light-390-encryption-tile1.jpg",
+      "b-light-390-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=draw-open&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "A closed world. An open draw.",
+    "files": ["b-light-390-draw-open-tile0.jpg", "b-light-390-draw-open-tile1.jpg", "b-light-390-draw-open-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=draw-blind&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 535.0499877929688
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "More computation. No exposure.",
+    "files": [
+      "b-light-390-draw-blind-tile0.jpg",
+      "b-light-390-draw-blind-tile1.jpg",
+      "b-light-390-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=draw-verify&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 17.0ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "b-light-390-draw-verify-tile0.jpg",
+      "b-light-390-draw-verify-tile1.jpg",
+      "b-light-390-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "b-light-390-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=b&theme=light&scene=prize&intro=off&reveal=1",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 448.5
+    },
+    "direction": "b",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "The reward is private, too.",
+    "files": ["b-light-390-prize-tile0.jpg", "b-light-390-prize-tile1.jpg", "b-light-390-prize-detail.jpg"]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=landing&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 440,
+      "width": 585.2000122070312,
+      "x": 760.4000244140625,
+      "y": 348.8000183105469
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "A position.\nNot a spectacle.",
+    "files": [
+      "c-dark-1440-landing-tile0.jpg",
+      "c-dark-1440-landing-tile1.jpg",
+      "c-dark-1440-landing-tile2.jpg",
+      "c-dark-1440-landing-tile3.jpg",
+      "c-dark-1440-landing-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=privacy&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 1266.4000244140625,
+      "x": 79.20000457763672,
+      "y": 686.4000244140625
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Visible proof.Concealed value.",
+    "files": [
+      "c-dark-1440-privacy-tile0.jpg",
+      "c-dark-1440-privacy-tile1.jpg",
+      "c-dark-1440-privacy-tile2.jpg",
+      "c-dark-1440-privacy-tile3.jpg",
+      "c-dark-1440-privacy-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=save&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": [
+      "c-dark-1440-save-tile0.jpg",
+      "c-dark-1440-save-tile1.jpg",
+      "c-dark-1440-save-tile2.jpg",
+      "c-dark-1440-save-tile3.jpg",
+      "c-dark-1440-save-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=encryption&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": [
+      "c-dark-1440-encryption-tile0.jpg",
+      "c-dark-1440-encryption-tile1.jpg",
+      "c-dark-1440-encryption-tile2.jpg",
+      "c-dark-1440-encryption-tile3.jpg",
+      "c-dark-1440-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=draw-open&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "A closed world. An open draw.",
+    "files": [
+      "c-dark-1440-draw-open-tile0.jpg",
+      "c-dark-1440-draw-open-tile1.jpg",
+      "c-dark-1440-draw-open-tile2.jpg",
+      "c-dark-1440-draw-open-tile3.jpg",
+      "c-dark-1440-draw-open-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=draw-blind&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "More computation. No exposure.",
+    "files": [
+      "c-dark-1440-draw-blind-tile0.jpg",
+      "c-dark-1440-draw-blind-tile1.jpg",
+      "c-dark-1440-draw-blind-tile2.jpg",
+      "c-dark-1440-draw-blind-tile3.jpg",
+      "c-dark-1440-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=draw-verify&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "c-dark-1440-draw-verify-tile0.jpg",
+      "c-dark-1440-draw-verify-tile1.jpg",
+      "c-dark-1440-draw-verify-tile2.jpg",
+      "c-dark-1440-draw-verify-tile3.jpg",
+      "c-dark-1440-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-dark-1440-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=prize&intro=off&reveal=1",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 1041.5999755859375,
+      "x": 191.6000061035156,
+      "y": 404.625
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 1425,
+    "theme": "dark",
+    "title": "The reward is private, too.",
+    "files": [
+      "c-dark-1440-prize-tile0.jpg",
+      "c-dark-1440-prize-tile1.jpg",
+      "c-dark-1440-prize-tile2.jpg",
+      "c-dark-1440-prize-tile3.jpg",
+      "c-dark-1440-prize-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=landing&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 380,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 733.5375366210938
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 57.0 fps · p95 16.9ms · JS 0.02ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "A position.\nNot a spectacle.",
+    "files": ["c-dark-390-landing-tile0.jpg", "c-dark-390-landing-tile1.jpg", "c-dark-390-landing-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=privacy&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 535.4000244140625,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 504.8000183105469
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Visible proof.Concealed value.",
+    "files": ["c-dark-390-privacy-tile0.jpg", "c-dark-390-privacy-tile1.jpg", "c-dark-390-privacy-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=save&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": ["c-dark-390-save-tile0.jpg", "c-dark-390-save-tile1.jpg", "c-dark-390-save-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=encryption&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "Seal a position.",
+    "files": ["c-dark-390-encryption-tile0.jpg", "c-dark-390-encryption-tile1.jpg", "c-dark-390-encryption-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=draw-open&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "A closed world. An open draw.",
+    "files": ["c-dark-390-draw-open-tile0.jpg", "c-dark-390-draw-open-tile1.jpg", "c-dark-390-draw-open-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=draw-blind&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 535.0499877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "More computation. No exposure.",
+    "files": ["c-dark-390-draw-blind-tile0.jpg", "c-dark-390-draw-blind-tile1.jpg", "c-dark-390-draw-blind-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=draw-verify&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "c-dark-390-draw-verify-tile0.jpg",
+      "c-dark-390-draw-verify-tile1.jpg",
+      "c-dark-390-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "c-dark-390-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=dark&scene=prize&intro=off&reveal=1",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 448.5
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 375,
+    "theme": "dark",
+    "title": "The reward is private, too.",
+    "files": ["c-dark-390-prize-tile0.jpg", "c-dark-390-prize-tile1.jpg", "c-dark-390-prize-detail.jpg"]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=landing&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 440,
+      "width": 585.2000122070312,
+      "x": 760.4000244140625,
+      "y": 348.8000183105469
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "A position.\nNot a spectacle.",
+    "files": [
+      "c-light-1440-landing-tile0.jpg",
+      "c-light-1440-landing-tile1.jpg",
+      "c-light-1440-landing-tile2.jpg",
+      "c-light-1440-landing-tile3.jpg",
+      "c-light-1440-landing-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=privacy&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 1266.4000244140625,
+      "x": 79.20000457763672,
+      "y": 686.4000244140625
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Visible proof.Concealed value.",
+    "files": [
+      "c-light-1440-privacy-tile0.jpg",
+      "c-light-1440-privacy-tile1.jpg",
+      "c-light-1440-privacy-tile2.jpg",
+      "c-light-1440-privacy-tile3.jpg",
+      "c-light-1440-privacy-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=save&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "c-light-1440-save-tile0.jpg",
+      "c-light-1440-save-tile1.jpg",
+      "c-light-1440-save-tile2.jpg",
+      "c-light-1440-save-tile3.jpg",
+      "c-light-1440-save-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=encryption&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 103.8000030517578,
+      "width": 652.5125122070312,
+      "x": 79.20000457763672,
+      "y": 776.8624877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "c-light-1440-encryption-tile0.jpg",
+      "c-light-1440-encryption-tile1.jpg",
+      "c-light-1440-encryption-tile2.jpg",
+      "c-light-1440-encryption-tile3.jpg",
+      "c-light-1440-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=draw-open&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "A closed world. An open draw.",
+    "files": [
+      "c-light-1440-draw-open-tile0.jpg",
+      "c-light-1440-draw-open-tile1.jpg",
+      "c-light-1440-draw-open-tile2.jpg",
+      "c-light-1440-draw-open-tile3.jpg",
+      "c-light-1440-draw-open-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=draw-blind&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "More computation. No exposure.",
+    "files": [
+      "c-light-1440-draw-blind-tile0.jpg",
+      "c-light-1440-draw-blind-tile1.jpg",
+      "c-light-1440-draw-blind-tile2.jpg",
+      "c-light-1440-draw-blind-tile3.jpg",
+      "c-light-1440-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=draw-verify&intro=off",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 320,
+      "width": 938.4000244140624,
+      "x": 79.20000457763672,
+      "y": 417.9125061035156
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "c-light-1440-draw-verify-tile0.jpg",
+      "c-light-1440-draw-verify-tile1.jpg",
+      "c-light-1440-draw-verify-tile2.jpg",
+      "c-light-1440-draw-verify-tile3.jpg",
+      "c-light-1440-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 900,
+    "name": "c-light-1440-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=prize&intro=off&reveal=1",
+    "width": 1440,
+    "clientWidth": 1425,
+    "demoLabel": true,
+    "detail": {
+      "height": 300,
+      "width": 1041.5999755859375,
+      "x": 191.6000061035156,
+      "y": 404.625
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.01ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 1425,
+    "theme": "light",
+    "title": "The reward is private, too.",
+    "files": [
+      "c-light-1440-prize-tile0.jpg",
+      "c-light-1440-prize-tile1.jpg",
+      "c-light-1440-prize-tile2.jpg",
+      "c-light-1440-prize-tile3.jpg",
+      "c-light-1440-prize-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-landing",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=landing&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 380,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 733.5375366210938
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "landing",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "A position.\nNot a spectacle.",
+    "files": ["c-light-390-landing-tile0.jpg", "c-light-390-landing-tile1.jpg", "c-light-390-landing-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-privacy",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=privacy&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 535.4000244140625,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 504.8000183105469
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "privacy",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Visible proof.Concealed value.",
+    "files": ["c-light-390-privacy-tile0.jpg", "c-light-390-privacy-tile1.jpg", "c-light-390-privacy-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-save",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=save&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "future"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "future"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "future"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "save",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": ["c-light-390-save-tile0.jpg", "c-light-390-save-tile1.jpg", "c-light-390-save-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-encryption",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=encryption&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 351.6000061035156,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 757.4249877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [
+      {
+        "label": "AUTHORIZE",
+        "state": "complete"
+      },
+      {
+        "label": "INITIALIZE FHE",
+        "state": "complete"
+      },
+      {
+        "label": "ENCRYPT LOCALLY",
+        "state": "current"
+      },
+      {
+        "label": "SUBMIT",
+        "state": "future"
+      },
+      {
+        "label": "CONFIRM",
+        "state": "future"
+      },
+      {
+        "label": "SEALED",
+        "state": "future"
+      }
+    ],
+    "plaintext": null,
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "encryption",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "Seal a position.",
+    "files": [
+      "c-light-390-encryption-tile0.jpg",
+      "c-light-390-encryption-tile1.jpg",
+      "c-light-390-encryption-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-draw-open",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=draw-open&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "current"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "future"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "future"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-open",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "A closed world. An open draw.",
+    "files": ["c-light-390-draw-open-tile0.jpg", "c-light-390-draw-open-tile1.jpg", "c-light-390-draw-open-detail.jpg"]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-draw-blind",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=draw-blind&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 535.0499877929688
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "current"
+      },
+      {
+        "label": "VERIFY",
+        "state": "future"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-blind",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "More computation. No exposure.",
+    "files": [
+      "c-light-390-draw-blind-tile0.jpg",
+      "c-light-390-draw-blind-tile1.jpg",
+      "c-light-390-draw-blind-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-draw-verify",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=draw-verify&intro=off",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 494.25
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [
+      [6, 16],
+      [6, 16],
+      [6, 16]
+    ],
+    "pipeline": [],
+    "plaintext": null,
+    "rail": [
+      {
+        "label": "OPEN",
+        "state": "complete"
+      },
+      {
+        "label": "SNAPSHOT",
+        "state": "complete"
+      },
+      {
+        "label": "BLIND DRAW",
+        "state": "complete"
+      },
+      {
+        "label": "VERIFY",
+        "state": "current"
+      },
+      {
+        "label": "DELIVER",
+        "state": "future"
+      }
+    ],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "draw-verify",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "One proof crosses the boundary.",
+    "files": [
+      "c-light-390-draw-verify-tile0.jpg",
+      "c-light-390-draw-verify-tile1.jpg",
+      "c-light-390-draw-verify-detail.jpg"
+    ]
+  },
+  {
+    "height": 844,
+    "name": "c-light-390-prize",
+    "url": "http://127.0.0.1:5190/index.html?direction=c&theme=light&scene=prize&intro=off&reveal=1",
+    "width": 390,
+    "clientWidth": 375,
+    "demoLabel": true,
+    "detail": {
+      "height": 280,
+      "width": 327.20001220703125,
+      "x": 24,
+      "y": 448.5
+    },
+    "direction": "c",
+    "errors": [],
+    "participantSizes": [],
+    "pipeline": [],
+    "plaintext": "4TEST SHARES",
+    "rail": [],
+    "renderer": "DOM / static fallback · 60.0 fps · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "scene": "prize",
+    "scrollWidth": 375,
+    "theme": "light",
+    "title": "The reward is private, too.",
+    "files": ["c-light-390-prize-tile0.jpg", "c-light-390-prize-tile1.jpg", "c-light-390-prize-detail.jpg"]
+  }
+]

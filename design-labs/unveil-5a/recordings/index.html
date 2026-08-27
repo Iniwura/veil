@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VEIL ENGINE / Motion contact sheets</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #e9eeeb;
+        color: #1a251e;
+        font:
+          13px Arial,
+          sans-serif;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0 0 12px;
+      }
+      p {
+        line-height: 1.5;
+      }
+      a {
+        color: inherit;
+      }
+      main {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        width: 840px;
+      }
+      figure {
+        margin: 0;
+        min-width: 0;
+        background: #dae2dc;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      figcaption {
+        padding: 8px;
+        font-size: 10px;
+        line-height: 1.3;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .mobile .tiles {
+        grid-template-columns: 1fr;
+      }
+      .links {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin: 16px 0;
+      }
+      .full {
+        max-width: 1400px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+      .full img {
+        height: auto;
+      }
+      @media (max-width: 900px) {
+        .full {
+          grid-template-columns: 1fr;
+        }
+        main {
+          width: 100%;
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Rendered motion / timed frames</h1>
+    <p>
+      Observed elapsed timestamps, not claimed video frame rates. Browser call latency is included. No recording tool
+      was installed.
+    </p>
+    <h2>a-intro</h2>
+    <div class="full">
+      <figure>
+        <img src="a-intro-00.jpg" alt="a-intro at 68 ms" />
+        <figcaption>68 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-01.jpg" alt="a-intro at 243 ms" />
+        <figcaption>243 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-02.jpg" alt="a-intro at 402 ms" />
+        <figcaption>402 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-03.jpg" alt="a-intro at 647 ms" />
+        <figcaption>647 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-04.jpg" alt="a-intro at 989 ms" />
+        <figcaption>989 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-05.jpg" alt="a-intro at 1234 ms" />
+        <figcaption>1234 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-06.jpg" alt="a-intro at 3543 ms" />
+        <figcaption>3543 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-07.jpg" alt="a-intro at 6539 ms" />
+        <figcaption>6539 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="a-intro-08.jpg" alt="a-intro at 10049 ms" />
+        <figcaption>10049 ms · dark</figcaption>
+      </figure>
+    </div>
+    <h2>a-theme</h2>
+    <div class="full">
+      <figure>
+        <img src="a-theme-00.jpg" alt="a-theme at 43 ms" />
+        <figcaption>43 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="a-theme-01.jpg" alt="a-theme at 215 ms" />
+        <figcaption>215 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="a-theme-02.jpg" alt="a-theme at 392 ms" />
+        <figcaption>392 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="a-theme-03.jpg" alt="a-theme at 540 ms" />
+        <figcaption>540 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="a-theme-04.jpg" alt="a-theme at 703 ms" />
+        <figcaption>703 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="a-theme-05.jpg" alt="a-theme at 1037 ms" />
+        <figcaption>1037 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="a-theme-06.jpg" alt="a-theme at 2537 ms" />
+        <figcaption>2537 ms · light</figcaption>
+      </figure>
+    </div>
+    <h2>a-save</h2>
+    <div class="full">
+      <figure>
+        <img src="a-save-00.jpg" alt="a-save at 44 ms" />
+        <figcaption>44 ms · AUTHORIZE</figcaption>
+      </figure>
+      <figure>
+        <img src="a-save-01.jpg" alt="a-save at 736 ms" />
+        <figcaption>736 ms · AUTHORIZE</figcaption>
+      </figure>
+      <figure>
+        <img src="a-save-02.jpg" alt="a-save at 1545 ms" />
+        <figcaption>1545 ms · INITIALIZE FHE</figcaption>
+      </figure>
+      <figure>
+        <img src="a-save-03.jpg" alt="a-save at 3050 ms" />
+        <figcaption>3050 ms · ENCRYPT LOCALLY</figcaption>
+      </figure>
+      <figure>
+        <img src="a-save-04.jpg" alt="a-save at 4544 ms" />
+        <figcaption>4544 ms · SUBMIT</figcaption>
+      </figure>
+      <figure>
+        <img src="a-save-05.jpg" alt="a-save at 6038 ms" />
+        <figcaption>6038 ms · CONFIRM</figcaption>
+      </figure>
+      <figure>
+        <img src="a-save-06.jpg" alt="a-save at 8062 ms" />
+        <figcaption>8062 ms · SEALED</figcaption>
+      </figure>
+    </div>
+    <h2>a-draw</h2>
+    <div class="full">
+      <figure>
+        <img src="a-draw-00.jpg" alt="a-draw at 43 ms" />
+        <figcaption>43 ms · OPEN</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-01.jpg" alt="a-draw at 11973 ms" />
+        <figcaption>11973 ms · DELIVERED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-02.jpg" alt="a-draw at 12158 ms" />
+        <figcaption>12158 ms · DELIVERED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-03.jpg" alt="a-draw at 12296 ms" />
+        <figcaption>12296 ms · DELIVERED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-04.jpg" alt="a-draw at 12465 ms" />
+        <figcaption>12465 ms · DELIVERED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-05.jpg" alt="a-draw at 12613 ms" />
+        <figcaption>12613 ms · DELIVERED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-06.jpg" alt="a-draw at 12748 ms" />
+        <figcaption>12748 ms · DELIVERED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-07.jpg" alt="a-draw at 12885 ms" />
+        <figcaption>12885 ms · DELIVERED</figcaption>
+      </figure>
+    </div>
+    <h2>a-prize</h2>
+    <div class="full">
+      <figure>
+        <img src="a-prize-00.jpg" alt="a-prize at 45 ms" />
+        <figcaption>45 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-prize-01.jpg" alt="a-prize at 553 ms" />
+        <figcaption>553 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-prize-02.jpg" alt="a-prize at 1138 ms" />
+        <figcaption>1138 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-prize-03.jpg" alt="a-prize at 1546 ms" />
+        <figcaption>1546 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-prize-04.jpg" alt="a-prize at 2145 ms" />
+        <figcaption>2145 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-prize-05.jpg" alt="a-prize at 3052 ms" />
+        <figcaption>3052 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="a-prize-06.jpg" alt="a-prize at 4045 ms" />
+        <figcaption>4045 ms · DEMO REVEALED</figcaption>
+      </figure>
+    </div>
+    <h2>a-draw-paced</h2>
+    <div class="full">
+      <figure>
+        <img src="a-draw-paced-0.jpg" alt="a-draw-paced at 328 ms" />
+        <figcaption>328 ms · OPEN</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-paced-1.jpg" alt="a-draw-paced at 3060 ms" />
+        <figcaption>3060 ms · SNAPSHOT</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-paced-2.jpg" alt="a-draw-paced at 5449 ms" />
+        <figcaption>5449 ms · BLIND DRAW</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-paced-3.jpg" alt="a-draw-paced at 7842 ms" />
+        <figcaption>7842 ms · VERIFY</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-paced-4.jpg" alt="a-draw-paced at 10235 ms" />
+        <figcaption>10235 ms · DELIVER</figcaption>
+      </figure>
+      <figure>
+        <img src="a-draw-paced-5.jpg" alt="a-draw-paced at 12156 ms" />
+        <figcaption>12156 ms · DELIVER / packet animation finished</figcaption>
+      </figure>
+    </div>
+    <h2>b-intro</h2>
+    <div class="full">
+      <figure>
+        <img src="b-intro-00.jpg" alt="b-intro at 45 ms" />
+        <figcaption>45 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-01.jpg" alt="b-intro at 242 ms" />
+        <figcaption>242 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-02.jpg" alt="b-intro at 395 ms" />
+        <figcaption>395 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-03.jpg" alt="b-intro at 642 ms" />
+        <figcaption>642 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-04.jpg" alt="b-intro at 985 ms" />
+        <figcaption>985 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-05.jpg" alt="b-intro at 1259 ms" />
+        <figcaption>1259 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-06.jpg" alt="b-intro at 3537 ms" />
+        <figcaption>3537 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-07.jpg" alt="b-intro at 6539 ms" />
+        <figcaption>6539 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="b-intro-08.jpg" alt="b-intro at 10031 ms" />
+        <figcaption>10031 ms · dark</figcaption>
+      </figure>
+    </div>
+    <h2>b-theme</h2>
+    <div class="full">
+      <figure>
+        <img src="b-theme-00.jpg" alt="b-theme at 37 ms" />
+        <figcaption>37 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="b-theme-01.jpg" alt="b-theme at 204 ms" />
+        <figcaption>204 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="b-theme-02.jpg" alt="b-theme at 374 ms" />
+        <figcaption>374 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="b-theme-03.jpg" alt="b-theme at 552 ms" />
+        <figcaption>552 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="b-theme-04.jpg" alt="b-theme at 683 ms" />
+        <figcaption>683 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="b-theme-05.jpg" alt="b-theme at 1040 ms" />
+        <figcaption>1040 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="b-theme-06.jpg" alt="b-theme at 2542 ms" />
+        <figcaption>2542 ms · light</figcaption>
+      </figure>
+    </div>
+    <h2>b-save</h2>
+    <div class="full">
+      <figure>
+        <img src="b-save-00.jpg" alt="b-save at 75 ms" />
+        <figcaption>75 ms · AUTHORIZE</figcaption>
+      </figure>
+      <figure>
+        <img src="b-save-01.jpg" alt="b-save at 763 ms" />
+        <figcaption>763 ms · AUTHORIZE</figcaption>
+      </figure>
+      <figure>
+        <img src="b-save-02.jpg" alt="b-save at 1560 ms" />
+        <figcaption>1560 ms · INITIALIZE FHE</figcaption>
+      </figure>
+      <figure>
+        <img src="b-save-03.jpg" alt="b-save at 3061 ms" />
+        <figcaption>3061 ms · ENCRYPT LOCALLY</figcaption>
+      </figure>
+      <figure>
+        <img src="b-save-04.jpg" alt="b-save at 4548 ms" />
+        <figcaption>4548 ms · SUBMIT</figcaption>
+      </figure>
+      <figure>
+        <img src="b-save-05.jpg" alt="b-save at 6038 ms" />
+        <figcaption>6038 ms · CONFIRM</figcaption>
+      </figure>
+      <figure>
+        <img src="b-save-06.jpg" alt="b-save at 8070 ms" />
+        <figcaption>8070 ms · SEALED</figcaption>
+      </figure>
+    </div>
+    <h2>b-prize</h2>
+    <div class="full">
+      <figure>
+        <img src="b-prize-00.jpg" alt="b-prize at 38 ms" />
+        <figcaption>38 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="b-prize-01.jpg" alt="b-prize at 540 ms" />
+        <figcaption>540 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="b-prize-02.jpg" alt="b-prize at 1146 ms" />
+        <figcaption>1146 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="b-prize-03.jpg" alt="b-prize at 1548 ms" />
+        <figcaption>1548 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="b-prize-04.jpg" alt="b-prize at 2158 ms" />
+        <figcaption>2158 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="b-prize-05.jpg" alt="b-prize at 3047 ms" />
+        <figcaption>3047 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="b-prize-06.jpg" alt="b-prize at 4038 ms" />
+        <figcaption>4038 ms · DEMO REVEALED</figcaption>
+      </figure>
+    </div>
+    <h2>b-draw-paced</h2>
+    <div class="full">
+      <figure>
+        <img src="b-draw-paced-0.jpg" alt="b-draw-paced at 329 ms" />
+        <figcaption>329 ms · OPEN</figcaption>
+      </figure>
+      <figure>
+        <img src="b-draw-paced-1.jpg" alt="b-draw-paced at 3045 ms" />
+        <figcaption>3045 ms · SNAPSHOT</figcaption>
+      </figure>
+      <figure>
+        <img src="b-draw-paced-2.jpg" alt="b-draw-paced at 5453 ms" />
+        <figcaption>5453 ms · BLIND DRAW</figcaption>
+      </figure>
+      <figure>
+        <img src="b-draw-paced-3.jpg" alt="b-draw-paced at 7843 ms" />
+        <figcaption>7843 ms · VERIFY</figcaption>
+      </figure>
+      <figure>
+        <img src="b-draw-paced-4.jpg" alt="b-draw-paced at 10270 ms" />
+        <figcaption>10270 ms · DELIVER</figcaption>
+      </figure>
+      <figure>
+        <img src="b-draw-paced-5.jpg" alt="b-draw-paced at 12169 ms" />
+        <figcaption>12169 ms · DELIVER / packet animation finished</figcaption>
+      </figure>
+    </div>
+    <h2>c-intro</h2>
+    <div class="full">
+      <figure>
+        <img src="c-intro-00.jpg" alt="c-intro at 44 ms" />
+        <figcaption>44 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-01.jpg" alt="c-intro at 207 ms" />
+        <figcaption>207 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-02.jpg" alt="c-intro at 385 ms" />
+        <figcaption>385 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-03.jpg" alt="c-intro at 636 ms" />
+        <figcaption>636 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-04.jpg" alt="c-intro at 990 ms" />
+        <figcaption>990 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-05.jpg" alt="c-intro at 1250 ms" />
+        <figcaption>1250 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-06.jpg" alt="c-intro at 3527 ms" />
+        <figcaption>3527 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-07.jpg" alt="c-intro at 6555 ms" />
+        <figcaption>6555 ms · dark</figcaption>
+      </figure>
+      <figure>
+        <img src="c-intro-08.jpg" alt="c-intro at 10036 ms" />
+        <figcaption>10036 ms · dark</figcaption>
+      </figure>
+    </div>
+    <h2>c-theme</h2>
+    <div class="full">
+      <figure>
+        <img src="c-theme-00.jpg" alt="c-theme at 41 ms" />
+        <figcaption>41 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="c-theme-01.jpg" alt="c-theme at 213 ms" />
+        <figcaption>213 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="c-theme-02.jpg" alt="c-theme at 351 ms" />
+        <figcaption>351 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="c-theme-03.jpg" alt="c-theme at 508 ms" />
+        <figcaption>508 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="c-theme-04.jpg" alt="c-theme at 645 ms" />
+        <figcaption>645 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="c-theme-05.jpg" alt="c-theme at 1025 ms" />
+        <figcaption>1025 ms · light</figcaption>
+      </figure>
+      <figure>
+        <img src="c-theme-06.jpg" alt="c-theme at 2544 ms" />
+        <figcaption>2544 ms · light</figcaption>
+      </figure>
+    </div>
+    <h2>c-save</h2>
+    <div class="full">
+      <figure>
+        <img src="c-save-00.jpg" alt="c-save at 68 ms" />
+        <figcaption>68 ms · AUTHORIZE</figcaption>
+      </figure>
+      <figure>
+        <img src="c-save-01.jpg" alt="c-save at 740 ms" />
+        <figcaption>740 ms · AUTHORIZE</figcaption>
+      </figure>
+      <figure>
+        <img src="c-save-02.jpg" alt="c-save at 1542 ms" />
+        <figcaption>1542 ms · INITIALIZE FHE</figcaption>
+      </figure>
+      <figure>
+        <img src="c-save-03.jpg" alt="c-save at 3036 ms" />
+        <figcaption>3036 ms · ENCRYPT LOCALLY</figcaption>
+      </figure>
+      <figure>
+        <img src="c-save-04.jpg" alt="c-save at 4544 ms" />
+        <figcaption>4544 ms · SUBMIT</figcaption>
+      </figure>
+      <figure>
+        <img src="c-save-05.jpg" alt="c-save at 6042 ms" />
+        <figcaption>6042 ms · CONFIRM</figcaption>
+      </figure>
+      <figure>
+        <img src="c-save-06.jpg" alt="c-save at 8057 ms" />
+        <figcaption>8057 ms · SEALED</figcaption>
+      </figure>
+    </div>
+    <h2>c-prize</h2>
+    <div class="full">
+      <figure>
+        <img src="c-prize-00.jpg" alt="c-prize at 42 ms" />
+        <figcaption>42 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="c-prize-01.jpg" alt="c-prize at 557 ms" />
+        <figcaption>557 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="c-prize-02.jpg" alt="c-prize at 1147 ms" />
+        <figcaption>1147 ms · SEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="c-prize-03.jpg" alt="c-prize at 1536 ms" />
+        <figcaption>1536 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="c-prize-04.jpg" alt="c-prize at 2139 ms" />
+        <figcaption>2139 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="c-prize-05.jpg" alt="c-prize at 3148 ms" />
+        <figcaption>3148 ms · DEMO REVEALED</figcaption>
+      </figure>
+      <figure>
+        <img src="c-prize-06.jpg" alt="c-prize at 4040 ms" />
+        <figcaption>4040 ms · DEMO REVEALED</figcaption>
+      </figure>
+    </div>
+    <h2>c-draw-paced</h2>
+    <div class="full">
+      <figure>
+        <img src="c-draw-paced-0.jpg" alt="c-draw-paced at 327 ms" />
+        <figcaption>327 ms · OPEN</figcaption>
+      </figure>
+      <figure>
+        <img src="c-draw-paced-1.jpg" alt="c-draw-paced at 3054 ms" />
+        <figcaption>3054 ms · SNAPSHOT</figcaption>
+      </figure>
+      <figure>
+        <img src="c-draw-paced-2.jpg" alt="c-draw-paced at 5464 ms" />
+        <figcaption>5464 ms · BLIND DRAW</figcaption>
+      </figure>
+      <figure>
+        <img src="c-draw-paced-3.jpg" alt="c-draw-paced at 7837 ms" />
+        <figcaption>7837 ms · VERIFY</figcaption>
+      </figure>
+      <figure>
+        <img src="c-draw-paced-4.jpg" alt="c-draw-paced at 10240 ms" />
+        <figcaption>10240 ms · DELIVER</figcaption>
+      </figure>
+      <figure>
+        <img src="c-draw-paced-5.jpg" alt="c-draw-paced at 12118 ms" />
+        <figcaption>12118 ms · DELIVER / packet animation finished</figcaption>
+      </figure>
+    </div>
+  </body>
+</html>

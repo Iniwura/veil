@@ -1,0 +1,636 @@
+[
+  {
+    "colors": {
+      "--bg": "#101311",
+      "--ink": "#f1f3ed",
+      "--muted": "#a2aaa1",
+      "--signal": "#d8ca80"
+    },
+    "controls": [
+      {
+        "h": 44,
+        "label": "Direction A Cipher Fabric",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction B Diffraction Vault",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction C Kinetic Monolith",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "\n          Landing\n          Privacy\n          Home\n          Save\n          Save encryption\n          Draw / Open\n          Draw / Blind draw\n          Draw / Verify\n          Private reveal\n          Prize reveal\n          System studies\n        ",
+        "w": 131.1999969482422
+      },
+      {
+        "h": 44,
+        "label": "\n          Canvas2D\n          WebGL2\n          Static\n        ",
+        "w": 88.80000305175781
+      },
+      {
+        "h": 44,
+        "label": "\n          Humanist\n          Editorial\n          Industrial\n        ",
+        "w": 87.20000457763672
+      },
+      {
+        "h": 44,
+        "label": "Toggle theme",
+        "w": 64.48750305175781
+      },
+      {
+        "h": 44,
+        "label": "Reduce motion",
+        "w": 85.55000305175781
+      },
+      {
+        "h": 44,
+        "label": "Pause",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "UNVEIL landing",
+        "w": 131.6125030517578
+      },
+      {
+        "h": 44,
+        "label": "Home",
+        "w": 45.525001525878906
+      },
+      {
+        "h": 44,
+        "label": "Save",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Draw",
+        "w": 44
+      },
+      {
+        "h": 56,
+        "label": "Explore Save ↗",
+        "w": 167.3125
+      },
+      {
+        "h": 44,
+        "label": "Inspect the draw engine ↗",
+        "w": 175.2624969482422
+      },
+      {
+        "h": 56,
+        "label": "Enter the prototype ↗",
+        "w": 209.8625030517578
+      },
+      {
+        "h": 44,
+        "label": "Replay intro",
+        "w": 69.9625015258789
+      },
+      {
+        "h": 44,
+        "label": "Repeat visit",
+        "w": 67.5625
+      }
+    ],
+    "direction": "a",
+    "focusRule": "rgb(16, 19, 17) none 2.4px",
+    "theme": "dark",
+    "baseContrast": {
+      "--ink": 16.72,
+      "--muted": 7.83,
+      "--signal": 11.29
+    },
+    "phase": "Final source after minimum-target correction"
+  },
+  {
+    "colors": {
+      "--bg": "#eef0ef",
+      "--ink": "#1b2421",
+      "--muted": "#53605a",
+      "--signal": "#806720"
+    },
+    "controls": [
+      {
+        "h": 44,
+        "label": "Direction A Cipher Fabric",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction B Diffraction Vault",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction C Kinetic Monolith",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "\n          Landing\n          Privacy\n          Home\n          Save\n          Save encryption\n          Draw / Open\n          Draw / Blind draw\n          Draw / Verify\n          Private reveal\n          Prize reveal\n          System studies\n        ",
+        "w": 131.1999969482422
+      },
+      {
+        "h": 44,
+        "label": "\n          Canvas2D\n          WebGL2\n          Static\n        ",
+        "w": 88.80000305175781
+      },
+      {
+        "h": 44,
+        "label": "\n          Humanist\n          Editorial\n          Industrial\n        ",
+        "w": 87.20000457763672
+      },
+      {
+        "h": 44,
+        "label": "Toggle theme",
+        "w": 62.66250228881836
+      },
+      {
+        "h": 44,
+        "label": "Reduce motion",
+        "w": 85.55000305175781
+      },
+      {
+        "h": 44,
+        "label": "Pause",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "UNVEIL landing",
+        "w": 131.6125030517578
+      },
+      {
+        "h": 44,
+        "label": "Home",
+        "w": 45.525001525878906
+      },
+      {
+        "h": 44,
+        "label": "Save",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Draw",
+        "w": 44
+      },
+      {
+        "h": 56,
+        "label": "Explore Save ↗",
+        "w": 167.3125
+      },
+      {
+        "h": 44,
+        "label": "Inspect the draw engine ↗",
+        "w": 175.2624969482422
+      },
+      {
+        "h": 56,
+        "label": "Enter the prototype ↗",
+        "w": 209.8625030517578
+      },
+      {
+        "h": 44,
+        "label": "Replay intro",
+        "w": 69.9625015258789
+      },
+      {
+        "h": 44,
+        "label": "Repeat visit",
+        "w": 67.5625
+      }
+    ],
+    "direction": "a",
+    "focusRule": "rgb(238, 240, 239) none 2.4px",
+    "theme": "light",
+    "baseContrast": {
+      "--ink": 13.89,
+      "--muted": 5.75,
+      "--signal": 4.73
+    },
+    "phase": "Final source after minimum-target correction"
+  },
+  {
+    "colors": {
+      "--bg": "#101319",
+      "--ink": "#f1f3ed",
+      "--muted": "#a7afbc",
+      "--signal": "#bdcce3"
+    },
+    "controls": [
+      {
+        "h": 44,
+        "label": "Direction A Cipher Fabric",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction B Diffraction Vault",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction C Kinetic Monolith",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "\n          Landing\n          Privacy\n          Home\n          Save\n          Save encryption\n          Draw / Open\n          Draw / Blind draw\n          Draw / Verify\n          Private reveal\n          Prize reveal\n          System studies\n        ",
+        "w": 131.1999969482422
+      },
+      {
+        "h": 44,
+        "label": "\n          Humanist\n          Editorial\n          Industrial\n        ",
+        "w": 87.20000457763672
+      },
+      {
+        "h": 44,
+        "label": "Toggle theme",
+        "w": 64.48750305175781
+      },
+      {
+        "h": 44,
+        "label": "Reduce motion",
+        "w": 85.55000305175781
+      },
+      {
+        "h": 44,
+        "label": "Pause",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "UNVEIL landing",
+        "w": 131.6125030517578
+      },
+      {
+        "h": 44,
+        "label": "Home",
+        "w": 45.525001525878906
+      },
+      {
+        "h": 44,
+        "label": "Save",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Draw",
+        "w": 44
+      },
+      {
+        "h": 56.00004959106445,
+        "label": "Explore Save ↗",
+        "w": 167.3125
+      },
+      {
+        "h": 44,
+        "label": "Inspect the draw engine ↗",
+        "w": 175.2624969482422
+      },
+      {
+        "h": 56,
+        "label": "Enter the prototype ↗",
+        "w": 209.8625030517578
+      },
+      {
+        "h": 44,
+        "label": "Replay intro",
+        "w": 69.9625015258789
+      },
+      {
+        "h": 44,
+        "label": "Repeat visit",
+        "w": 67.5625
+      }
+    ],
+    "direction": "b",
+    "focusRule": "rgb(241, 243, 237) none 2.4px",
+    "theme": "dark",
+    "baseContrast": {
+      "--ink": 16.63,
+      "--muted": 8.41,
+      "--signal": 11.43
+    },
+    "phase": "Final source after minimum-target correction"
+  },
+  {
+    "colors": {
+      "--bg": "#edf1f5",
+      "--ink": "#172334",
+      "--muted": "#536579",
+      "--signal": "#425c7b"
+    },
+    "controls": [
+      {
+        "h": 44,
+        "label": "Direction A Cipher Fabric",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction B Diffraction Vault",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction C Kinetic Monolith",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "\n          Landing\n          Privacy\n          Home\n          Save\n          Save encryption\n          Draw / Open\n          Draw / Blind draw\n          Draw / Verify\n          Private reveal\n          Prize reveal\n          System studies\n        ",
+        "w": 131.1999969482422
+      },
+      {
+        "h": 44,
+        "label": "\n          Humanist\n          Editorial\n          Industrial\n        ",
+        "w": 87.20000457763672
+      },
+      {
+        "h": 44,
+        "label": "Toggle theme",
+        "w": 62.66250228881836
+      },
+      {
+        "h": 44,
+        "label": "Reduce motion",
+        "w": 85.55000305175781
+      },
+      {
+        "h": 44,
+        "label": "Pause",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "UNVEIL landing",
+        "w": 131.6125030517578
+      },
+      {
+        "h": 44,
+        "label": "Home",
+        "w": 45.525001525878906
+      },
+      {
+        "h": 44,
+        "label": "Save",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Draw",
+        "w": 44
+      },
+      {
+        "h": 56,
+        "label": "Explore Save ↗",
+        "w": 167.3125
+      },
+      {
+        "h": 44,
+        "label": "Inspect the draw engine ↗",
+        "w": 175.2624969482422
+      },
+      {
+        "h": 56,
+        "label": "Enter the prototype ↗",
+        "w": 209.8625030517578
+      },
+      {
+        "h": 44,
+        "label": "Replay intro",
+        "w": 69.9625015258789
+      },
+      {
+        "h": 44,
+        "label": "Repeat visit",
+        "w": 67.5625
+      }
+    ],
+    "direction": "b",
+    "focusRule": "rgb(23, 35, 52) none 2.4px",
+    "theme": "light",
+    "baseContrast": {
+      "--ink": 13.95,
+      "--muted": 5.28,
+      "--signal": 6.07
+    },
+    "phase": "Final source after minimum-target correction"
+  },
+  {
+    "colors": {
+      "--bg": "#171817",
+      "--ink": "#f1f3ed",
+      "--muted": "#afb2a9",
+      "--signal": "#d4be75"
+    },
+    "controls": [
+      {
+        "h": 44,
+        "label": "Direction A Cipher Fabric",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction B Diffraction Vault",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction C Kinetic Monolith",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "\n          Landing\n          Privacy\n          Home\n          Save\n          Save encryption\n          Draw / Open\n          Draw / Blind draw\n          Draw / Verify\n          Private reveal\n          Prize reveal\n          System studies\n        ",
+        "w": 131.1999969482422
+      },
+      {
+        "h": 44,
+        "label": "\n          Humanist\n          Editorial\n          Industrial\n        ",
+        "w": 87.20000457763672
+      },
+      {
+        "h": 44,
+        "label": "Toggle theme",
+        "w": 64.48750305175781
+      },
+      {
+        "h": 44,
+        "label": "Reduce motion",
+        "w": 85.55000305175781
+      },
+      {
+        "h": 44,
+        "label": "Pause",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "UNVEIL landing",
+        "w": 131.6125030517578
+      },
+      {
+        "h": 44,
+        "label": "Home",
+        "w": 45.525001525878906
+      },
+      {
+        "h": 44,
+        "label": "Save",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Draw",
+        "w": 44
+      },
+      {
+        "h": 56,
+        "label": "Explore Save ↗",
+        "w": 167.3125
+      },
+      {
+        "h": 44,
+        "label": "Inspect the draw engine ↗",
+        "w": 175.2624969482422
+      },
+      {
+        "h": 56,
+        "label": "Enter the prototype ↗",
+        "w": 209.8625030517578
+      },
+      {
+        "h": 44,
+        "label": "Replay intro",
+        "w": 69.9625015258789
+      },
+      {
+        "h": 44,
+        "label": "Repeat visit",
+        "w": 67.5625
+      }
+    ],
+    "direction": "c",
+    "focusRule": "rgb(241, 243, 237) none 2.4px",
+    "theme": "dark",
+    "baseContrast": {
+      "--ink": 15.93,
+      "--muted": 8.28,
+      "--signal": 9.68
+    },
+    "phase": "Final source after minimum-target correction"
+  },
+  {
+    "colors": {
+      "--bg": "#e8ebea",
+      "--ink": "#242825",
+      "--muted": "#5e6761",
+      "--signal": "#766026"
+    },
+    "controls": [
+      {
+        "h": 44,
+        "label": "Direction A Cipher Fabric",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction B Diffraction Vault",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Direction C Kinetic Monolith",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "\n          Landing\n          Privacy\n          Home\n          Save\n          Save encryption\n          Draw / Open\n          Draw / Blind draw\n          Draw / Verify\n          Private reveal\n          Prize reveal\n          System studies\n        ",
+        "w": 131.1999969482422
+      },
+      {
+        "h": 44,
+        "label": "\n          Humanist\n          Editorial\n          Industrial\n        ",
+        "w": 87.20000457763672
+      },
+      {
+        "h": 44,
+        "label": "Toggle theme",
+        "w": 62.66250228881836
+      },
+      {
+        "h": 44,
+        "label": "Reduce motion",
+        "w": 85.55000305175781
+      },
+      {
+        "h": 44,
+        "label": "Pause",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "UNVEIL landing",
+        "w": 131.6125030517578
+      },
+      {
+        "h": 44,
+        "label": "Home",
+        "w": 45.525001525878906
+      },
+      {
+        "h": 44,
+        "label": "Save",
+        "w": 44
+      },
+      {
+        "h": 44,
+        "label": "Draw",
+        "w": 44
+      },
+      {
+        "h": 56,
+        "label": "Explore Save ↗",
+        "w": 167.3125
+      },
+      {
+        "h": 44,
+        "label": "Inspect the draw engine ↗",
+        "w": 175.2624969482422
+      },
+      {
+        "h": 56,
+        "label": "Enter the prototype ↗",
+        "w": 209.8625030517578
+      },
+      {
+        "h": 44,
+        "label": "Replay intro",
+        "w": 69.9625015258789
+      },
+      {
+        "h": 44,
+        "label": "Repeat visit",
+        "w": 67.5625
+      }
+    ],
+    "direction": "c",
+    "focusRule": "rgb(36, 40, 37) none 2.4px",
+    "theme": "light",
+    "baseContrast": {
+      "--ink": 12.46,
+      "--muted": 4.88,
+      "--signal": 5.04
+    },
+    "phase": "Final source after minimum-target correction"
+  }
+]

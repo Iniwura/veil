@@ -1,0 +1,21 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="128"
+  height="128"
+  viewBox="0 0 34 34"
+  role="img"
+  aria-labelledby="title"
+>
+  <title id="title">Horizontal threshold / dark</title>
+  <rect width="34" height="34" fill="#101311" />
+
+  <path class="left" fill="#f1f3ed" d="M3 6H30V17H3Z" />
+  <path class="right" fill="#f1f3ed" d="M7 20H27V30H7Z" />
+  <path
+    class="proof"
+    fill="none"
+    stroke="#f1f3ed"
+    stroke-width="1.2"
+    d="M5 18.5H29"
+  />
+</svg>

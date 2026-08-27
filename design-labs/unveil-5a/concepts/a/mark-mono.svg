@@ -1,0 +1,20 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="128"
+  height="128"
+  viewBox="0 0 34 34"
+  role="img"
+  aria-labelledby="title"
+>
+  <title id="title">Offset bookends / mono</title>
+
+  <path class="left" fill="#1b2421" d="M4 3H17V31H4Z" />
+  <path class="right" fill="#1b2421" d="M20 7H30V27H20Z" />
+  <path
+    class="proof"
+    fill="none"
+    stroke="#1b2421"
+    stroke-width="1.2"
+    d="M18.5 5V29"
+  />
+</svg>

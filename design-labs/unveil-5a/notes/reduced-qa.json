@@ -1,0 +1,398 @@
+[
+  {
+    "direction": "a",
+    "hud": "Canvas2D · REDUCED · p95 —ms · JS 0.10ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "landing",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "Private by nature.\nPublic by proof."
+  },
+  {
+    "direction": "a",
+    "hud": "Canvas2D · REDUCED · p95 50.0ms · JS 0.08ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "encryption",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "paused"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "paused"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "paused"
+      }
+    ],
+    "title": "Seal a position."
+  },
+  {
+    "direction": "a",
+    "hud": "Canvas2D · REDUCED · p95 16.7ms · JS 0.12ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW current", "VERIFY future", "DELIVER future"],
+    "reduced": "true",
+    "scene": "draw-blind",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "cipher-drift",
+        "class": "cipher-lane",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "More computation. No exposure."
+  },
+  {
+    "direction": "a",
+    "hud": "Canvas2D · REDUCED · p95 16.8ms · JS 0.12ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "prize",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "outline-proof",
+        "class": "reveal-outline",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "The reward is private, too."
+  },
+  {
+    "direction": "b",
+    "hud": "DOM / static fallback · REDUCED · p95 16.9ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "landing",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "Nothing exposed.\nEverything proven."
+  },
+  {
+    "direction": "b",
+    "hud": "DOM / static fallback · REDUCED · p95 16.7ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "encryption",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "paused"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "paused"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "paused"
+      }
+    ],
+    "title": "Seal a position."
+  },
+  {
+    "direction": "b",
+    "hud": "DOM / static fallback · REDUCED · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW current", "VERIFY future", "DELIVER future"],
+    "reduced": "true",
+    "scene": "draw-blind",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "optical-cipher",
+        "class": "cipher-lane",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "More computation. No exposure."
+  },
+  {
+    "direction": "b",
+    "hud": "DOM / static fallback · REDUCED · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "prize",
+    "styles": [
+      {
+        "animation": "material-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "material-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "outline-proof",
+        "class": "reveal-outline",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "The reward is private, too."
+  },
+  {
+    "direction": "c",
+    "hud": "DOM / static fallback · REDUCED · p95 16.7ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "landing",
+    "styles": [
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "A position.\nNot a spectacle."
+  },
+  {
+    "direction": "c",
+    "hud": "DOM / static fallback · REDUCED · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "encryption",
+    "styles": [
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "paused"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "paused"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "paused"
+      }
+    ],
+    "title": "Seal a position."
+  },
+  {
+    "direction": "c",
+    "hud": "DOM / static fallback · REDUCED · p95 —ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW current", "VERIFY future", "DELIVER future"],
+    "reduced": "true",
+    "scene": "draw-blind",
+    "styles": [
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "cipher-drift",
+        "class": "cipher-lane",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "More computation. No exposure."
+  },
+  {
+    "direction": "c",
+    "hud": "DOM / static fallback · REDUCED · p95 16.8ms · JS 0.00ms · DPR 1.0000000149011612",
+    "intro": "hidden",
+    "overflow": false,
+    "rail": [],
+    "reduced": "true",
+    "scene": "prize",
+    "styles": [
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-one",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-two",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "monolith-drift",
+        "class": "slab slab-three",
+        "duration": "0s",
+        "playState": "running"
+      },
+      {
+        "animation": "outline-proof",
+        "class": "reveal-outline",
+        "duration": "0s",
+        "playState": "running"
+      }
+    ],
+    "title": "The reward is private, too."
+  }
+]

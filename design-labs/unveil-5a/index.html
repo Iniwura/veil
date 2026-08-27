@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-direction="a">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>UNVEIL / VEIL ENGINE — Design lab 5A</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23b8a36b' d='M4 3h12v26H4zM19 7h9v18h-9z'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles/lab.css" />
+    <script type="module" src="./js/lab.mjs"></script>
+  </head>
+  <body>
+    <a class="skip" href="#stage">Skip to prototype</a>
+    <header class="labbar" aria-label="Design laboratory controls">
+      <a class="lab-title" href="./index.html">VEIL ENGINE <span>5A / DESIGN LAB</span></a>
+      <div class="directions" aria-label="Visual direction">
+        <button data-direction="a" aria-label="Direction A Cipher Fabric">A</button>
+        <button data-direction="b" aria-label="Direction B Diffraction Vault">B</button>
+        <button data-direction="c" aria-label="Direction C Kinetic Monolith">C</button>
+      </div>
+      <label class="control"
+        >Scene<select id="scene">
+          <option value="landing">Landing</option>
+          <option value="privacy">Privacy</option>
+          <option value="home">Home</option>
+          <option value="save">Save</option>
+          <option value="encryption">Save encryption</option>
+          <option value="draw-open">Draw / Open</option>
+          <option value="draw-blind">Draw / Blind draw</option>
+          <option value="draw-verify">Draw / Verify</option>
+          <option value="private">Private reveal</option>
+          <option value="prize">Prize reveal</option>
+          <option value="studies">System studies</option>
+        </select></label
+      >
+      <label class="control engine-select"
+        >A engine<select id="engine">
+          <option value="canvas">Canvas2D</option>
+          <option value="webgl">WebGL2</option>
+          <option value="static">Static</option>
+        </select></label
+      >
+      <label class="control type-select"
+        >Type<select id="type">
+          <option value="humanist">Humanist</option>
+          <option value="editorial">Editorial</option>
+          <option value="industrial">Industrial</option>
+        </select></label
+      >
+      <button id="theme" aria-label="Toggle theme">
+        <span class="theme-icon" aria-hidden="true"></span><span>Light</span>
+      </button>
+      <button id="reduce" aria-pressed="false">Reduce motion</button>
+      <button id="pause" aria-pressed="false">Pause</button>
+    </header>
+    <div class="environment" aria-hidden="true">
+      <canvas id="material"></canvas>
+      <div class="slab slab-one"></div>
+      <div class="slab slab-two"></div>
+      <div class="slab slab-three"></div>
+      <div class="optical"></div>
+    </div>
+    <div class="demo-bar">DESIGN PROTOTYPE <span>NO PROTOCOL DATA · NO WALLET · NO TRANSACTIONS</span></div>
+    <nav class="product-nav" aria-label="Prototype routes">
+      <button class="wordmark" data-route="landing" aria-label="UNVEIL landing">
+        <span id="brand-mark"></span>UNVEIL
+      </button>
+      <div class="routes">
+        <button data-route="home">Home</button><button data-route="save">Save</button
+        ><button data-route="draw-open">Draw</button>
+      </div>
+      <span class="world-name" id="world-name"></span>
+    </nav>
+    <nav id="proof-rail" class="proof-rail" aria-label="Landing section progress"></nav>
+    <main id="stage" tabindex="-1"></main>
+    <footer class="lab-footer">
+      <span>ONE BOUNDARY. EVERY INTERACTION.</span><a href="./qa.html">QA scene index ↗</a
+      ><button id="replay-intro">Replay intro</button><button id="repeat-intro">Repeat visit</button
+      ><output aria-live="off" id="perf" aria-label="Renderer performance">Renderer initializing</output>
+    </footer>
+    <div class="transition-veil" aria-hidden="true"><i></i><i></i><span></span></div>
+    <div class="intro" aria-hidden="true">
+      <i></i><i></i>
+      <div id="intro-mark"></div>
+      <span class="intro-proof"></span>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

@@ -1,0 +1,482 @@
+[
+  {
+    "direction": "a",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN current", "SNAPSHOT future", "BLIND DRAW future", "VERIFY future", "DELIVER future"],
+    "state": "OPEN"
+  },
+  {
+    "direction": "a",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT current", "BLIND DRAW future", "VERIFY future", "DELIVER future"],
+    "state": "SNAPSHOT"
+  },
+  {
+    "direction": "a",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW current", "VERIFY future", "DELIVER future"],
+    "state": "BLIND DRAW"
+  },
+  {
+    "direction": "a",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY current", "DELIVER future"],
+    "state": "VERIFY"
+  },
+  {
+    "direction": "a",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY complete", "DELIVER current"],
+    "state": "DELIVER"
+  },
+  {
+    "direction": "a",
+    "caption": "NO ENCRYPTED WINNER EXISTS",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT bypassed", "BLIND DRAW bypassed", "VERIFY bypassed", "DELIVER bypassed"],
+    "state": "SKIPPED"
+  },
+  {
+    "direction": "a",
+    "caption": "ZERO WINNER / NO DELIVERY",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 15.99997615814209,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY complete", "DELIVER inactive"],
+    "state": "CANCELLED"
+  },
+  {
+    "direction": "a",
+    "caption": "UNKNOWN ORIGIN / NO HISTORY INFERRED",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16.000024795532227,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT inactive", "BLIND DRAW inactive", "VERIFY inactive", "DELIVER inactive"],
+    "state": "COMPLETE"
+  },
+  {
+    "direction": "b",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN current", "SNAPSHOT future", "BLIND DRAW future", "VERIFY future", "DELIVER future"],
+    "state": "OPEN"
+  },
+  {
+    "direction": "b",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT current", "BLIND DRAW future", "VERIFY future", "DELIVER future"],
+    "state": "SNAPSHOT"
+  },
+  {
+    "direction": "b",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW current", "VERIFY future", "DELIVER future"],
+    "state": "BLIND DRAW"
+  },
+  {
+    "direction": "b",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY current", "DELIVER future"],
+    "state": "VERIFY"
+  },
+  {
+    "direction": "b",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY complete", "DELIVER current"],
+    "state": "DELIVER"
+  },
+  {
+    "direction": "b",
+    "caption": "NO ENCRYPTED WINNER EXISTS",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT bypassed", "BLIND DRAW bypassed", "VERIFY bypassed", "DELIVER bypassed"],
+    "state": "SKIPPED"
+  },
+  {
+    "direction": "b",
+    "caption": "ZERO WINNER / NO DELIVERY",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY complete", "DELIVER inactive"],
+    "state": "CANCELLED"
+  },
+  {
+    "direction": "b",
+    "caption": "UNKNOWN ORIGIN / NO HISTORY INFERRED",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT inactive", "BLIND DRAW inactive", "VERIFY inactive", "DELIVER inactive"],
+    "state": "COMPLETE"
+  },
+  {
+    "direction": "c",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN current", "SNAPSHOT future", "BLIND DRAW future", "VERIFY future", "DELIVER future"],
+    "state": "OPEN"
+  },
+  {
+    "direction": "c",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT current", "BLIND DRAW future", "VERIFY future", "DELIVER future"],
+    "state": "SNAPSHOT"
+  },
+  {
+    "direction": "c",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW current", "VERIFY future", "DELIVER future"],
+    "state": "BLIND DRAW"
+  },
+  {
+    "direction": "c",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY current", "DELIVER future"],
+    "state": "VERIFY"
+  },
+  {
+    "direction": "c",
+    "caption": "COMPUTATION ≠ EXPOSURE",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY complete", "DELIVER current"],
+    "state": "DELIVER"
+  },
+  {
+    "direction": "c",
+    "caption": "NO ENCRYPTED WINNER EXISTS",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT bypassed", "BLIND DRAW bypassed", "VERIFY bypassed", "DELIVER bypassed"],
+    "state": "SKIPPED"
+  },
+  {
+    "direction": "c",
+    "caption": "ZERO WINNER / NO DELIVERY",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 15.99997615814209,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT complete", "BLIND DRAW complete", "VERIFY complete", "DELIVER inactive"],
+    "state": "CANCELLED"
+  },
+  {
+    "direction": "c",
+    "caption": "UNKNOWN ORIGIN / NO HISTORY INFERRED",
+    "overflow": false,
+    "participants": [
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      },
+      {
+        "h": 16,
+        "w": 6
+      }
+    ],
+    "rail": ["OPEN complete", "SNAPSHOT inactive", "BLIND DRAW inactive", "VERIFY inactive", "DELIVER inactive"],
+    "state": "COMPLETE"
+  }
+]

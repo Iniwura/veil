@@ -1,0 +1,66 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="128"
+  height="128"
+  viewBox="0 0 34 34"
+  role="img"
+  aria-labelledby="title"
+>
+  <title id="title">
+    Horizontal threshold / animated / open, align, seal, proof
+  </title>
+  <rect width="34" height="34" fill="#101311" />
+  <style>
+    .left {
+      animation: align-left 450ms cubic-bezier(0.65, 0, 0.35, 1) both;
+    }
+    .right {
+      animation: align-right 450ms cubic-bezier(0.65, 0, 0.35, 1) both;
+    }
+    .proof {
+      stroke-dasharray: 28;
+      stroke-dashoffset: 28;
+      animation: proof 150ms cubic-bezier(0.16, 1, 0.3, 1) 300ms forwards;
+    }
+    @keyframes align-left {
+      from {
+        transform: translateX(-7px);
+      }
+      65%,
+      to {
+        transform: none;
+      }
+    }
+    @keyframes align-right {
+      from {
+        transform: translate(7px, 3px);
+      }
+      65%,
+      to {
+        transform: none;
+      }
+    }
+    @keyframes proof {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .left,
+      .right,
+      .proof {
+        animation: none;
+        stroke-dashoffset: 0;
+      }
+    }
+  </style>
+  <path class="left" fill="#f1f3ed" d="M3 6H30V17H3Z" />
+  <path class="right" fill="#f1f3ed" d="M7 20H27V30H7Z" />
+  <path
+    class="proof"
+    fill="none"
+    stroke="#f1f3ed"
+    stroke-width="1.2"
+    d="M5 18.5H29"
+  />
+</svg>
