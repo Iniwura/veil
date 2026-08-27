@@ -50,13 +50,11 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       ? unveil.history.find((round) => round.id === unveil.drawAction?.roundId)?.status
       : undefined;
   const terminalState =
-    unveil.drawAction?.kind === "SKIP"
-      ? "SKIPPED"
-      : terminalRoundStatus === "CANCELLED" || terminalRoundStatus === "SKIPPED"
-        ? terminalRoundStatus
-        : terminalRoundStatus
-          ? "COMPLETE"
-          : undefined;
+    terminalRoundStatus === "CANCELLED" || terminalRoundStatus === "SKIPPED"
+      ? terminalRoundStatus
+      : terminalRoundStatus
+        ? "COMPLETE"
+        : undefined;
 
   return (
     <div className="page-stack route-enter">

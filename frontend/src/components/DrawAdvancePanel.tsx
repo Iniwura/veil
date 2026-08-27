@@ -1,4 +1,5 @@
 import type { DrawAction } from "../lib/drawAdvance";
+import type { DrawLifecycleTerminalState } from "../lib/drawLifecycle";
 import { DrawLifecycleRail } from "./DrawLifecycleRail";
 
 export function DrawAdvancePanel({
@@ -18,7 +19,7 @@ export function DrawAdvancePanel({
   onAdvance: (action: DrawAction) => void;
   onConnect: () => void;
   onSwitchNetwork: () => void;
-  terminalState?: "SKIPPED" | "CANCELLED" | "COMPLETE";
+  terminalState?: DrawLifecycleTerminalState;
 }) {
   const actionable = Boolean(action?.actionable);
   const showButton = actionable && Boolean(action);

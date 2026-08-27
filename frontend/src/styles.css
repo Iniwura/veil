@@ -3931,7 +3931,16 @@ select {
   opacity: 0.5;
 }
 
-.draw-lifecycle-terminal {
+.draw-lifecycle-step--inactive {
+  color: var(--text-muted);
+  opacity: 0.42;
+}
+
+.draw-lifecycle-step--inactive .draw-lifecycle-mark {
+  color: var(--border);
+}
+
+.draw-lifecycle-branch {
   margin: 0;
   padding: 10px 12px;
   color: var(--text-muted);
@@ -3943,17 +3952,33 @@ select {
   line-height: 1.5;
 }
 
-.draw-lifecycle-terminal--skipped {
+.draw-lifecycle-branch strong,
+.draw-lifecycle-branch span,
+.draw-lifecycle-branch small {
+  display: block;
+}
+
+.draw-lifecycle-branch strong {
+  margin-bottom: 4px;
+}
+
+.draw-lifecycle-branch small {
+  margin-top: 4px;
+}
+
+.draw-lifecycle-branch--ready_to_skip,
+.draw-lifecycle-branch--skipped {
   color: var(--text-muted);
   border-color: var(--text-muted);
 }
 
-.draw-lifecycle-terminal--cancelled {
+.draw-lifecycle-branch--cancelled {
   color: var(--signal);
   border-color: var(--signal);
 }
 
-.draw-lifecycle-terminal--complete {
+.draw-lifecycle-branch--complete,
+.draw-lifecycle-branch--blocked {
   color: var(--text-muted);
 }
 
