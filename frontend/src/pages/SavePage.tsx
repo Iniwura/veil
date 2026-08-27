@@ -48,7 +48,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
     <div className="page-stack route-enter">
       <header className="page-heading page-heading--compact">
         <span className="eyebrow">SAVE</span>
-        <h1>SAVE PRIVATELY.</h1>
+        <h1>Save privately.</h1>
         <p>
           Save TEST principal into a confidential position. The draw uses your encrypted balance without publishing it.
         </p>
@@ -90,8 +90,8 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
             </button>
           </div>
           <div className="transaction-label">
-            <span>{mode === "deposit" ? "AMOUNT TO SAVE" : "AMOUNT TO REQUEST"}</span>
-            <small>WHOLE TEST UNITS</small>
+            <span>{mode === "deposit" ? "Amount to save" : "Amount to request"}</span>
+            <small>Whole TEST units</small>
           </div>
           <div className="amount-input" data-tour="save-amount">
             <input
@@ -132,7 +132,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <aside className="account-status-region">
           <div className="account-status-heading">
             <span className="eyebrow">ACCOUNT STATUS</span>
-            <h2>{mode === "deposit" ? "READY TO SAVE." : "WITHDRAWAL STATUS."}</h2>
+            <h2>{mode === "deposit" ? "Ready to save." : "Withdrawal status."}</h2>
           </div>
           <dl className="account-status-list">
             <div>
@@ -231,11 +231,11 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
       </section>
 
       <details className="weight-reveal">
-        <summary>INSPECT HISTORICAL DRAW WEIGHT</summary>
+        <summary>Inspect historical draw weight</summary>
         <div className="weight-reveal-body">
           <div>
             <span className="eyebrow">ADVANCED PRIVATE DATA</span>
-            <h2>UNVEIL ONE ROUND.</h2>
+            <h2>Unveil one round.</h2>
             <p>If this wallet was included, it can decrypt only its own immutable snapshot weight.</p>
           </div>
           <div className="weight-control">

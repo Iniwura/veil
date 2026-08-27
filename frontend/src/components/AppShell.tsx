@@ -79,18 +79,22 @@ export function AppShell({
               </RouteLink>
             ))}
           </nav>
-          <div className="app-public-state">
-            <span
-              className={`live-dot ${unveil.publicError ? (unveil.publicProtocol ? "stale" : "unavailable") : ""}`}
-            />
-            {publicState}
+          <div className="app-topbar-status" aria-label="Network and public state">
+            <div className="app-public-state">
+              <span
+                className={`live-dot ${unveil.publicError ? (unveil.publicProtocol ? "stale" : "unavailable") : ""}`}
+              />
+              {publicState}
+            </div>
+            <span className="network-chip">SEPOLIA</span>
           </div>
-          <DemoBadge compact />
-          <ThemeToggle {...theme} />
-          <button className="help-button" onClick={onReplayGuide}>
-            HELP
-          </button>
-          <span className="network-chip">SEPOLIA</span>
+          <div className="app-topbar-tools">
+            <DemoBadge compact />
+            <ThemeToggle {...theme} />
+            <button className="help-button" onClick={onReplayGuide}>
+              HELP
+            </button>
+          </div>
           <button className="wallet-button" onClick={walletAction} disabled={Boolean(unveil.busy)} data-tour="wallet">
             {walletLabel}
           </button>

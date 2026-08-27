@@ -173,7 +173,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
         <div className="home-section-head">
           <div>
             <span className="eyebrow">VERIFIED HISTORY</span>
-            <h2>RECENT DRAWS.</h2>
+            <h2>Recent draws.</h2>
           </div>
           <RouteLink className="text-link" to="/app/draw">
             VIEW ALL →

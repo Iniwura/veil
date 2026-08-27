@@ -42,6 +42,7 @@ export function DrawAdvancePanel({
         <span className="eyebrow">{action?.kind === "WAIT" ? "NEXT STEP" : "NEXT PERMISSIONLESS STEP"}</span>
         <strong>{action?.title ?? "LOADING DRAW STATE"}</strong>
       </div>
+      <DrawLifecycleRail action={action} terminalState={terminalState} />
       <p className="draw-advance-description">
         {action?.description ?? "Reading the public lifecycle state from the V2 contracts."}
       </p>
@@ -64,7 +65,6 @@ export function DrawAdvancePanel({
       {action?.kind === "BLOCKED" && (
         <p className="draw-advance-warning">PUBLIC STATE NEEDS REVIEW · NO RECOVERY TRANSACTION</p>
       )}
-      <DrawLifecycleRail action={action} terminalState={terminalState} />
       <p className="draw-advance-note">
         Permissionless · any Sepolia wallet can execute · private balances and weights remain encrypted.
       </p>

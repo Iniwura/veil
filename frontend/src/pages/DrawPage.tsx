@@ -117,7 +117,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
         <header className="settlement-heading">
           <div>
             <span className="eyebrow">SETTLEMENT + HISTORY</span>
-            <h2>RECENT VERIFIED ACTIVITY.</h2>
+            <h2>Recent verified activity.</h2>
           </div>
           <a className="text-link" href={explorerAddress(UNVEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
             VERIFY V2 POOL ↗
@@ -154,7 +154,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             <div className="home-section-head">
               <div>
                 <span className="eyebrow">MY PRIZE</span>
-                <h2>CONFIDENTIAL DELIVERY.</h2>
+                <h2>Confidential delivery.</h2>
               </div>
               <span className="draw-prize-note">NO CLAIM TRANSACTION</span>
             </div>
@@ -216,7 +216,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           <div className="home-section-head">
             <div>
               <span className="eyebrow">PAST DRAWS</span>
-              <h3>VERIFIED ONCHAIN.</h3>
+              <h3>Verified onchain.</h3>
             </div>
           </div>
           <RoundHistory rounds={unveil.history} showExplorerLink={false} />

@@ -78,7 +78,7 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
       <section className="privacy-boundary" id="privacy" data-reveal>
         <div className="privacy-boundary-heading">
           <p className="eyebrow">PRIVACY BOUNDARY</p>
-          <h2>WHAT THE PROTOCOL REVEALS.</h2>
+          <h2>What the protocol reveals.</h2>
           <p>Verification stays public while individual financial state stays encrypted.</p>
         </div>
         <div className="privacy-ledger">
@@ -113,7 +113,7 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
         <div className="live-proof-head">
           <div>
             <p className="eyebrow">PUBLIC PROOF</p>
-            <h2>LIVE ON SEPOLIA.</h2>
+            <h2>Live on Sepolia.</h2>
             <p>Current public state, read directly from the deployed V2 contracts.</p>
           </div>
           <DrawCountdown
@@ -149,7 +149,7 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
 
       <section className="final-cta" data-reveal>
         <p className="eyebrow">TEST/DEMO · ZAMA FHE</p>
-        <h2>PRIVATE SAVINGS. PUBLIC PROOF.</h2>
+        <h2>Private savings. Public proof.</h2>
         <RouteLink className="button-primary" to="/app/save">
           Launch UNVEIL <span>↗</span>
         </RouteLink>
