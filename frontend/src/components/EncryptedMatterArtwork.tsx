@@ -1,17 +1,22 @@
 type EncryptedMatterArtworkProps = {
   className?: string;
   idPrefix?: string;
+  variant?: "hero" | "privacy" | "cta";
 };
 
 /** A marketing-only abstraction for the sealed/private side of UNVEIL. */
-export function EncryptedMatterArtwork({ className = "", idPrefix = "matter" }: EncryptedMatterArtworkProps) {
+export function EncryptedMatterArtwork({
+  className = "",
+  idPrefix = "matter",
+  variant = "hero",
+}: EncryptedMatterArtworkProps) {
   const baseId = `${idPrefix}-base`;
   const foldId = `${idPrefix}-fold`;
   const edgeId = `${idPrefix}-edge`;
-  const cutId = `${idPrefix}-cut`;
+  const isCta = variant === "cta";
   return (
     <svg
-      className={`encrypted-matter-artwork ${className}`}
+      className={`encrypted-matter-artwork encrypted-matter-artwork--${variant} ${className}`}
       viewBox="0 0 900 760"
       preserveAspectRatio="none"
       aria-hidden="true"
@@ -33,39 +38,48 @@ export function EncryptedMatterArtwork({ className = "", idPrefix = "matter" }: 
           <stop offset="0.48" stopColor="#f2d515" stopOpacity="0.82" />
           <stop offset="1" stopColor="#f2d515" stopOpacity="0" />
         </linearGradient>
-        <clipPath id={cutId}>
-          <path d="M96 76 794 28 860 606 174 720 42 454Z" />
-        </clipPath>
       </defs>
-      <path d="M94 112 790 58 862 626 182 744 40 470Z" fill="#000" opacity="0.55" />
-      <path d="M96 76 794 28 860 606 174 720 42 454Z" fill={`url(#${baseId})`} />
-      <g clipPath={`url(#${cutId})`} fill="none" strokeLinecap="round">
-        <path d="M-42 630 812 -8" stroke="#3d3b31" strokeWidth="132" opacity="0.2" />
-        <path d="M60 756 900 112" stroke="#666254" strokeWidth="92" opacity="0.12" />
-        <path d="M178 772 930 196" stroke="#0a0a08" strokeWidth="120" opacity="0.58" />
-        <path d="M308 786 946 294" stroke="#9a9275" strokeWidth="50" opacity="0.08" />
-        <path d="M470 790 952 420" stroke="#050504" strokeWidth="94" opacity="0.72" />
-        <path d="M-20 466 618 -18" stroke="#d2c89d" strokeWidth="17" opacity="0.08" />
-        <path d="M28 512 670 8" stroke="#f2d515" strokeWidth="1" opacity="0.28" />
-        <path d="M58 548 706 40" stroke="#e4dfc9" strokeWidth="1" opacity="0.2" />
-        <path d="M98 596 752 82" stroke="#f2d515" strokeWidth="1" opacity="0.18" />
-        <path d="M138 636 802 116" stroke="#e4dfc9" strokeWidth="1" opacity="0.14" />
-        <path d="M188 676 842 164" stroke="#f2d515" strokeWidth="1" opacity="0.12" />
-      </g>
-      <path d="m516 46 278-18 66 578-286 72Z" fill={`url(#${foldId})`} opacity="0.74" />
-      <path d="m516 46 58 606" fill="none" stroke="#030302" strokeWidth="30" opacity="0.52" />
-      <path d="m530 45 46 607" fill="none" stroke="#b6af8a" strokeWidth="1" opacity="0.24" />
-      <path d="m574 40 46 604" fill="none" stroke="#f2d515" strokeWidth="1" opacity="0.16" />
-      <path d="M96 76 794 28 860 606 174 720 42 454Z" fill="none" stroke={`url(#${edgeId})`} strokeWidth="2" />
-      <path d="M98 78 790 32 854 602" fill="none" stroke="#f2d515" strokeWidth="8" opacity="0.04" />
-      <path
-        d="m42 454 52-378M174 720 96 76M860 606 794 28"
-        fill="none"
-        stroke="#ede7cb"
-        strokeWidth="1"
-        opacity="0.22"
-      />
-      <path d="m68 438 20-4M180 694l-4-20M826 98l-22 2" stroke="#f2d515" strokeWidth="3" opacity="0.6" />
+      {isCta ? (
+        <>
+          <path d="M180 212 C286 148 544 120 760 188 L708 612 C512 664 316 642 154 548Z" fill="#000" opacity="0.62" />
+          <path d="M136 178 C294 96 572 114 786 210 L688 592 C492 642 286 604 112 486Z" fill={`url(#${baseId})`} />
+          <path
+            d="M218 156 C370 112 594 140 742 220 L676 514 C508 554 342 526 188 438Z"
+            fill={`url(#${foldId})`}
+            opacity="0.85"
+          />
+          <path
+            d="M138 442 C310 510 506 512 690 448 L676 592 C492 642 286 604 112 486Z"
+            fill="#080806"
+            opacity="0.72"
+          />
+          <path d="M164 462 C328 530 506 530 666 478" fill="none" stroke={`url(#${edgeId})`} strokeWidth="2" />
+          <path d="M216 158 C370 112 594 140 742 220" fill="none" stroke="#f2d515" strokeWidth="2" opacity="0.42" />
+          <path d="M286 530 C410 550 534 540 636 506" fill="none" stroke="#e4dfc9" strokeWidth="1" opacity="0.24" />
+        </>
+      ) : (
+        <>
+          <path
+            d="M76 208 C214 106 554 84 820 178 L866 556 C674 696 316 752 74 578 L38 382Z"
+            fill="#000"
+            opacity="0.64"
+          />
+          <path d="M84 170 C244 74 572 72 836 190 L802 520 C630 670 328 704 78 556 L38 360Z" fill={`url(#${baseId})`} />
+          <path
+            d="M162 132 C312 74 590 96 790 198 L754 454 C600 580 376 612 152 500 L104 342Z"
+            fill={`url(#${foldId})`}
+            opacity="0.7"
+          />
+          <path
+            d="M106 362 C304 490 540 500 770 388 L754 454 C600 580 376 612 152 500Z"
+            fill="#060605"
+            opacity="0.76"
+          />
+          <path d="M112 556 C330 694 622 646 802 520" fill="none" stroke={`url(#${edgeId})`} strokeWidth="2" />
+          <path d="M208 124 C362 84 594 114 786 208" fill="none" stroke="#f2d515" strokeWidth="2" opacity="0.44" />
+          <path d="M136 380 C318 492 534 500 738 410" fill="none" stroke="#e4dfc9" strokeWidth="1" opacity="0.2" />
+        </>
+      )}
     </svg>
   );
 }

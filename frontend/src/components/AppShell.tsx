@@ -5,8 +5,6 @@ import { RouteLink } from "./RouteLink";
 import type { UnveilController } from "../hooks/useUnveil";
 import type { AppRoute } from "../lib/routes";
 import { shortAddress } from "../lib/format";
-import type { ThemeController } from "../hooks/useTheme";
-import { ThemeToggle } from "./ThemeToggle";
 
 const NAV: Array<[AppRoute, string, string]> = [
   ["/app", "01", "Home"],
@@ -17,13 +15,11 @@ const NAV: Array<[AppRoute, string, string]> = [
 export function AppShell({
   route,
   unveil,
-  theme,
   children,
   onReplayGuide,
 }: {
   route: AppRoute;
   unveil: UnveilController;
-  theme: ThemeController;
   children: ReactNode;
   onReplayGuide: () => void;
 }) {
@@ -90,7 +86,6 @@ export function AppShell({
           </div>
           <div className="app-topbar-tools">
             <DemoBadge compact />
-            <ThemeToggle {...theme} />
             <button className="help-button" onClick={onReplayGuide}>
               HELP
             </button>

@@ -22,14 +22,13 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
         <header className="position-preview-header">
           <div>
             <span className="eyebrow">PRIVATE POSITION</span>
-            <strong>Wallet sealed</strong>
+            <strong>TEST</strong>
           </div>
           <span className="position-preview-state">SEALED</span>
         </header>
         <div className="position-preview-balance">
           <span>ENCRYPTED PRINCIPAL</span>
           <strong aria-label="Masked private principal">••••••</strong>
-          <small>UNVEIL ONLY TO THIS WALLET</small>
         </div>
         <div className="position-preview-fields">
           <div>

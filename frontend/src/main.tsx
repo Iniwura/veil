@@ -4,6 +4,9 @@ import App from "./App";
 import "./styles.css";
 import "./tour.css";
 
+document.documentElement.dataset.theme = "dark";
+document.documentElement.style.colorScheme = "dark";
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
