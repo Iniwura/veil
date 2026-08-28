@@ -1788,6 +1788,87 @@ html[data-motion-reduced="true"] .position-preview-public {
   }
 }
 
+@keyframes saveDigitResolve {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 0.14;
+    transform: translateY(0);
+  }
+}
+
+@keyframes saveFragmentCompress {
+  from {
+    opacity: 0.1;
+    transform: translateX(calc(var(--fragment-shift) * 1px)) scaleX(1.4);
+  }
+  to {
+    opacity: 0.8;
+    transform: translateX(0) scaleX(0.52);
+  }
+}
+
+@keyframes saveStageAperture {
+  from {
+    opacity: 0.28;
+    transform: scale(0.7) rotate(45deg);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.55) rotate(45deg);
+  }
+}
+
+@keyframes saveRequestPulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes saveSuccessLock {
+  0% {
+    transform: translateX(0);
+  }
+  22% {
+    transform: translateX(3px);
+  }
+  46% {
+    transform: translateX(-1px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes saveErrorNudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-5px);
+  }
+  70% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes saveMaterialConverge {
+  from {
+    opacity: 0.22;
+    transform: skewX(-19deg) translateX(-3%);
+  }
+  to {
+    opacity: 0.46;
+    transform: skewX(-19deg) translateX(3%);
+  }
+}
+
 /* Signature motion */
 .motion-enabled [data-reveal] {
   opacity: 0.35;
@@ -2968,8 +3049,21 @@ input::placeholder {
   }
   .motion-continuous,
   .veil-reveal-scan,
-  .vault-reveal-progress i {
+  .vault-reveal-progress i,
+  .save-page .amount-digit-echo,
+  .save-page .amount-fragments i,
+  .save-page .save-stage-step--active i::after,
+  .save-page .withdraw-request-visual--active i,
+  .save-page .private-instrument-material,
+  .save-page .save-primary-action {
     animation: none !important;
+  }
+  .save-page .amount-fragments {
+    opacity: 0 !important;
+  }
+  .save-page .private-instrument-material {
+    opacity: 0.2;
+    transform: skewX(-19deg);
   }
 }
 
@@ -2993,6 +3087,12 @@ html[data-motion-reduced="true"] .motion-enabled [data-reveal].is-revealed {
 html[data-motion-reduced="true"] .motion-continuous,
 html[data-motion-reduced="true"] .veil-reveal-scan,
 html[data-motion-reduced="true"] .vault-reveal-progress i,
+html[data-motion-reduced="true"] .save-page .amount-digit-echo,
+html[data-motion-reduced="true"] .save-page .amount-fragments i,
+html[data-motion-reduced="true"] .save-page .save-stage-step--active i::after,
+html[data-motion-reduced="true"] .save-page .withdraw-request-visual--active i,
+html[data-motion-reduced="true"] .save-page .private-instrument-material,
+html[data-motion-reduced="true"] .save-page .save-primary-action,
 html[data-motion-reduced="true"] .chamber-shutter,
 html[data-motion-reduced="true"] .chamber-slit::after,
 html[data-motion-reduced="true"] .chamber-lock-line,
@@ -3007,6 +3107,13 @@ html[data-motion-reduced="true"] .cryptographic-chamber--phase-verify .chamber-s
 html[data-motion-reduced="true"] .cryptographic-chamber--phase-deliver .chamber-output {
   clip-path: none;
   opacity: 1;
+}
+html[data-motion-reduced="true"] .save-page .amount-fragments {
+  opacity: 0 !important;
+}
+html[data-motion-reduced="true"] .save-page .private-instrument-material {
+  opacity: 0.2;
+  transform: skewX(-19deg);
 }
 
 /* Product shell and three-destination app */
@@ -3953,6 +4060,538 @@ select {
   background: var(--surface-deep);
 }
 
+.save-page {
+  --save-signal-soft: color-mix(in srgb, var(--signal) 14%, transparent);
+}
+
+.save-page-heading {
+  padding-top: 12px;
+  padding-bottom: 34px;
+}
+
+.save-heading-meta,
+.save-command-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.save-heading-meta span:first-child,
+.save-command-meta span:last-child {
+  color: var(--signal);
+}
+
+.save-page-heading h1 {
+  display: grid;
+  max-width: 720px;
+  margin: 24px 0 18px;
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(58px, 8vw, 128px);
+  font-variation-settings: "opsz" 72, "wdth" 88, "wght" 760;
+  line-height: 0.76;
+  letter-spacing: -0.085em;
+}
+
+.save-page-heading h1 strong {
+  margin-left: clamp(24px, 6vw, 90px);
+  color: var(--signal);
+  font-size: 0.78em;
+  font-weight: inherit;
+  font-variation-settings: "opsz" 88, "wdth" 78, "wght" 800;
+}
+
+.save-page-heading p {
+  max-width: 540px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.save-layout--signature {
+  min-height: 600px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+}
+
+.transaction-panel--signature {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 28px clamp(22px, 4vw, 64px) 30px;
+  border-left: 2px solid var(--signal);
+  background: var(--surface-transaction);
+}
+
+.transaction-panel--signature::before,
+.transaction-panel--signature::after {
+  position: absolute;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  transition:
+    opacity 320ms var(--ease-surgical),
+    transform 320ms var(--ease-surgical);
+}
+
+.transaction-panel--signature::before {
+  inset: 8% -20% auto 34%;
+  height: 48%;
+  background: linear-gradient(115deg, transparent, var(--save-signal-soft) 48%, transparent 73%);
+  opacity: 0.35;
+  transform: translateX(-9%);
+}
+
+.transaction-panel--signature::after {
+  inset: auto 22% 0 -16%;
+  height: 36%;
+  border-top: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
+  opacity: 0.45;
+  transform: skewX(-22deg) translateX(4%);
+}
+
+.transaction-panel--focused::before,
+.transaction-panel--focused::after {
+  opacity: 0.85;
+  transform: translateX(0);
+}
+
+.transaction-panel--focused::after {
+  transform: skewX(-22deg) translateX(0);
+}
+
+.save-command-meta {
+  justify-content: space-between;
+  gap: 10px 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mode-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 0;
+}
+
+.mode-switch button {
+  min-height: 58px;
+  padding: 0;
+  color: var(--text-quiet);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: left;
+  transition: color var(--motion-fast) var(--ease-snap);
+}
+
+.mode-switch button:last-of-type {
+  padding-left: 20px;
+}
+
+.mode-switch button.active {
+  color: var(--text);
+}
+
+.mode-switch-seam {
+  position: absolute;
+  right: 50%;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--signal);
+  transform: translateX(0);
+  transition: transform 220ms var(--ease-surgical);
+}
+
+.save-page--withdraw .mode-switch-seam {
+  transform: translateX(100%);
+}
+
+.amount-command {
+  position: relative;
+  z-index: 1;
+}
+
+.amount-command .transaction-label {
+  margin-top: 30px;
+}
+
+.transaction-label {
+  align-items: center;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+.transaction-label small {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.amount-input {
+  position: relative;
+  min-height: clamp(138px, 16vw, 224px);
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 18px 0 24px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transition:
+    border-color var(--motion-fast) var(--ease-snap),
+    transform var(--motion-medium) var(--ease-snap),
+    opacity var(--motion-medium) var(--ease-snap);
+}
+
+.amount-input:focus-within {
+  border-color: color-mix(in srgb, var(--signal) 65%, var(--border));
+}
+
+.amount-input input {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(96px, 12vw, 160px);
+  font-variant-numeric: tabular-nums;
+  font-variation-settings: "opsz" 80, "wdth" 84, "wght" 760;
+  line-height: 0.72;
+  letter-spacing: -0.08em;
+}
+
+.amount-input input::placeholder {
+  color: var(--text-quiet);
+  opacity: 0.55;
+}
+
+.amount-input > span {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  padding-bottom: 8px;
+  color: var(--signal);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.amount-digit-echo {
+  position: absolute;
+  z-index: 1;
+  bottom: 24px;
+  left: 0;
+  display: flex;
+  color: var(--signal);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(96px, 12vw, 160px);
+  font-variant-numeric: tabular-nums;
+  font-variation-settings: "opsz" 80, "wdth" 84, "wght" 760;
+  line-height: 0.72;
+  letter-spacing: -0.08em;
+  opacity: 0;
+  pointer-events: none;
+  animation: saveDigitResolve 190ms var(--ease-surgical) both;
+}
+
+.amount-digit-echo i {
+  font-style: normal;
+}
+
+.amount-fragments {
+  position: absolute;
+  inset: 8% 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms var(--ease-snap);
+}
+
+.amount-fragments i {
+  width: clamp(22px, 7vw, 90px);
+  height: 1px;
+  display: block;
+  background: var(--signal);
+  opacity: 0.65;
+  transform: translateX(calc(var(--fragment-shift) * 1px));
+}
+
+.amount-fragments--active {
+  opacity: 0.82;
+}
+
+.amount-fragments--active i {
+  animation: saveFragmentCompress 460ms var(--ease-seal) calc(var(--fragment-index) * 18ms) both;
+}
+
+.amount-command-note {
+  min-height: 42px;
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.save-stage-rail {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.save-stage-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.save-stage-heading strong {
+  color: var(--signal);
+  font-weight: 800;
+}
+
+.save-stage-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.save-stage-step {
+  position: relative;
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+}
+
+.save-stage-step i {
+  width: 7px;
+  height: 7px;
+  display: block;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.save-stage-step--complete {
+  color: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+.save-stage-step--complete i {
+  background: var(--text-muted);
+}
+
+.save-stage-step--active {
+  min-height: 58px;
+  color: var(--signal);
+  border-color: var(--signal);
+}
+
+.save-stage-step--active i {
+  position: relative;
+  background: var(--signal);
+}
+
+.save-stage-step--active i::after {
+  position: absolute;
+  inset: -6px;
+  content: "";
+  border: 1px solid var(--signal);
+  opacity: 0.25;
+  animation: saveStageAperture 900ms var(--ease-surgical) infinite;
+}
+
+.save-stage-rail--sealed .save-stage-step {
+  min-height: 38px;
+}
+
+.save-stage-rail--sealed .save-stage-heading strong {
+  color: var(--text-muted);
+}
+
+.save-stage-rail--error {
+  border-color: var(--danger);
+}
+
+.save-stage-rail--error .save-stage-heading strong {
+  color: var(--danger);
+}
+
+.withdraw-request-visual {
+  display: grid;
+  grid-template-columns: auto repeat(3, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.withdraw-request-visual i {
+  height: 1px;
+  display: block;
+  background: var(--border);
+}
+
+.withdraw-request-visual--active {
+  color: var(--signal);
+}
+
+.withdraw-request-visual--active i {
+  background: var(--signal);
+  animation: saveRequestPulse 720ms var(--ease-surgical) infinite alternate;
+}
+
+.save-wallet-note {
+  margin-top: 22px;
+  margin-bottom: 0;
+}
+
+.save-primary-action {
+  position: relative;
+  z-index: 1;
+  min-height: 58px;
+  margin-top: 30px;
+  transition:
+    background-color var(--motion-fast) var(--ease-snap),
+    color var(--motion-fast) var(--ease-snap),
+    transform var(--motion-fast) var(--ease-snap),
+    border-color var(--motion-fast) var(--ease-snap);
+}
+
+.save-primary-action i {
+  font-style: normal;
+  font-size: 18px;
+}
+
+.save-primary-action--sealed {
+  animation: saveSuccessLock 680ms var(--ease-seal) both;
+}
+
+.transaction-panel--error .save-primary-action {
+  color: var(--danger);
+  border-color: var(--danger);
+  animation: saveErrorNudge 220ms var(--ease-snap) both;
+}
+
+.faucet-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.faucet-strip > span {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.faucet-strip .button-quiet {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.account-status-region--utility {
+  align-content: start;
+  padding: 30px clamp(22px, 3vw, 42px);
+  border-left: 1px solid var(--border);
+  background: var(--surface-deep);
+}
+
+.account-status-region--utility .account-status-heading h2 {
+  margin-top: 18px;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(28px, 3vw, 46px);
+  font-variation-settings: "opsz" 60, "wdth" 88, "wght" 690;
+  line-height: 0.9;
+}
+
+.account-status-region--utility .account-status-list {
+  margin-top: 32px;
+}
+
+.account-status-region--utility .account-status-list > div {
+  min-height: 58px;
+  align-items: center;
+  padding: 14px 0;
+}
+
+.account-status-region--utility .account-status-list dt {
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.account-status-region--utility .account-status-list dd {
+  max-width: 58%;
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+
+.account-status-region--utility > p {
+  max-width: 300px;
+  margin-top: 28px;
+  color: var(--text-muted);
+}
+
+.account-status-region--utility .withdrawal-status {
+  margin-top: 26px;
+}
+
+.save-notice-rail {
+  margin-top: 20px;
+}
+
+.action-notice--error {
+  border-left-color: var(--danger);
+}
+
 .transaction-panel {
   background: var(--surface-transaction);
   border-right: 0;
@@ -3968,6 +4607,164 @@ select {
 .vault-surface {
   border-color: var(--border);
   background: transparent;
+}
+
+.private-position-instrument {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.private-position-instrument::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -2;
+  height: 1px;
+  content: "";
+  background: var(--signal);
+  opacity: 0.72;
+}
+
+.private-instrument-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr) minmax(170px, 0.45fr);
+  min-height: 350px;
+  gap: 0;
+  background: var(--surface-private);
+}
+
+.private-instrument-material {
+  position: absolute;
+  inset: 12% 28% auto 16%;
+  z-index: 0;
+  height: 46%;
+  border-top: 1px solid color-mix(in srgb, var(--signal) 24%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--signal) 9%, transparent);
+  background: linear-gradient(110deg, transparent, var(--save-signal-soft), transparent 78%);
+  opacity: 0.4;
+  transform: skewX(-19deg);
+  animation: saveMaterialConverge 12s var(--ease-surgical) infinite alternate;
+  pointer-events: none;
+}
+
+.private-instrument-primary,
+.private-instrument-support,
+.private-instrument-body > .private-stat--odds {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.private-instrument-primary {
+  min-height: 350px;
+  border-right: 1px solid var(--border);
+}
+
+.private-instrument-primary .veil-reveal {
+  min-height: 350px;
+  padding: 30px clamp(22px, 4vw, 56px);
+  border-right: 0;
+  background: transparent;
+}
+
+.private-instrument-primary .veil-reveal-value {
+  min-height: 170px;
+  align-items: end;
+  border-bottom-color: color-mix(in srgb, var(--signal) 32%, var(--border));
+}
+
+.private-instrument-primary .veil-reveal-value strong {
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(70px, 10vw, 150px);
+  font-variant-numeric: tabular-nums;
+  font-variation-settings: "opsz" 80, "wdth" 84, "wght" 760;
+  letter-spacing: -0.08em;
+  line-height: 0.72;
+}
+
+.private-instrument-support {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+
+.private-instrument-support .veil-reveal {
+  min-height: 175px;
+  padding: 24px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+
+.private-instrument-support .veil-reveal:last-child {
+  border-bottom: 0;
+}
+
+.private-instrument-support .veil-reveal-value {
+  min-height: 60px;
+}
+
+.private-instrument-support .veil-reveal-value strong {
+  font-size: clamp(28px, 4vw, 54px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.06em;
+  line-height: 0.8;
+}
+
+.private-instrument-body > .private-stat--odds {
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  gap: 16px;
+  padding: 24px;
+  border-left: 1px solid var(--border);
+  background: transparent;
+}
+
+.private-instrument-body > .private-stat--odds span {
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.private-instrument-body > .private-stat--odds strong {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(24px, 3vw, 40px);
+  font-variation-settings: "opsz" 60, "wdth" 88, "wght" 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+}
+
+.private-instrument-body > .private-stat--odds small {
+  max-width: 180px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.private-position-instrument .vault-actions {
+  position: relative;
+  z-index: 1;
+  padding: 22px clamp(22px, 4vw, 56px);
+  border-top: 1px solid var(--border);
+}
+
+.private-position-instrument .vault-actions .button-primary {
+  min-width: 220px;
+}
+
+.private-position-instrument.vault-surface--revealed {
+  border-color: color-mix(in srgb, var(--signal) 48%, var(--border));
+}
+
+.private-position-instrument.vault-surface--unveiling .private-instrument-material {
+  animation-play-state: paused;
 }
 
 .private-panel {
@@ -4284,6 +5081,35 @@ select {
 }
 
 @media (max-width: 900px) {
+  .save-layout--signature {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-panel--signature {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .account-status-region--utility {
+    border-top: 0;
+    border-left: 0;
+  }
+
+  .private-instrument-body {
+    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+  }
+
+  .private-instrument-body > .private-stat--odds {
+    grid-column: 1 / -1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(160px, 0.8fr);
+    align-items: center;
+    gap: 18px;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
   .draw-focus--field {
     grid-template-columns: 1fr;
   }
@@ -4311,6 +5137,144 @@ select {
 }
 
 @media (max-width: 780px) {
+  .save-page-heading {
+    padding-top: 4px;
+    padding-bottom: 26px;
+  }
+
+  .save-heading-meta {
+    gap: 8px 14px;
+    font-size: 8px;
+  }
+
+  .save-page-heading h1 {
+    margin-top: 22px;
+    font-size: clamp(64px, 17vw, 88px);
+  }
+
+  .save-page-heading h1 strong {
+    margin-left: 24px;
+  }
+
+  .save-page-heading p {
+    font-size: 13px;
+  }
+
+  .transaction-panel--signature {
+    padding: 24px 22px 26px;
+  }
+
+  .save-command-meta {
+    padding-bottom: 18px;
+  }
+
+  .amount-input {
+    min-height: 132px;
+  }
+
+  .amount-input input,
+  .amount-digit-echo {
+    font-size: clamp(64px, 17vw, 88px);
+  }
+
+  .amount-digit-echo {
+    bottom: 24px;
+  }
+
+  .save-stage-track {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .save-stage-step,
+  .save-stage-step--active,
+  .save-stage-rail--sealed .save-stage-step {
+    min-height: 34px;
+    grid-template-columns: 15px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .save-stage-step--complete {
+    border-left-color: var(--text-muted);
+  }
+
+  .save-stage-step--active {
+    min-height: 44px;
+    border-left-color: var(--signal);
+  }
+
+  .save-stage-step i {
+    margin-left: -4px;
+  }
+
+  .save-stage-step--active i {
+    margin-left: -5px;
+  }
+
+  .faucet-strip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .account-status-region--utility {
+    padding: 26px 22px 30px;
+  }
+
+  .private-instrument-body {
+    grid-template-columns: 1fr;
+  }
+
+  .private-instrument-primary,
+  .private-instrument-support,
+  .private-instrument-body > .private-stat--odds {
+    min-height: 0;
+  }
+
+  .private-instrument-primary {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .private-instrument-primary .veil-reveal {
+    min-height: 280px;
+  }
+
+  .private-instrument-support {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: none;
+  }
+
+  .private-instrument-support .veil-reveal {
+    min-height: 150px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .private-instrument-support .veil-reveal:last-child {
+    border-right: 0;
+  }
+
+  .private-instrument-body > .private-stat--odds {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 22px;
+    border-top: 0;
+    border-left: 0;
+  }
+
+  .private-position-instrument .vault-actions {
+    padding: 20px 22px 24px;
+  }
+
+  .private-position-instrument .vault-actions .button-primary {
+    width: 100%;
+    min-width: 0;
+  }
+
   .draw-lifecycle-track {
     grid-template-columns: 1fr;
     gap: 0;
@@ -4365,6 +5329,44 @@ select {
 }
 
 @media (max-width: 430px) {
+  .save-page-heading h1 {
+    font-size: 64px;
+  }
+
+  .save-page-heading h1 strong {
+    margin-left: 16px;
+  }
+
+  .save-heading-meta {
+    display: grid;
+    gap: 7px;
+  }
+
+  .transaction-panel--signature,
+  .account-status-region--utility {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .amount-input input,
+  .amount-digit-echo {
+    font-size: 64px;
+  }
+
+  .transaction-label {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .account-status-region--utility .account-status-list > div {
+    gap: 10px;
+  }
+
+  .account-status-region--utility .account-status-list dd {
+    max-width: 54%;
+    font-size: 10px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

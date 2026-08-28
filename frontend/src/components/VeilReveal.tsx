@@ -22,6 +22,7 @@ export function VeilReveal({
   revealedLabel,
   stagger = 0,
   compact = false,
+  className = "",
 }: {
   label: string;
   value?: bigint | string;
@@ -32,6 +33,7 @@ export function VeilReveal({
   revealedLabel?: string;
   stagger?: number;
   compact?: boolean;
+  className?: string;
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const wasRevealed = useRef(revealed);
@@ -67,7 +69,7 @@ export function VeilReveal({
 
   return (
     <div
-      className={`veil-reveal veil-reveal--${state.toLowerCase()} ${compact ? "veil-reveal--compact" : ""}`}
+      className={`veil-reveal veil-reveal--${state.toLowerCase()} ${compact ? "veil-reveal--compact" : ""} ${className}`.trim()}
       data-reveal-state={state}
       style={{ "--reveal-index": stagger } as CSSProperties}
     >
