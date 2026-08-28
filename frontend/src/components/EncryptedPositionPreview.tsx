@@ -4,13 +4,11 @@ import { SeamLoader } from "./SeamLoader";
 type EncryptedPositionPreviewProps = {
   roundId?: bigint;
   state?: string;
-  participants?: number;
   publicState: "LIVE" | "STALE" | "UNAVAILABLE" | "LOADING";
 };
 
-export function EncryptedPositionPreview({ roundId, state, participants, publicState }: EncryptedPositionPreviewProps) {
+export function EncryptedPositionPreview({ roundId, state, publicState }: EncryptedPositionPreviewProps) {
   const publicRound = roundId === undefined ? "CURRENT" : `ROUND ${roundId.toString().padStart(2, "0")}`;
-  const participantLabel = participants === undefined ? "—" : participants.toString().padStart(2, "0");
   return (
     <section
       className="position-preview"
@@ -22,7 +20,6 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
         <header className="position-preview-header">
           <div>
             <span className="eyebrow">PRIVATE POSITION</span>
-            <strong>TEST</strong>
           </div>
           <span className="position-preview-state">SEALED</span>
         </header>
@@ -30,26 +27,15 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
           <span>ENCRYPTED PRINCIPAL</span>
           <strong aria-label="Masked private principal">••••••</strong>
         </div>
-        <div className="position-preview-fields">
-          <div>
-            <span>DRAW WEIGHT</span>
-            <strong>SEALED</strong>
-          </div>
-          <div>
-            <span>PRIVATE STRATEGY SHARES</span>
-            <strong aria-label="Masked private strategy shares">••••••</strong>
-          </div>
-        </div>
       </div>
       <div className="position-preview-seam" aria-hidden="true">
         <span />
-        <small>VERIFICATION BOUNDARY</small>
         <span />
       </div>
       <div className="position-preview-public">
         <header className="position-preview-header">
           <div>
-            <span className="eyebrow">PUBLIC DRAW</span>
+            <span className="eyebrow">PUBLIC PROOF</span>
             <strong>Onchain proof</strong>
           </div>
           <span className={`position-preview-state position-preview-state--${publicState.toLowerCase()}`}>
@@ -64,11 +50,7 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
           </div>
           <div>
             <span>STATE</span>
-            <strong>{state ?? "—"}</strong>
-          </div>
-          <div>
-            <span>PARTICIPANTS</span>
-            <strong>{participantLabel}</strong>
+            <strong>{state ?? publicState}</strong>
           </div>
         </div>
       </div>

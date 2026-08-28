@@ -52,10 +52,6 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
       </header>
 
       <section className="landing-hero" id="product">
-        <div className="hero-annotation hero-annotation--top" aria-hidden="true">
-          <span>ENCRYPTED PRINCIPAL</span>
-          <span>PUBLIC PROOF</span>
-        </div>
         <div className="hero-copy">
           <p className="eyebrow">PRIVATE PRIZE SAVINGS · ZAMA FHE</p>
           <h1 className="hero-title" aria-label="SAVE PRIVATELY. WIN VERIFIABLY.">
@@ -89,22 +85,8 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
           <EncryptedPositionPreview
             roundId={schedule?.currentRoundId}
             state={schedule ? drawStateLabel(schedule) : undefined}
-            participants={publicParticipants}
             publicState={publicState}
           />
-          <div className="hero-art-caption" aria-hidden="true">
-            <span>02 / PRIVATE POSITION</span>
-            <span>SEALED BY DESIGN</span>
-          </div>
-        </div>
-        <div className="hero-annotation hero-annotation--bottom" aria-hidden="true">
-          <span>FHE / 01</span>
-          <span>VERIFICATION BOUNDARY</span>
-        </div>
-        <div className="hero-proof-details" aria-hidden="true">
-          <span>FHE</span>
-          <span>SEALED</span>
-          <span>PROOF</span>
         </div>
       </section>
 
