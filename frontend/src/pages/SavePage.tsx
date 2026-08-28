@@ -386,11 +386,11 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
               stagger={2}
             />
           </div>
-          <div className="private-stat private-stat--odds">
-            <span>Your odds</span>
-            <strong>NOT AVAILABLE</strong>
-            <small>Aggregate round weight is not wallet-decryptable in V2.</small>
-          </div>
+        </div>
+        <div className="private-stat private-stat--odds">
+          <span>Your odds</span>
+          <strong>NOT AVAILABLE</strong>
+          <small>Aggregate round weight is not wallet-decryptable in V2.</small>
         </div>
         <div className="vault-actions">
           <button

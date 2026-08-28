@@ -49,6 +49,28 @@
   --ease-unveil: var(--ease-reveal);
   --ease-snap: var(--ease-surgical);
   --reveal-stagger: 80ms;
+  --layout-max: 1480px;
+  --gutter-xl: 64px;
+  --gutter-lg: 48px;
+  --gutter-md: 32px;
+  --gutter-sm: 20px;
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --space-7: 64px;
+  --space-8: 80px;
+  --space-9: 96px;
+  --space-10: 128px;
+  --type-display-xl: clamp(68px, 8vw, 132px);
+  --type-display-l: clamp(48px, 5.5vw, 88px);
+  --type-display-m: clamp(32px, 4vw, 54px);
+  --type-h2: clamp(26px, 2.5vw, 38px);
+  --type-body: 16px;
+  --type-small: 13px;
+  --type-meta: 10px;
 }
 
 :root[data-theme="light"] {
@@ -2672,254 +2694,6 @@ input::placeholder {
   text-align: right;
 }
 
-.draw-focus--field {
-  min-height: 580px;
-  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-  border-color: var(--border);
-}
-
-.draw-focus--field > .cryptographic-chamber {
-  min-height: 580px;
-  border: 0;
-  border-right: 1px solid var(--border);
-}
-
-.draw-focus--field .draw-focus-copy {
-  min-width: 0;
-  justify-content: center;
-  padding: 48px;
-}
-
-.draw-focus--field .draw-mini-metrics {
-  display: grid;
-  gap: 12px;
-  padding-top: 22px;
-  border-top: 1px solid var(--border);
-}
-
-.cryptographic-chamber {
-  position: relative;
-  min-width: 0;
-  isolation: isolate;
-  overflow: hidden;
-  padding: 22px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.cryptographic-chamber--compact {
-  padding: 14px;
-}
-
-.chamber-header,
-.chamber-footer {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  color: var(--text-muted);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.chamber-header span:last-child,
-.chamber-state-indicator {
-  color: var(--signal);
-}
-
-.chamber-stage {
-  position: relative;
-  min-height: clamp(360px, 38vw, 560px);
-  margin: 18px 0;
-  overflow: hidden;
-}
-
-.cryptographic-chamber--compact .chamber-stage {
-  min-height: clamp(300px, 34vw, 420px);
-}
-
-.chamber-stage canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.chamber-aperture {
-  position: absolute;
-  inset: 8% 10%;
-  pointer-events: none;
-}
-
-.chamber-shutter {
-  position: absolute;
-  top: 4%;
-  bottom: 4%;
-  z-index: 2;
-  width: 46%;
-  border: 1px solid #59574c;
-  background: linear-gradient(135deg, #f2efe6 0 3%, #181813 4% 90%, #48463d 91%);
-  clip-path: polygon(0 0, 76% 0, 100% 50%, 76% 100%, 0 100%, 20% 50%);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28);
-}
-
-.chamber-shutter--left {
-  left: 1%;
-}
-
-.chamber-shutter--right {
-  right: 1%;
-  transform: scaleX(-1);
-}
-
-.chamber-slit {
-  position: absolute;
-  z-index: 3;
-  top: 0;
-  left: 50%;
-  width: 3px;
-  height: 100%;
-  transform: translateX(-50%);
-  background: var(--signal);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--signal) 45%, transparent);
-}
-
-.chamber-slit::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -3px;
-  width: 9px;
-  height: 22%;
-  background: var(--signal);
-  opacity: 0;
-}
-
-.chamber-lock-line,
-.chamber-output,
-.chamber-skip-mark,
-.chamber-backlog-mark,
-.chamber-complete-mark {
-  position: absolute;
-  z-index: 4;
-  display: block;
-  opacity: 0;
-}
-
-.chamber-lock-line {
-  top: 0;
-  left: 50%;
-  width: 1px;
-  height: 100%;
-  background: var(--signal);
-  transform: translateX(-50%);
-}
-
-.chamber-footer {
-  align-items: center;
-  border-top: 1px solid var(--border-soft);
-  padding-top: 14px;
-}
-
-.chamber-state-indicator {
-  flex: 0 0 auto;
-  font-weight: 800;
-}
-
-.chamber-footer p {
-  margin: 0;
-  text-align: right;
-  text-transform: none;
-  letter-spacing: 0.02em;
-}
-
-.cryptographic-chamber--phase-snapshot .chamber-shutter--left {
-  animation: veilLockLeft 900ms var(--ease-snap) both;
-}
-
-.cryptographic-chamber--phase-snapshot .chamber-shutter--right {
-  animation: veilLockRight 900ms var(--ease-snap) both;
-}
-
-.cryptographic-chamber--phase-snapshot .chamber-lock-line {
-  opacity: 0.8;
-  animation: lockLine 900ms var(--ease-snap) both;
-}
-
-.cryptographic-chamber--phase-verify .chamber-slit::after {
-  opacity: 1;
-  animation: verifySlit 1.8s var(--ease-snap) infinite;
-}
-
-.cryptographic-chamber--phase-deliver .chamber-output {
-  top: 50%;
-  left: 50%;
-  width: 34%;
-  height: 2px;
-  opacity: 1;
-  background: var(--signal);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--signal) 42%, transparent);
-  transform-origin: left;
-  animation: deliverOutput 1.8s var(--ease-unveil) infinite;
-}
-
-.cryptographic-chamber--phase-skip .chamber-skip-mark {
-  top: 62%;
-  left: 50%;
-  width: 38px;
-  height: 10px;
-  border-top: 2px solid var(--text-quiet);
-  border-right: 2px solid var(--text-quiet);
-  opacity: 0.8;
-  transform: translateX(-50%) rotate(45deg);
-}
-
-.cryptographic-chamber--phase-backlog .chamber-backlog-mark {
-  top: 18%;
-  left: 50%;
-  width: 36px;
-  height: 2px;
-  background: var(--text-muted);
-  opacity: 0.8;
-  transform: translateX(-50%);
-}
-
-.cryptographic-chamber--phase-backlog .chamber-slit {
-  background: var(--text-muted);
-  box-shadow: none;
-}
-
-.cryptographic-chamber--phase-complete .chamber-slit {
-  background: var(--text-muted);
-  box-shadow: none;
-}
-
-.cryptographic-chamber--phase-complete .chamber-complete-mark {
-  top: 50%;
-  left: 50%;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--text-muted);
-  opacity: 0.9;
-  transform: translate(-50%, -50%);
-}
-
-.cryptographic-chamber--phase-complete .chamber-complete-mark::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  background: var(--signal);
-  transform: translate(-50%, -50%);
-}
-
 .transaction-panel--sealing .amount-input {
   transform: scaleX(0.97);
   opacity: 0.72;
@@ -3012,25 +2786,6 @@ input::placeholder {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chamber-shutter,
-  .chamber-slit::after,
-  .chamber-lock-line,
-  .chamber-output {
-    transition: none;
-    animation: none;
-  }
-  .cryptographic-chamber--phase-verify .chamber-slit::after {
-    top: 40%;
-    opacity: 1;
-    transform: none;
-  }
-  .cryptographic-chamber--phase-deliver .chamber-output {
-    clip-path: none;
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
@@ -3092,21 +2847,8 @@ html[data-motion-reduced="true"] .save-page .amount-fragments i,
 html[data-motion-reduced="true"] .save-page .save-stage-step--active i::after,
 html[data-motion-reduced="true"] .save-page .withdraw-request-visual--active i,
 html[data-motion-reduced="true"] .save-page .private-instrument-material,
-html[data-motion-reduced="true"] .save-page .save-primary-action,
-html[data-motion-reduced="true"] .chamber-shutter,
-html[data-motion-reduced="true"] .chamber-slit::after,
-html[data-motion-reduced="true"] .chamber-lock-line,
-html[data-motion-reduced="true"] .chamber-output {
+html[data-motion-reduced="true"] .save-page .save-primary-action {
   animation: none !important;
-}
-html[data-motion-reduced="true"] .cryptographic-chamber--phase-verify .chamber-slit::after {
-  top: 40%;
-  opacity: 1;
-  transform: none;
-}
-html[data-motion-reduced="true"] .cryptographic-chamber--phase-deliver .chamber-output {
-  clip-path: none;
-  opacity: 1;
 }
 html[data-motion-reduced="true"] .save-page .amount-fragments {
   opacity: 0 !important;
@@ -3873,72 +3615,6 @@ body,
 
 .app-topbar .theme-toggle {
   display: inline-flex;
-}
-
-.draw-focus--field {
-  min-height: 580px;
-  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-  background-image: none;
-}
-
-.draw-focus--field > .cryptographic-chamber {
-  min-height: 580px;
-  border: 0;
-  border-right: 1px solid var(--border);
-}
-
-.draw-focus--field .draw-focus-copy {
-  min-width: 0;
-  justify-content: center;
-  padding: 48px;
-  background: var(--surface);
-}
-
-.page-heading p,
-.draw-page-intro p,
-.home-command-row p,
-.home-result-card > p,
-.home-result-details p,
-.draw-prize-intro,
-.account-status-region > p,
-.app-public-state {
-  color: var(--text-muted);
-}
-
-input,
-select {
-  color: var(--text);
-  background: var(--surface-deep);
-  border-color: var(--border);
-}
-
-@media (max-width: 900px) {
-  .draw-focus--field {
-    grid-template-columns: 1fr;
-  }
-  .draw-focus--field > .cryptographic-chamber {
-    min-height: 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-@media (max-width: 780px) {
-  .app-topbar .theme-toggle {
-    min-width: 34px;
-    display: inline-flex;
-    justify-content: center;
-    padding: 0 8px;
-  }
-  .app-topbar .theme-toggle > span:last-child {
-    display: none;
-  }
-  .draw-focus--field .draw-focus-copy {
-    padding: 34px 22px;
-  }
 }
 
 .draw-advance-panel {
@@ -6423,20 +6099,6 @@ html[data-visual-transition="route"]::view-transition-new(root) {
   overflow: clip;
   isolation: isolate;
 }
-.privacy-scenic-word {
-  position: absolute;
-  top: 50%;
-  left: -3vw;
-  z-index: 0;
-  color: var(--text);
-  font-size: clamp(140px, 22vw, 330px);
-  font-weight: 900;
-  line-height: 0.72;
-  letter-spacing: -0.1em;
-  opacity: 0.07;
-  transform: translateY(-50%);
-  white-space: nowrap;
-}
 .privacy-matter {
   position: absolute;
   top: 24%;
@@ -6975,11 +6637,6 @@ html[data-visual-transition="route"]::view-transition-new(root) {
     min-height: 1080px;
     padding: 84px 0 0;
   }
-  .privacy-scenic-word {
-    top: 29%;
-    left: -8vw;
-    font-size: 31vw;
-  }
   .privacy-boundary-heading h2 {
     max-width: 300px;
     font-size: 58px;
@@ -7382,18 +7039,6 @@ html[data-motion-reduced="true"] .privacy-matter {
 .privacy-boundary-heading > p:last-child {
   max-width: 300px;
 }
-.privacy-scenic-word {
-  top: 47%;
-  left: -2vw;
-  z-index: 2;
-  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(160px, 25vw, 380px);
-  font-variation-settings:
-    "opsz" 96,
-    "wdth" 78,
-    "wght" 780;
-  opacity: 0.05;
-}
 .privacy-matter {
   top: 17%;
   right: -14%;
@@ -7456,11 +7101,6 @@ html[data-motion-reduced="true"] .privacy-matter {
 @supports (animation-timeline: view()) {
   .privacy-boundary-heading {
     animation: privacyExplanationStage linear both;
-    animation-timeline: view(block);
-    animation-range: entry 0% exit 100%;
-  }
-  .privacy-scenic-word {
-    animation: privacyScenicStage linear both;
     animation-timeline: view(block);
     animation-range: entry 0% exit 100%;
   }
@@ -7787,11 +7427,6 @@ html[data-motion-reduced="true"] .privacy-matter {
     max-width: 320px;
     font-size: 56px;
   }
-  .privacy-scenic-word {
-    top: 43%;
-    left: -7vw;
-    font-size: 31vw;
-  }
   .privacy-matter {
     top: 25%;
     right: -50%;
@@ -7887,23 +7522,6 @@ html[data-motion-reduced="true"] .privacy-matter {
     transform: translate3d(-5vw, 0, 0);
   }
 }
-@keyframes privacyScenicStage {
-  0%,
-  22% {
-    opacity: 0.05;
-    transform: translateY(-50%) translateX(-4vw);
-  }
-  36%,
-  42% {
-    opacity: 0.62;
-    transform: translateY(-50%) translateX(0);
-  }
-  50%,
-  100% {
-    opacity: 0;
-    transform: translateY(-50%) translateX(-2vw);
-  }
-}
 @keyframes privacyMatterStage {
   0%,
   18% {
@@ -7987,7 +7605,6 @@ html[data-motion-reduced="true"] .privacy-matter {
   .hero-proof-details,
   .protocol-ticker-track,
   .privacy-boundary-heading,
-  .privacy-scenic-word,
   .privacy-matter,
   .privacy-ledger-column--private,
   .privacy-boundary-note,
@@ -8030,7 +7647,6 @@ html[data-motion-reduced="true"] .hero-art-caption,
 html[data-motion-reduced="true"] .hero-proof-details,
 html[data-motion-reduced="true"] .protocol-ticker-track,
 html[data-motion-reduced="true"] .privacy-boundary-heading,
-html[data-motion-reduced="true"] .privacy-scenic-word,
 html[data-motion-reduced="true"] .privacy-matter,
 html[data-motion-reduced="true"] .privacy-ledger-column--private,
 html[data-motion-reduced="true"] .privacy-boundary-note,
@@ -8049,6 +7665,7 @@ html[data-motion-reduced="true"] .privacy-matter {
 html[data-motion-reduced="true"] .privacy-editorial {
   opacity: 1;
 }
+
 html[data-motion-reduced="true"] .privacy-editorial span:nth-child(1),
 html[data-motion-reduced="true"] .privacy-editorial strong:nth-child(2) {
   opacity: 1;
@@ -8056,4 +7673,906 @@ html[data-motion-reduced="true"] .privacy-editorial strong:nth-child(2) {
 html[data-motion-reduced="true"] .privacy-editorial span:nth-child(3),
 html[data-motion-reduced="true"] .privacy-editorial strong:nth-child(4) {
   opacity: 0;
+}
+/* 6C — canonical product frame, rhythm, and Draw centerpiece. */
+:root {
+  --layout-frame: calc(var(--layout-max) + 128px);
+}
+
+body {
+  font-size: var(--type-body);
+  line-height: 1.5;
+}
+
+.app-topbar {
+  min-height: 72px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  gap: var(--space-4);
+  padding-inline: max(var(--gutter-sm), calc((100vw - var(--layout-frame)) / 2 + var(--gutter-xl)));
+  background: var(--bg);
+}
+
+.app-nav {
+  height: 72px;
+  gap: 0;
+}
+
+.app-nav a {
+  min-width: 72px;
+  padding-inline: var(--space-3);
+}
+
+.app-topbar-status,
+.app-topbar-tools {
+  gap: var(--space-3);
+}
+
+.app-content {
+  width: 100%;
+  max-width: var(--layout-frame);
+  padding: var(--space-6) var(--gutter-xl) var(--space-9);
+}
+
+.page-stack {
+  gap: var(--space-6);
+}
+
+.page-heading h1,
+.home-command-row h1,
+.draw-current-summary > strong,
+.section-heading h2,
+.home-section-head h2,
+.settlement-heading h2,
+.draw-result-card h2,
+.draw-prize h2,
+.save-section-heading h2,
+.account-status-region--utility .account-status-heading h2,
+.chamber-header strong,
+.chamber-phase-stamp span {
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+.page-heading h1,
+.home-command-row h1,
+.draw-current-summary > strong,
+.save-page-heading h1,
+.final-cta h2,
+.hero-title {
+  letter-spacing: -0.045em;
+}
+
+.page-heading p,
+.draw-page-intro p,
+.home-command-row p,
+.home-result-card > p,
+.home-result-details p,
+.draw-prize-intro,
+.draw-note,
+.account-status-region > p {
+  font-size: var(--type-small);
+  line-height: 1.6;
+}
+
+/* Shared app header rhythm. */
+.home-command-row {
+  gap: var(--space-6);
+  padding: var(--space-2) 0 var(--space-5);
+  border-bottom-color: var(--border);
+}
+
+.home-command-row h1 {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--type-display-l);
+  line-height: 0.88;
+}
+
+.home-command-state {
+  gap: var(--space-6);
+  padding-top: var(--space-4);
+}
+
+.home-command-status strong {
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--type-display-m);
+  font-variation-settings: "opsz" 52, "wdth" 90, "wght" 680;
+  letter-spacing: -0.04em;
+}
+
+.home-command-metrics {
+  gap: var(--space-4);
+}
+
+.home-command-metrics span,
+.home-result-details span,
+.draw-mini-metrics,
+.draw-prize-note {
+  font-size: var(--type-meta);
+  letter-spacing: 0.09em;
+}
+
+.home-dashboard-grid {
+  gap: var(--space-6);
+  margin-top: var(--space-1);
+}
+
+.private-panel,
+.home-result-card {
+  border: 0;
+  border-left: 2px solid var(--signal);
+  background: var(--surface-proof);
+}
+
+.private-panel {
+  padding: var(--space-5) 0;
+}
+
+.private-panel > .section-heading {
+  padding-inline: var(--space-5);
+}
+
+.private-stat-grid {
+  gap: 1px;
+  margin: var(--space-5) var(--space-5) 0;
+  background: var(--border-soft);
+}
+
+.private-stat,
+.private-panel .veil-reveal {
+  background: var(--surface-private);
+}
+
+.private-stat {
+  min-height: 138px;
+  padding: var(--space-4);
+}
+
+.private-stat strong {
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.home-result-card {
+  display: grid;
+  align-content: start;
+  padding: var(--space-5);
+}
+
+.home-result-card > p {
+  margin-top: var(--space-4);
+}
+
+.home-result-details {
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.home-history {
+  margin-top: var(--space-1);
+  padding-top: var(--space-5);
+}
+
+/* Save keeps 6B's interaction and removes dead first-scene height. */
+.save-page-heading {
+  padding-top: 0;
+  padding-bottom: var(--space-5);
+}
+
+.save-page-heading h1 {
+  max-width: 760px;
+  margin: var(--space-4) 0 var(--space-3);
+  font-size: clamp(58px, 7vw, 112px);
+  line-height: 0.82;
+}
+
+.save-page-heading h1 strong {
+  margin-left: clamp(22px, 5vw, 72px);
+  letter-spacing: -0.045em;
+}
+
+.save-layout--signature {
+  min-height: 0;
+  grid-template-columns: minmax(0, 7fr) minmax(260px, 3fr);
+  margin-top: var(--space-1);
+}
+
+.transaction-panel--signature {
+  padding: var(--space-5) clamp(24px, 4vw, var(--gutter-lg)) var(--space-5);
+}
+
+.save-command-meta {
+  padding-bottom: var(--space-4);
+}
+
+.amount-command .transaction-label {
+  margin-top: var(--space-4);
+}
+
+.amount-input {
+  min-height: clamp(144px, 13vw, 176px);
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+.amount-input input,
+.amount-digit-echo {
+  font-size: clamp(76px, 9vw, 132px);
+  letter-spacing: -0.045em;
+}
+
+.amount-command-note {
+  min-height: 0;
+  margin-top: var(--space-3);
+}
+
+.save-stage-rail {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+}
+
+.save-primary-action {
+  margin-top: var(--space-5);
+}
+
+.account-status-region--utility {
+  padding: var(--space-5) clamp(24px, 3vw, var(--space-5));
+}
+
+.account-status-region--utility .account-status-list {
+  margin-top: var(--space-5);
+}
+
+.private-position-instrument {
+  border-top-color: var(--border);
+  border-bottom-color: var(--border);
+}
+
+.private-instrument-body {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 320px;
+}
+
+.private-instrument-primary {
+  min-height: 320px;
+}
+
+.private-instrument-primary .veil-reveal {
+  min-height: 320px;
+  padding: var(--space-5) clamp(24px, 4vw, var(--gutter-lg));
+}
+
+.private-instrument-primary .veil-reveal-value {
+  min-height: 150px;
+}
+
+.private-instrument-primary .veil-reveal-value strong {
+  font-size: clamp(64px, 8vw, 126px);
+  letter-spacing: -0.045em;
+}
+
+.private-instrument-support .veil-reveal {
+  min-height: 160px;
+  padding: var(--space-4);
+}
+
+.private-instrument-support .veil-reveal-value strong {
+  letter-spacing: -0.035em;
+}
+
+.private-position-instrument > .private-stat--odds {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) clamp(24px, 4vw, var(--gutter-lg));
+  border-top: 1px solid var(--border);
+  background: var(--surface-private);
+}
+
+.private-position-instrument > .private-stat--odds span {
+  color: var(--text-quiet);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.private-position-instrument > .private-stat--odds strong {
+  color: var(--text-muted);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--type-meta);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.private-position-instrument > .private-stat--odds small {
+  justify-self: end;
+  color: var(--text-quiet);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.private-position-instrument .vault-actions {
+  gap: var(--space-5);
+  padding: var(--space-4) clamp(24px, 4vw, var(--gutter-lg));
+}
+
+/* Draw: sealed material field followed by the shared rail and action. */
+.draw-page-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
+  align-items: end;
+  gap: var(--space-6);
+  padding: var(--space-2) 0 var(--space-5);
+  border-bottom-color: var(--border);
+}
+
+.draw-page-intro p {
+  max-width: 420px;
+  margin: 0;
+  justify-self: end;
+}
+
+.draw-focus--field {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+
+.draw-focus--field > .cryptographic-chamber {
+  min-height: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.draw-focus--field .draw-focus-copy {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  align-items: start;
+  gap: var(--space-4) var(--space-6);
+  padding: var(--space-5) 0 0;
+  background: transparent;
+}
+
+.draw-current-summary,
+.draw-mini-metrics,
+.draw-note {
+  grid-column: 1;
+}
+
+.draw-current-summary {
+  gap: var(--space-2);
+}
+
+.draw-current-summary > strong {
+  font-size: var(--type-display-m);
+  line-height: 0.9;
+}
+
+.draw-mini-metrics {
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top-color: var(--border);
+  line-height: 1.5;
+}
+
+.draw-note {
+  margin: 0;
+}
+
+.draw-focus--field .draw-advance-panel {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: stretch;
+  margin-left: var(--space-4);
+  padding: 0 0 0 var(--space-6);
+  border-top: 0;
+  border-left: 1px solid var(--border);
+}
+
+.draw-advance-panel {
+  gap: var(--space-3);
+}
+
+.draw-advance-heading strong {
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--type-display-m);
+  letter-spacing: -0.035em;
+}
+
+.draw-advance-description,
+.draw-advance-note {
+  font-size: var(--type-small);
+}
+
+.draw-advance-button {
+  min-height: 52px;
+  margin-top: var(--space-2);
+}
+
+.cryptographic-chamber {
+  padding: var(--space-4) 0 0;
+  background: var(--surface-deep);
+}
+
+.cryptographic-chamber--compact {
+  padding-top: var(--space-3);
+}
+
+.chamber-header {
+  align-items: end;
+  padding: 0 var(--space-4);
+}
+
+.chamber-header > div:first-child {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.chamber-header strong {
+  color: var(--text);
+  font-size: clamp(18px, 2vw, 28px);
+  font-variation-settings: "opsz" 48, "wdth" 90, "wght" 690;
+  letter-spacing: -0.03em;
+}
+
+.chamber-kicker,
+.chamber-public-meta span,
+.chamber-phase-stamp small {
+  color: var(--text-quiet);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.chamber-kicker {
+  color: var(--signal);
+}
+
+.chamber-public-meta {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+  text-align: right;
+}
+
+.chamber-public-meta span:first-child {
+  color: var(--text-muted);
+}
+
+.chamber-stage,
+.cryptographic-chamber--compact .chamber-stage {
+  min-height: clamp(320px, 35vw, 510px);
+  margin: var(--space-4) 0;
+}
+
+.chamber-field {
+  position: relative;
+  min-height: inherit;
+  overflow: hidden;
+  isolation: isolate;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: radial-gradient(circle at 50% 50%, var(--surface-raised), transparent 60%), var(--surface-private);
+}
+
+.chamber-field-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent 0 49.92%, var(--border) 50%, transparent 50.08%);
+  opacity: 0.24;
+}
+
+.chamber-ribbons {
+  position: absolute;
+  inset: 12% 8%;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0.72;
+  transition: opacity var(--motion-medium) var(--ease-snap);
+}
+
+.chamber-ribbons i {
+  position: absolute;
+  top: calc(12% + var(--ribbon-index) * 12%);
+  left: -14%;
+  width: 128%;
+  height: 1px;
+  display: block;
+  background: linear-gradient(90deg, transparent, var(--text-muted) 18%, var(--signal) 50%, var(--text-muted) 82%, transparent);
+  opacity: calc(0.22 + var(--ribbon-index) * 0.025);
+  transform: translateX(calc((var(--ribbon-index) - 3) * 3%)) rotate(calc((var(--ribbon-index) - 3) * 1.2deg));
+  animation: chamberRibbonDrift 18s var(--ease-surgical) calc(var(--ribbon-index) * -1.2s) infinite alternate;
+}
+
+.chamber-material {
+  position: absolute;
+  inset: 15% 12%;
+  z-index: 2;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: linear-gradient(116deg, transparent 0 28%, var(--surface-raised) 49%, transparent 72%), var(--surface);
+  box-shadow: 0 18px 48px var(--shadow);
+  transition: border-color var(--motion-medium) var(--ease-snap), transform var(--motion-medium) var(--ease-snap), opacity var(--motion-medium) var(--ease-snap);
+}
+
+.chamber-material::before,
+.chamber-material::after {
+  position: absolute;
+  inset: 12% 8%;
+  content: "";
+  border-top: 1px solid color-mix(in srgb, var(--text-muted) 26%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 17%, transparent);
+  transform: skewX(-12deg);
+  pointer-events: none;
+}
+
+.chamber-material::after {
+  inset: 0;
+  border: 0;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--signal) 10%, transparent), transparent 38%);
+  opacity: 0.55;
+  transform: none;
+}
+
+.chamber-material-core {
+  position: absolute;
+  inset: 30% 24%;
+  display: block;
+  border-top: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 8%, transparent), transparent);
+  transform: skewX(-12deg);
+  transition: transform var(--motion-medium) var(--ease-seal), opacity var(--motion-medium) var(--ease-seal);
+}
+
+.chamber-seam,
+.chamber-proof-line,
+.chamber-delivery-trace,
+.chamber-terminal-mark {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.chamber-seam {
+  inset: 0 auto 0 50%;
+  z-index: 3;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--signal) 28%, var(--signal) 72%, transparent);
+  opacity: 0.78;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--signal) 30%, transparent);
+}
+
+.chamber-proof-line,
+.chamber-delivery-trace {
+  top: 50%;
+  left: 50%;
+  z-index: 4;
+  width: 38%;
+  height: 1px;
+  background: var(--signal);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--signal) 46%, transparent);
+  opacity: 0;
+  transform-origin: left;
+}
+
+.chamber-markers {
+  position: absolute;
+  top: var(--space-3);
+  right: 12%;
+  left: 12%;
+  z-index: 5;
+  height: 10px;
+}
+
+.chamber-markers i {
+  position: absolute;
+  top: 1px;
+  left: var(--marker-position);
+  width: 7px;
+  height: 7px;
+  display: block;
+  border: 1px solid var(--signal);
+  background: var(--surface-private);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.chamber-phase-stamp {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 5;
+  display: grid;
+  gap: var(--space-1);
+  justify-items: end;
+  text-align: right;
+}
+
+.chamber-phase-stamp span {
+  color: var(--signal);
+  font-size: clamp(24px, 3vw, 44px);
+  font-variation-settings: "opsz" 48, "wdth" 90, "wght" 670;
+  letter-spacing: -0.035em;
+}
+
+.chamber-footer {
+  align-items: start;
+  min-height: 52px;
+  padding: 0 var(--space-4) var(--space-4);
+  border-top: 0;
+}
+
+.chamber-state-indicator {
+  color: var(--signal);
+  font-size: var(--type-meta);
+  letter-spacing: 0.1em;
+}
+
+.chamber-footer p {
+  max-width: 560px;
+  color: var(--text-muted);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+
+.cryptographic-chamber--phase-snapshot .chamber-ribbons { opacity: 0.28; }
+.cryptographic-chamber--phase-snapshot .chamber-ribbons i { animation-duration: 42s; }
+.cryptographic-chamber--phase-snapshot .chamber-material { border-color: color-mix(in srgb, var(--signal) 52%, var(--border)); transform: scaleX(0.985); }
+.cryptographic-chamber--phase-snapshot .chamber-material-core { transform: skewX(-12deg) scaleX(0.76); }
+.cryptographic-chamber--phase-blind-draw .chamber-ribbons { opacity: 0.36; }
+.cryptographic-chamber--phase-blind-draw .chamber-ribbons i { animation-duration: 2.4s; animation-timing-function: var(--ease-seal); }
+.cryptographic-chamber--phase-blind-draw .chamber-material { opacity: 0.93; border-color: color-mix(in srgb, var(--signal) 40%, var(--border)); }
+.cryptographic-chamber--phase-blind-draw .chamber-material-core { opacity: 0.42; transform: skewX(-12deg) scaleX(0.54); }
+.cryptographic-chamber--phase-verify .chamber-proof-line,
+.cryptographic-chamber--phase-deliver .chamber-delivery-trace { opacity: 1; animation: chamberProofResolve 1.1s var(--ease-reveal) both; }
+.cryptographic-chamber--phase-deliver .chamber-delivery-trace { animation-name: chamberDeliveryExit; }
+.cryptographic-chamber--phase-skip .chamber-ribbons,
+.cryptographic-chamber--phase-backlog .chamber-ribbons,
+.cryptographic-chamber--phase-complete .chamber-ribbons { opacity: 0; }
+.cryptographic-chamber--phase-skip .chamber-seam,
+.cryptographic-chamber--phase-backlog .chamber-seam,
+.cryptographic-chamber--phase-complete .chamber-seam { background: var(--text-muted); box-shadow: none; }
+.cryptographic-chamber--phase-skip .chamber-terminal-mark,
+.cryptographic-chamber--phase-backlog .chamber-terminal-mark,
+.cryptographic-chamber--phase-complete .chamber-terminal-mark {
+  top: 50%; left: 50%; width: 20px; height: 20px; border: 1px solid var(--text-muted); opacity: 0.9; transform: translate(-50%, -50%);
+}
+.cryptographic-chamber--phase-skip .chamber-terminal-mark::after,
+.cryptographic-chamber--phase-backlog .chamber-terminal-mark::after,
+.cryptographic-chamber--phase-complete .chamber-terminal-mark::after {
+  position: absolute; inset: 50% auto auto 50%; width: 4px; height: 4px; content: ""; background: var(--text-muted); transform: translate(-50%, -50%);
+}
+.cryptographic-chamber--phase-skip .chamber-phase-stamp span,
+.cryptographic-chamber--phase-backlog .chamber-phase-stamp span,
+.cryptographic-chamber--phase-complete .chamber-phase-stamp span { color: var(--text-muted); }
+.cryptographic-chamber[data-chamber-visible="false"] .chamber-ribbons i,
+.cryptographic-chamber[data-chamber-visible="false"] .chamber-proof-line,
+.cryptographic-chamber[data-chamber-visible="false"] .chamber-delivery-trace { animation-play-state: paused; }
+
+@keyframes chamberRibbonDrift {
+  from { transform: translateX(calc((var(--ribbon-index) - 3) * 3%)) rotate(calc((var(--ribbon-index) - 3) * 1.2deg)); }
+  to { transform: translateX(calc((var(--ribbon-index) - 3) * -5%)) rotate(calc((var(--ribbon-index) - 3) * -1.2deg)); }
+}
+@keyframes chamberProofResolve {
+  from { clip-path: inset(0 100% 0 0); transform: translateX(-8%); }
+  to { clip-path: inset(0); transform: translateX(0); }
+}
+@keyframes chamberDeliveryExit {
+  from { clip-path: inset(0 100% 0 0); transform: translateX(0); }
+  to { clip-path: inset(0); transform: translateX(48%); }
+}
+
+.draw-lifecycle-rail { gap: var(--space-3); padding-top: var(--space-3); }
+.draw-lifecycle-step { min-height: 44px; gap: var(--space-2); padding: var(--space-2) var(--space-2) 0; border-top-width: 1px; }
+.draw-lifecycle-step--active { min-height: 70px; padding-top: var(--space-3); background: var(--surface-raised); }
+.draw-lifecycle-step strong { font-size: var(--type-meta); letter-spacing: 0.07em; }
+.draw-lifecycle-step small { font-size: 11px; }
+
+.settlement-surface { margin-top: var(--space-1); border-top-color: var(--border); border-bottom-color: var(--border); }
+.settlement-heading { padding-block: var(--space-5); }
+.settlement-heading h2,
+.draw-result-card h2,
+.draw-prize h2 { margin-top: var(--space-3); font-size: var(--type-display-m); letter-spacing: -0.04em; }
+.settlement-grid { gap: var(--space-6); padding-bottom: var(--space-6); }
+.settlement-grid .draw-prize { border-left-color: var(--border); }
+.draw-result-card { padding: var(--space-5) 0; }
+.draw-prize { padding-inline: var(--space-5); }
+.draw-prize > .home-section-head { padding-top: 0; }
+.draw-prize-intro { padding-inline: 0; margin-block: var(--space-3) var(--space-4); }
+.draw-history-section { padding-block: var(--space-5); }
+
+/* Landing uses the same outer frame; its editorial composition stays intact. */
+.landing-nav,
+.landing-hero,
+.privacy-boundary,
+.live-proof-section,
+.final-cta,
+.landing-footer { padding-inline: max(var(--gutter-sm), calc((100vw - var(--layout-frame)) / 2 + var(--gutter-xl))); }
+.landing-nav { min-height: 84px; }
+.landing-hero { padding-top: clamp(48px, 7vh, 84px); padding-bottom: var(--space-7); }
+.hero-title { font-size: clamp(70px, min(9vw, 13vh), 156px); line-height: 0.8; }
+.hero-word--save,
+.hero-word--privately,
+.hero-word--win,
+.hero-word--verifiably { letter-spacing: -0.04em; }
+.hero-art-direction { left: 55%; right: auto; width: 72%; }
+.hero-word--privately { font-variation-settings: "opsz" 88, "wdth" 82, "wght" 790; }
+.hero-word--verifiably { font-variation-settings: "opsz" 80, "wdth" 96, "wght" 740; }
+.hero-annotation--top { top: 10%; right: max(var(--gutter-sm), calc((100vw - var(--layout-frame)) / 2 + var(--gutter-xl))); width: min(320px, 28vw); }
+.hero-annotation--bottom { right: max(var(--gutter-sm), calc((100vw - var(--layout-frame)) / 2 + var(--gutter-xl))); bottom: 7%; width: min(300px, 26vw); gap: var(--space-3); }
+.hero-art-caption { right: 18%; bottom: 14%; gap: var(--space-3); }
+.position-preview-public { transform: translateX(12px); }
+.hero-proof-details { top: 23%; right: max(12px, calc((100vw - var(--layout-frame)) / 2 + var(--space-2))); gap: var(--space-4); }
+.privacy-boundary { padding-top: 0; }
+.privacy-story { min-height: 720px; padding-block: var(--space-8); }
+.privacy-boundary-heading { max-width: 470px; }
+.privacy-boundary-heading h2 { max-width: 470px; font-size: clamp(54px, 5.5vw, 82px); line-height: 0.88; letter-spacing: -0.045em; }
+.privacy-matter { right: -11%; width: 64%; opacity: 0.68; }
+.privacy-ledger { top: 52%; right: 0; left: 0; gap: var(--space-7); }
+.privacy-ledger-column,
+.privacy-ledger-column + .privacy-ledger-column { min-height: 0; padding-block: 0; }
+.privacy-ledger li { padding-block: 0; font-size: clamp(16px, 1.35vw, 21px); line-height: 1.2; }
+.privacy-boundary-note { top: 28%; right: 0; bottom: auto; max-width: 300px; }
+.privacy-editorial { right: 0; bottom: 3%; left: 0; grid-template-columns: max-content max-content; grid-template-rows: auto auto; column-gap: var(--space-4); max-width: 600px; font-size: clamp(34px, 4.6vw, 70px); line-height: 0.86; letter-spacing: -0.04em; }
+.live-proof-section { padding-bottom: var(--space-9); }
+.live-proof-intro h2 { font-size: clamp(58px, 7.5vw, 124px); letter-spacing: -0.04em; }
+.live-round-anchor strong { letter-spacing: -0.045em; }
+.final-cta { min-height: min(680px, 82svh); }
+.final-cta h2 { font-size: clamp(64px, 9vw, 146px); line-height: 0.82; }
+.final-cta h2 span,
+.final-cta h2 strong { letter-spacing: -0.04em; }
+
+@media (max-width: 1100px) {
+  .app-topbar { gap: var(--space-2); padding-inline: var(--gutter-md); }
+  .app-nav a { min-width: 60px; padding-inline: var(--space-2); }
+  .app-public-state { font-size: 10px; }
+  .app-topbar-tools .demo-badge { display: none; }
+  .app-content { padding-inline: var(--gutter-md); }
+  .privacy-ledger { gap: var(--space-6); }
+  .hero-art-direction { left: 58%; right: auto; width: 96%; opacity: 0.48; }
+  .position-preview-header,
+  .position-preview-balance,
+  .position-preview-fields,
+  .position-preview-public,
+  .position-preview-seam,
+  .hero-art-caption { visibility: hidden; }
+}
+
+@media (min-width: 1101px) and (max-width: 1400px) {
+  .hero-annotation--top { top: 8%; }
+}
+
+@media (max-width: 900px) {
+  .draw-page-intro { grid-template-columns: 1fr; align-items: start; gap: var(--space-3); }
+  .draw-page-intro p { justify-self: start; }
+  .draw-focus--field .draw-focus-copy { grid-template-columns: 1fr; padding-top: var(--space-5); }
+  .draw-focus--field .draw-advance-panel { grid-column: 1; grid-row: auto; margin: var(--space-2) 0 0; padding: var(--space-4) 0 0; border-top: 1px solid var(--border); border-left: 0; }
+  .save-layout--signature { grid-template-columns: 1fr; }
+  .transaction-panel--signature { border-right: 0; border-bottom: 1px solid var(--border); }
+  .account-status-region--utility { border-top: 0; border-left: 0; }
+}
+
+@media (max-width: 780px) {
+  .app-shell { padding-bottom: 68px; }
+  .app-topbar { min-height: 60px; grid-template-columns: auto minmax(0, 1fr) auto; padding-inline: var(--gutter-sm); }
+  .app-nav,
+  .app-topbar-status,
+  .app-topbar-tools .demo-badge,
+  .app-topbar-tools .help-button,
+  .network-chip,
+  .theme-chip { display: none; }
+  .app-topbar .theme-toggle { display: inline-flex; }
+  .app-content { padding: var(--space-5) var(--gutter-sm) var(--space-9); }
+  .page-stack { gap: var(--space-5); }
+  .home-command-row { gap: var(--space-4); padding-bottom: var(--space-4); }
+  .home-command-row h1 { font-size: clamp(38px, 11vw, 58px); }
+  .home-command-state { gap: var(--space-4); padding-top: var(--space-4); }
+  .home-command-metrics { gap: var(--space-3); }
+  .home-dashboard-grid { gap: var(--space-4); }
+  .private-panel > .section-heading { padding-inline: var(--space-4); }
+  .private-stat-grid { margin: var(--space-4) var(--space-4) 0; }
+  .home-result-card { padding: var(--space-4); }
+  .save-page-heading h1 { font-size: clamp(58px, 16vw, 86px); }
+  .save-page-heading h1 strong { margin-left: var(--space-4); }
+  .transaction-panel--signature,
+  .account-status-region--utility { padding-right: var(--gutter-sm); padding-left: var(--gutter-sm); }
+  .amount-input { min-height: 128px; }
+  .amount-input input,
+  .amount-digit-echo { font-size: clamp(64px, 17vw, 88px); }
+  .private-instrument-body { grid-template-columns: 1fr; }
+  .private-instrument-primary { min-height: 0; border-right: 0; border-bottom: 1px solid var(--border); }
+  .private-instrument-primary .veil-reveal { min-height: 270px; }
+  .private-instrument-support { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+  .private-instrument-support .veil-reveal { min-height: 146px; }
+  .private-instrument-support .veil-reveal:last-child { border-right: 0; }
+  .private-position-instrument > .private-stat--odds { grid-template-columns: 1fr; align-items: start; gap: var(--space-2); padding: var(--space-3) var(--gutter-sm); }
+  .private-position-instrument > .private-stat--odds small { justify-self: start; text-align: left; }
+  .chamber-header { align-items: start; flex-direction: column; gap: var(--space-3); }
+  .chamber-public-meta { justify-items: start; text-align: left; }
+  .chamber-stage,
+  .cryptographic-chamber--compact .chamber-stage { min-height: clamp(280px, 72vw, 390px); }
+  .chamber-material { inset: 18% 7%; }
+  .chamber-ribbons { inset: 14% 4%; }
+  .chamber-phase-stamp { right: var(--space-3); bottom: var(--space-3); }
+  .chamber-phase-stamp span { font-size: 28px; }
+  .chamber-footer { align-items: start; flex-direction: column; gap: var(--space-2); }
+  .chamber-footer p { text-align: left; }
+  .draw-lifecycle-track { grid-template-columns: 1fr; }
+  .draw-lifecycle-step,
+  .draw-lifecycle-step--active,
+  .draw-lifecycle-step--complete,
+  .draw-lifecycle-step--future,
+  .draw-lifecycle-step--inactive { min-height: 44px; grid-template-columns: 18px minmax(0, 1fr); align-items: center; padding: var(--space-2) var(--space-3); border-top: 0; border-left: 1px solid var(--border); }
+  .draw-lifecycle-step--active { min-height: 68px; border-left-color: var(--signal); }
+  .draw-lifecycle-step:not(:last-child)::after { top: auto; right: auto; bottom: 0; left: -1px; width: 1px; height: var(--space-1); }
+  .settlement-grid { display: block; grid-template-columns: 1fr; gap: 0; }
+  .settlement-grid .draw-prize { padding: var(--space-5) 0 0; border-top: 1px solid var(--border); border-left: 0; }
+  .landing-nav,
+  .landing-hero,
+  .privacy-boundary,
+  .live-proof-section,
+  .final-cta,
+  .landing-footer { padding-inline: var(--gutter-sm); }
+  .landing-nav { min-height: 72px; }
+  .landing-hero { height: 760px; min-height: 760px; padding-top: 54px; padding-bottom: var(--space-6); }
+  .hero-title { margin-block: var(--space-4) var(--space-5); font-size: clamp(60px, 16.5vw, 88px); line-height: 0.8; }
+  .hero-word--privately { margin-left: var(--space-3); }
+  .hero-word--win { margin-left: var(--space-2); }
+  .hero-word--verifiably { margin-left: var(--space-4); }
+  .hero-annotation--top { top: 43%; right: var(--gutter-sm); width: 220px; }
+  .hero-annotation--bottom { right: var(--gutter-sm); bottom: 5%; width: 220px; }
+  .hero-art-direction { left: 42%; right: auto; width: 124%; opacity: 0.36; }
+  .hero-art-caption { right: 40%; bottom: 1%; max-width: 180px; gap: var(--space-2); font-size: 7px; justify-content: flex-end; flex-wrap: wrap; }
+  .hero-proof-details { display: none; }
+  .privacy-boundary { min-height: 300vh; }
+  .privacy-story { min-height: 760px; padding-block: var(--space-7); }
+  .privacy-boundary-heading h2 { max-width: 310px; font-size: 56px; letter-spacing: -0.04em; }
+  .privacy-matter { top: 26%; right: -43%; width: 130%; height: 52%; opacity: 0.56; }
+  .privacy-ledger { top: 47%; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+  .privacy-ledger-column { min-height: 0; }
+  .privacy-ledger li { font-size: 13px; }
+  .privacy-boundary-note { top: auto; bottom: 14%; max-width: 250px; }
+  .privacy-editorial { bottom: 3%; max-width: 320px; grid-template-columns: 1fr 1fr; column-gap: var(--space-2); font-size: 27px; line-height: 0.88; }
+  .live-proof-head { min-height: 390px; padding-top: var(--space-7); }
+  .live-proof-intro h2 { font-size: 60px; }
+  .final-cta { min-height: 600px; }
+  .final-cta h2 { max-width: 350px; font-size: 64px; }
+}
+
+@media (min-width: 431px) and (max-width: 780px) {
+  .hero-annotation--top { top: 55%; }
+}
+
+@media (max-width: 430px) {
+  .home-command-metrics,
+  .private-instrument-support { grid-template-columns: 1fr; }
+  .private-instrument-support .veil-reveal { border-right: 0; }
+  .private-instrument-support .veil-reveal:last-child { border-top: 1px solid var(--border); }
+  .chamber-stage,
+  .cryptographic-chamber--compact .chamber-stage { min-height: 280px; }
+  .chamber-material { inset: 20% 5%; }
+  .chamber-phase-stamp span { font-size: 24px; }
+  .landing-hero { height: 720px; min-height: 720px; }
+  .hero-title { font-size: 60px; }
+  .hero-annotation--top,
+  .hero-annotation--bottom { width: 200px; font-size: 8px; }
+  .privacy-story { min-height: 780px; }
+  .privacy-ledger { top: 44%; }
+  .privacy-boundary-note { bottom: 13%; max-width: 220px; font-size: 9px; }
+  .privacy-editorial { bottom: 2%; max-width: 300px; font-size: 25px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chamber-ribbons i,
+  .chamber-proof-line,
+  .chamber-delivery-trace { animation: none; }
 }

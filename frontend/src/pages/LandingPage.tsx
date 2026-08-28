@@ -115,9 +115,6 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
 
       <section className="privacy-boundary" id="privacy" data-reveal>
         <div className="privacy-story">
-          <div className="privacy-scenic-word" aria-hidden="true">
-            PRIVATE
-          </div>
           <div className="privacy-matter" aria-hidden="true">
             <EncryptedMatterArtwork idPrefix="privacy-matter" variant="privacy" />
           </div>
