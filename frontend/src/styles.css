@@ -7025,6 +7025,11 @@ html[data-motion-reduced="true"] .privacy-matter {
     animation-timeline: view(block);
     animation-range: entry 0% exit 100%;
   }
+  .privacy-ledger {
+    animation: privacyLedgerStage linear both;
+    animation-timeline: view(block);
+    animation-range: entry 0% exit 100%;
+  }
   .privacy-ledger-column--private {
     animation: privacyPrivateDataStage linear both;
     animation-timeline: view(block);
@@ -7039,13 +7044,13 @@ html[data-motion-reduced="true"] .privacy-matter {
   .privacy-editorial strong:nth-child(2) {
     animation: privacyProofStage linear both;
     animation-timeline: view(block);
-    animation-range: entry 0% exit 100%;
+    animation-range: cover 0% 80%;
   }
   .privacy-editorial span:nth-child(3),
   .privacy-editorial strong:nth-child(4) {
     animation: privacyPositionStage linear both;
     animation-timeline: view(block);
-    animation-range: entry 0% exit 100%;
+    animation-range: cover 0% 100%;
   }
 }
 .live-proof-section {
@@ -7389,11 +7394,11 @@ html[data-motion-reduced="true"] .privacy-matter {
 }
 @keyframes privacyExplanationStage {
   0%,
-  30% {
+  50% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
-  60%,
+  68%,
   100% {
     opacity: 0;
     transform: translate3d(-5vw, 0, 0);
@@ -7401,51 +7406,63 @@ html[data-motion-reduced="true"] .privacy-matter {
 }
 @keyframes privacyMatterStage {
   0%,
-  30% {
-    opacity: 0.18;
-    transform: translateX(76%);
+  42% {
+    opacity: 0.12;
+    transform: translateX(76%) rotate(-8deg);
   }
   60% {
     opacity: 0.98;
-    transform: translateX(4%);
+    transform: translateX(4%) rotate(-8deg);
   }
-  82% {
+  83% {
     opacity: 0.8;
-    transform: translateX(-10%);
+    transform: translateX(-10%) rotate(-8deg);
   }
   100% {
     opacity: 0.48;
-    transform: translateX(-18%);
+    transform: translateX(-18%) rotate(-8deg);
   }
 }
 @keyframes privacyPrivateDataStage {
   0%,
-  30% {
+  50% {
     opacity: 1;
   }
-  60%,
+  68%,
   100% {
-    opacity: 0.1;
+    opacity: 1;
   }
 }
 @keyframes privacyNoteStage {
   0%,
-  60% {
+  62% {
     opacity: 1;
   }
-  82%,
+  74%,
   100% {
     opacity: 0;
   }
 }
+@keyframes privacyLedgerStage {
+  0%,
+  60% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  78%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-4vw, 0, 0);
+  }
+}
 @keyframes privacyProofStage {
   0%,
-  58% {
+  60% {
     opacity: 0;
     transform: translate3d(3vw, 0, 0);
   }
-  64%,
-  80% {
+  66%,
+  78% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
@@ -7457,11 +7474,11 @@ html[data-motion-reduced="true"] .privacy-matter {
 }
 @keyframes privacyPositionStage {
   0%,
-  80% {
+  58% {
     opacity: 0;
     transform: translate3d(3vw, 0, 0);
   }
-  86%,
+  64%,
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -7485,6 +7502,7 @@ html[data-motion-reduced="true"] .privacy-matter {
   .protocol-ticker-track,
   .privacy-boundary-heading,
   .privacy-matter,
+  .privacy-ledger,
   .privacy-ledger-column--private,
   .privacy-boundary-note,
   .privacy-editorial,
@@ -7522,6 +7540,7 @@ html[data-motion-reduced="true"] .hero-proof-details,
 html[data-motion-reduced="true"] .protocol-ticker-track,
 html[data-motion-reduced="true"] .privacy-boundary-heading,
 html[data-motion-reduced="true"] .privacy-matter,
+html[data-motion-reduced="true"] .privacy-ledger,
 html[data-motion-reduced="true"] .privacy-ledger-column--private,
 html[data-motion-reduced="true"] .privacy-boundary-note,
 html[data-motion-reduced="true"] .privacy-editorial,
@@ -8577,7 +8596,7 @@ body {
 .position-preview-proof-rail span { font-size: 8px; }
 .position-preview-proof-rail strong { font-size: clamp(13px, 1.2vw, 19px); }
 .hero-proof-details { top: 23%; right: max(12px, calc((100vw - var(--layout-frame)) / 2 + var(--space-2))); gap: var(--space-4); }
-.privacy-boundary { position: relative; padding-top: 0; }
+.privacy-boundary { position: relative; min-height: 300vh; padding-top: 0; }
 .privacy-intro-anchor {
   position: absolute;
   top: 0;
@@ -8586,16 +8605,21 @@ body {
   height: 1px;
   scroll-margin-top: calc(84px + var(--space-4));
 }
-.privacy-story { min-height: 720px; padding-block: clamp(64px, 8vh, 80px); }
-.privacy-boundary-heading { max-width: 34%; }
-.privacy-boundary-heading h2 { max-width: 470px; font-size: clamp(54px, 5.5vw, 82px); line-height: 0.88; letter-spacing: -0.045em; }
-.privacy-matter { right: -11%; width: 64%; opacity: 0.68; }
-.privacy-ledger { top: clamp(72px, 10%, 96px); right: 0; left: 40%; gap: clamp(24px, 4vw, 56px); }
+.privacy-story { min-height: 0; padding-block: clamp(64px, 8vh, 80px); }
+.privacy-boundary-heading { max-width: 36%; }
+.privacy-boundary-heading h2 { max-width: 470px; font-size: clamp(54px, 5.6vw, 86px); line-height: 0.88; letter-spacing: -0.08em; }
+.privacy-boundary-heading > p:last-child { max-width: 320px; font-size: 14px; line-height: 1.5; }
+.privacy-matter { top: 16%; right: -14%; width: 64%; height: 78%; opacity: 0.18; transform: translateX(76%) rotate(-8deg); }
+.privacy-ledger { top: clamp(72px, 10%, 96px); right: 0; left: 40%; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); }
 .privacy-ledger-column,
 .privacy-ledger-column + .privacy-ledger-column { min-height: 0; padding-block: 0; }
-.privacy-ledger li { padding-block: 0; font-size: clamp(16px, 1.35vw, 21px); line-height: 1.2; }
-.privacy-boundary-note { top: clamp(316px, 36%, 356px); right: 0; left: 40%; bottom: auto; max-width: 680px; }
-.privacy-editorial { right: 0; bottom: 3%; left: 0; grid-template-columns: max-content max-content; grid-template-rows: auto auto; column-gap: var(--space-4); max-width: 600px; font-size: clamp(34px, 4.6vw, 70px); line-height: 0.86; letter-spacing: -0.04em; }
+.privacy-ledger-label { margin-bottom: 18px; }
+.privacy-ledger ul { gap: 10px; }
+.privacy-ledger li { padding-block: 0; font-size: clamp(16px, 1.35vw, 21px); line-height: 1.15; }
+.privacy-ledger-column--private { color: color-mix(in srgb, var(--text) 72%, var(--text-muted)); }
+.privacy-ledger-column--private li { color: color-mix(in srgb, var(--text) 72%, var(--text-muted)); }
+.privacy-boundary-note { top: calc(clamp(72px, 10%, 96px) + 205px + 22px); right: 0; left: 40%; bottom: auto; max-width: 560px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+.privacy-editorial { right: auto; bottom: 5%; left: 0; grid-template-columns: max-content max-content; grid-template-rows: auto auto; column-gap: var(--space-4); max-width: 720px; font-size: clamp(56px, 8.5vw, 136px); animation: none; opacity: 1; transform: none; }
 .live-proof-section { padding-bottom: var(--space-9); }
 .live-proof-intro h2 { font-size: clamp(58px, 7.5vw, 124px); letter-spacing: -0.04em; }
 .live-round-anchor strong { letter-spacing: -0.045em; }
@@ -8710,12 +8734,13 @@ body {
   .hero-art-direction { top: 92%; left: 42%; right: auto; width: 124%; height: 360px; opacity: 0.24; z-index: 2; }
   .hero-art-caption { right: 40%; bottom: 1%; max-width: 180px; gap: var(--space-2); font-size: 7px; justify-content: flex-end; flex-wrap: wrap; }
   .hero-proof-details { display: none; }
-  .privacy-boundary { min-height: 300vh; }
-  .privacy-story { min-height: 760px; padding-block: 56px; }
+  .privacy-intro-anchor { scroll-margin-top: 76px; }
+  .privacy-boundary { min-height: 220vh; }
+  .privacy-story { min-height: 760px; padding-block: 44px; }
   .privacy-boundary-heading { max-width: none; }
   .privacy-boundary-heading h2 { max-width: 310px; font-size: 56px; letter-spacing: -0.04em; }
   .privacy-matter { top: 26%; right: -43%; width: 130%; height: 52%; opacity: 0.56; }
-  .privacy-ledger { top: 36%; right: 0; left: 0; grid-template-columns: 1fr; gap: var(--space-4); }
+  .privacy-ledger { top: 36%; right: 0; left: 0; grid-template-columns: 1fr; gap: 12px; }
   .privacy-ledger-column,
   .privacy-ledger-column + .privacy-ledger-column { min-height: 0; padding: 0 0 var(--space-3); border-right: 0; border-left: 0; border-bottom: 1px solid var(--border-soft); }
   .privacy-ledger-column + .privacy-ledger-column { padding-top: var(--space-3); }
