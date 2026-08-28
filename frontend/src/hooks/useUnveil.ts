@@ -25,6 +25,7 @@ import {
 } from "../veilClient";
 import type { DrawAction } from "../lib/drawAdvance";
 import { productError } from "../lib/errors";
+import { advanceWalletSessionEpoch } from "../lib/walletSession";
 
 type Dashboard = Awaited<ReturnType<typeof readDashboard>>;
 type PublicProtocol = Awaited<ReturnType<typeof readPublicProtocol>>;
@@ -68,8 +69,13 @@ export function useUnveil() {
     setWalletState(next);
   }, []);
 
-  const clearAccountState = useCallback(() => {
-    walletEpoch.current += 1;
+  const clearAccountState = useCallback((invalidateConnectAttempt = true) => {
+    const nextEpoch = advanceWalletSessionEpoch(
+      { walletEpoch: walletEpoch.current, connectAttempt: connectAttempt.current },
+      invalidateConnectAttempt,
+    );
+    walletEpoch.current = nextEpoch.walletEpoch;
+    connectAttempt.current = nextEpoch.connectAttempt;
     resetWalletRelayer();
     signerRef.current = undefined;
     addressRef.current = "";
@@ -171,15 +177,15 @@ export function useUnveil() {
   }, [clearAccountState, setScopedNotice, updateWalletState]);
 
   async function connect() {
-    const attempt = ++connectAttempt.current;
     clearAccountState();
+    const attempt = ++connectAttempt.current;
     updateWalletState("reconnect-required");
     setBusy("connect");
     setScopedNotice("global", "");
     try {
       const wallet = await connectWallet();
       if (connectAttempt.current !== attempt) return;
-      clearAccountState();
+      clearAccountState(false);
       const connectedEpoch = walletEpoch.current;
       signerRef.current = wallet.signer;
       addressRef.current = wallet.address;
@@ -234,6 +240,13 @@ export function useUnveil() {
     } finally {
       if (walletEpoch.current === epoch) setBusy("");
     }
+  }
+
+  function disconnectSession() {
+    clearAccountState();
+    setWalletChainId(undefined);
+    updateWalletState("disconnected");
+    setScopedNotice("global", "");
   }
 
   function privateWallet() {
@@ -469,6 +482,7 @@ export function useUnveil() {
     error,
     errorScope,
     connect,
+    disconnectSession,
     switchToSepolia,
     fundTestToken,
     deposit,

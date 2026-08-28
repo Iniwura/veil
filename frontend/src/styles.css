@@ -8774,3 +8774,60 @@ body {
   .chamber-proof-line,
   .chamber-delivery-trace { animation: none; }
 }
+
+.wallet-session-control {
+  position: relative;
+  justify-self: end;
+}
+
+.wallet-session-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 80;
+  display: grid;
+  width: 230px;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.wallet-session-menu > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.wallet-session-menu > div > span,
+.wallet-session-menu > div > small {
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wallet-session-menu > div > strong {
+  color: var(--text);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+
+.wallet-session-menu > button {
+  min-height: 36px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-3);
+  color: var(--signal-ink);
+  background: var(--signal);
+  border: 1px solid var(--signal);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+@media (max-width: 430px) {
+  .wallet-session-menu {
+    width: min(230px, calc(100vw - 24px));
+  }
+}

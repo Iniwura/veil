@@ -1,9 +1,13 @@
+import { walletButtonAction, type WalletButtonAction } from "./walletSession";
+
 type WalletPresentationInput = {
   busy: string;
   wrongNetwork: boolean;
   address?: string;
   walletState: string;
 };
+
+export { walletButtonAction, type WalletButtonAction };
 
 export function walletActionLabel({ busy, wrongNetwork, address, walletState }: WalletPresentationInput) {
   if (busy === "switch-network") return "SWITCHING…";

@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BrandMark } from "./BrandMark";
 import { DemoBadge } from "./DemoBadge";
 import { RouteLink } from "./RouteLink";
 import type { UnveilController } from "../hooks/useUnveil";
 import type { AppRoute } from "../lib/routes";
-import { walletActionLabel } from "../lib/walletPresentation";
+import { walletActionLabel, walletButtonAction } from "../lib/walletPresentation";
 
 const NAV: Array<[AppRoute, string, string]> = [
   ["/app", "01", "Home"],
@@ -23,8 +23,11 @@ export function AppShell({
   children: ReactNode;
   onReplayGuide: () => void;
 }) {
-  const walletAction = unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect;
   const walletLabel = walletActionLabel(unveil);
+  const walletButtonActionState = walletButtonAction(unveil);
+  const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
+  const walletButtonRef = useRef<HTMLButtonElement>(null);
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
   const globalNotice = unveil.noticeScope === "global" ? unveil.notice : "";
   const globalError = unveil.errorScope === "global" ? unveil.error : "";
   const publicState = unveil.publicError
@@ -40,9 +43,30 @@ export function AppShell({
       ? "WALLET ACCOUNT CHANGED"
       : unveil.walletState === "reconnect-required"
         ? "RECONNECT REQUIRED"
-        : globalError
-          ? "ACTION NEEDS ATTENTION"
-          : "WALLET SESSION";
+          : globalError
+            ? "ACTION NEEDS ATTENTION"
+            : "WALLET SESSION";
+
+  useEffect(() => {
+    if (!unveil.connected) setSessionMenuOpen(false);
+  }, [unveil.connected]);
+
+  useEffect(() => {
+    if (!sessionMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSessionMenuOpen(false);
+      walletButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [sessionMenuOpen]);
+
+  useEffect(() => {
+    if (!sessionMenuOpen) return;
+    sessionMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [sessionMenuOpen]);
+
   return (
     <div className="app-shell">
       <div className="app-workspace">
@@ -80,16 +104,56 @@ export function AppShell({
               HELP
             </button>
           </div>
-          <button
-            className="wallet-button"
-            type="button"
-            onClick={walletAction}
-            disabled={Boolean(unveil.busy)}
-            data-tour="wallet"
-            data-cursor="enter"
-          >
-            {walletLabel}
-          </button>
+          <div className="wallet-session-control">
+            <button
+              ref={walletButtonRef}
+              className="wallet-button"
+              type="button"
+              onClick={() => {
+                if (walletButtonActionState === "open-menu") {
+                  setSessionMenuOpen((open) => !open);
+                } else if (walletButtonActionState === "switch-network") {
+                  void unveil.switchToSepolia();
+                } else {
+                  void unveil.connect();
+                }
+              }}
+              disabled={unveil.busy === "connect" || unveil.busy === "switch-network"}
+              aria-haspopup={unveil.connected ? "menu" : undefined}
+              aria-expanded={unveil.connected ? sessionMenuOpen : false}
+              aria-controls={unveil.connected ? "wallet-session-menu" : undefined}
+              data-tour="wallet"
+              data-cursor="enter"
+            >
+              {walletLabel}
+            </button>
+            {unveil.connected && sessionMenuOpen && (
+              <div
+                ref={sessionMenuRef}
+                id="wallet-session-menu"
+                className="wallet-session-menu"
+                role="menu"
+                aria-label="Wallet session"
+              >
+                <div role="none">
+                  <span>CONNECTED SESSION</span>
+                  <strong>{walletLabel}</strong>
+                  <small>SEPOLIA</small>
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setSessionMenuOpen(false);
+                    unveil.disconnectSession();
+                    walletButtonRef.current?.focus();
+                  }}
+                >
+                  DISCONNECT
+                </button>
+              </div>
+            )}
+          </div>
         </header>
         {(globalError || unveil.wrongNetwork || globalNotice) && (
           <div

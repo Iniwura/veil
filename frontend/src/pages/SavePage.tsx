@@ -152,9 +152,11 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
       : "DISCONNECTED";
   const accountStatusHeadline = unveil.wrongNetwork
     ? "Network change required."
-    : mode === "deposit"
-      ? "Quietly ready."
-      : "Request in view.";
+    : !unveil.connected
+      ? "Wallet connection required."
+      : mode === "deposit"
+        ? "Quietly ready."
+        : "Request in view.";
 
   useEffect(() => {
     if (selectedRoundId !== roundId) setRoundId(selectedRoundId);
