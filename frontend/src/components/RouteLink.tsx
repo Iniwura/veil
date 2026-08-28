@@ -6,11 +6,13 @@ export function RouteLink({
   className,
   children,
   dataTour,
+  dataCursor,
 }: {
   to: AppRoute;
   className?: string;
   children: ReactNode;
   dataTour?: string;
+  dataCursor?: "enter" | "sealed" | "verify";
 }) {
   function follow(event: MouseEvent<HTMLAnchorElement>) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -18,7 +20,7 @@ export function RouteLink({
     navigate(to);
   }
   return (
-    <a href={to} className={className} onClick={follow} data-tour={dataTour}>
+    <a href={to} className={className} onClick={follow} data-tour={dataTour} data-cursor={dataCursor}>
       {children}
     </a>
   );

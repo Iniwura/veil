@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { visualTransition } from "../lib/visualTransition";
 
 export type Theme = "dark" | "light";
 
@@ -9,10 +10,6 @@ export type ThemeController = {
 
 const STORAGE_KEY = "unveil.theme.v1";
 const THEME_QUERY = "(prefers-color-scheme: light)";
-
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => unknown;
-};
 
 function systemTheme(): Theme {
   return window.matchMedia(THEME_QUERY).matches ? "light" : "dark";
@@ -55,12 +52,7 @@ export function useTheme(): ThemeController {
           }
           return next;
         });
-      const reducedMotion =
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-        document.documentElement.dataset.motionReduced === "true";
-      const startViewTransition = (document as ViewTransitionDocument).startViewTransition;
-      if (startViewTransition && !reducedMotion) startViewTransition.call(document, updateTheme);
-      else updateTheme();
+      visualTransition(updateTheme, "theme");
     },
   };
 }

@@ -1,3 +1,5 @@
+import { SeamLoader } from "./SeamLoader";
+
 type EncryptedPositionPreviewProps = {
   roundId?: bigint;
   state?: string;
@@ -11,6 +13,7 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
   return (
     <section
       className="position-preview"
+      data-cursor="sealed"
       aria-label="Conceptual product preview showing a masked private position and separate public draw proof"
     >
       <div className="position-preview-private">
@@ -51,6 +54,7 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
           <span className={`position-preview-state position-preview-state--${publicState.toLowerCase()}`}>
             {publicState}
           </span>
+          <SeamLoader active={publicState === "LOADING"} />
         </header>
         <div className="position-preview-proof-rail">
           <div>

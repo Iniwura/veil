@@ -9,6 +9,9 @@ import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
 import type { ThemeController } from "../hooks/useTheme";
 import { useRevealOnScroll } from "../hooks/useMotion";
+import { LandingCursor } from "../components/LandingCursor";
+import { LandingProgress } from "../components/LandingProgress";
+import { ProtocolTicker } from "../components/ProtocolTicker";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
 export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme: ThemeController }) {
@@ -24,6 +27,8 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
       : "LOADING";
   return (
     <main className="landing-page">
+      <LandingCursor />
+      <LandingProgress />
       <header className="landing-nav">
         <a className="wordmark" href="/" aria-label="UNVEIL home">
           <BrandMark compact />
@@ -58,7 +63,7 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
             without publishing your balance.
           </p>
           <div className="hero-actions">
-            <RouteLink className="button-primary" to="/app">
+            <RouteLink className="button-primary" to="/app" dataCursor="enter">
               Launch app <span>↗</span>
             </RouteLink>
             <a className="button-text" href="#privacy">
@@ -73,40 +78,55 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
           participants={publicParticipants}
           publicState={publicState}
         />
+        <div className="hero-proof-details" aria-hidden="true">
+          <span>FHE</span>
+          <span>SEALED</span>
+          <span>PROOF</span>
+        </div>
       </section>
 
+      <ProtocolTicker />
+
       <section className="privacy-boundary" id="privacy" data-reveal>
-        <div className="privacy-boundary-heading">
-          <p className="eyebrow">PRIVACY BOUNDARY</p>
-          <h2>What the protocol reveals.</h2>
-          <p>Verification stays public while individual financial state stays encrypted.</p>
-        </div>
-        <div className="privacy-ledger">
-          <div className="privacy-ledger-column">
-            <span className="privacy-ledger-label">PUBLIC</span>
-            <ul>
-              <li>Round timing</li>
-              <li>Participant addresses</li>
-              <li>Draw lifecycle</li>
-              <li>Finalized winner</li>
-              <li>Proof and lifecycle events</li>
-            </ul>
+        <div className="privacy-story">
+          <div className="privacy-boundary-heading">
+            <p className="eyebrow">PRIVACY BOUNDARY</p>
+            <h2>What the protocol reveals.</h2>
+            <p>Verification stays public while individual financial state stays encrypted.</p>
           </div>
-          <div className="privacy-ledger-column privacy-ledger-column--private">
-            <span className="privacy-ledger-label">PRIVATE</span>
-            <ul>
-              <li>Deposit amount</li>
-              <li>Active principal</li>
-              <li>Withdrawal amount</li>
-              <li>Draw weight</li>
-              <li>Prize amount</li>
-            </ul>
+          <div className="privacy-ledger">
+            <div className="privacy-ledger-column" data-cursor="verify">
+              <span className="privacy-ledger-label">PUBLIC</span>
+              <ul>
+                <li>Round timing</li>
+                <li>Participant addresses</li>
+                <li>Draw lifecycle</li>
+                <li>Finalized winner</li>
+                <li>Proof and lifecycle events</li>
+              </ul>
+            </div>
+            <div className="privacy-ledger-column privacy-ledger-column--private" data-cursor="sealed">
+              <span className="privacy-ledger-label">PRIVATE</span>
+              <ul>
+                <li>Deposit amount</li>
+                <li>Active principal</li>
+                <li>Withdrawal amount</li>
+                <li>Draw weight</li>
+                <li>Prize amount</li>
+              </ul>
+            </div>
+          </div>
+          <p className="privacy-boundary-note">
+            UNVEIL does not provide address or transaction anonymity. Participant count is public, but it is not a
+            denominator for exact weighted odds.
+          </p>
+          <div className="privacy-editorial" aria-hidden="true">
+            <span>THE PROOF</span>
+            <strong>REMAINS.</strong>
+            <span>THE POSITION</span>
+            <strong>DOESN&apos;T.</strong>
           </div>
         </div>
-        <p className="privacy-boundary-note">
-          UNVEIL does not provide address or transaction anonymity. Participant count is public, but it is not a
-          denominator for exact weighted odds.
-        </p>
       </section>
 
       <section className="live-proof-section" id="live" data-reveal>
@@ -142,7 +162,13 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
           </div>
         </div>
         <RoundHistory rounds={unveil.history} compact />
-        <a className="text-link" href={explorerAddress(UNVEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
+        <a
+          className="text-link"
+          data-cursor="verify"
+          href={explorerAddress(UNVEIL_CONTRACTS.pool)}
+          target="_blank"
+          rel="noreferrer"
+        >
           VERIFY V2 POOL ↗
         </a>
       </section>
