@@ -51,6 +51,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           ) : (
             <button
               className="button-secondary home-wallet-action"
+              type="button"
               data-cursor="enter"
               onClick={unveil.wrongNetwork ? unveil.switchToSepolia : data?.joined ? unveil.renewSeat : unveil.connect}
               disabled={Boolean(unveil.busy)}
@@ -121,6 +122,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           </div>
           <button
             className="button-secondary"
+            type="button"
             data-cursor="sealed"
             data-tour="private-reveal"
             disabled={Boolean(unveil.busy)}
@@ -137,7 +139,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           <div className="home-section-head">
             <div>
               <span className="eyebrow">LATEST RESULT</span>
-              <h2>{result ? `ROUND ${result.id}` : "NO RESULT YET"}</h2>
+              <h2>{result ? `ROUND ${result.id.toString().padStart(2, "0")}` : "NO RESULT YET"}</h2>
             </div>
           </div>
           {!result ? (

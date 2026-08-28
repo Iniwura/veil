@@ -195,7 +195,12 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           <span>{saveError ? "SAVE ERROR" : saveStage === "SEALED" ? "POSITION SEALED" : "SAVE UPDATE"}</span>
           <p>{saveError || saveNotice}</p>
           {saveError && (
-            <button className="action-notice-dismiss" onClick={unveil.clearError} aria-label="Dismiss save error">
+            <button
+              className="action-notice-dismiss"
+              type="button"
+              onClick={unveil.clearError}
+              aria-label="Dismiss save error"
+            >
               ×
             </button>
           )}
@@ -397,6 +402,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <div className="vault-actions">
           <button
             className="button-primary"
+            type="button"
             data-cursor="sealed"
             data-tour="private-reveal"
             disabled={Boolean(unveil.busy)}
@@ -425,7 +431,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
               {roundIds.length ? (
                 roundIds.map((id) => (
                   <option key={id.toString()} value={id.toString()}>
-                    {id.toString()}
+                    {id.toString().padStart(2, "0")}
                   </option>
                 ))
               ) : (
@@ -434,13 +440,14 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
             </select>
             <button
               className="button-secondary"
+              type="button"
               disabled={Boolean(unveil.busy) || !selectedRoundId}
               onClick={() => selectedRoundId && unveil.revealRound(BigInt(selectedRoundId))}
             >
               {unveil.busy === "reveal-weight" ? "UNVEILING…" : "UNVEIL MY DRAW WEIGHT"}
             </button>
             {unveil.roundWeight && (
-              <button className="button-quiet" onClick={unveil.hideRoundWeight}>
+              <button className="button-quiet" type="button" onClick={unveil.hideRoundWeight}>
                 VEIL WEIGHT
               </button>
             )}

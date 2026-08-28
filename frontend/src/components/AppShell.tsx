@@ -76,12 +76,13 @@ export function AppShell({
           </div>
           <div className="app-topbar-tools">
             <DemoBadge compact />
-            <button className="help-button" onClick={onReplayGuide}>
+            <button className="help-button" type="button" onClick={onReplayGuide}>
               HELP
             </button>
           </div>
           <button
             className="wallet-button"
+            type="button"
             onClick={walletAction}
             disabled={Boolean(unveil.busy)}
             data-tour="wallet"
@@ -98,7 +99,7 @@ export function AppShell({
             <span>{sessionLabel}</span>
             <p>{globalError || globalNotice || "Switch to Sepolia to continue."}</p>
             {globalError && (
-              <button onClick={unveil.clearError} aria-label="Dismiss error">
+              <button type="button" onClick={unveil.clearError} aria-label="Dismiss error">
                 ×
               </button>
             )}

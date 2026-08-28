@@ -76,7 +76,12 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           <span>{drawError ? "DRAW ERROR" : "DRAW UPDATE"}</span>
           <p>{drawError || drawNotice}</p>
           {drawError && (
-            <button className="action-notice-dismiss" onClick={unveil.clearError} aria-label="Dismiss draw error">
+            <button
+              className="action-notice-dismiss"
+              type="button"
+              onClick={unveil.clearError}
+              aria-label="Dismiss draw error"
+            >
               ×
             </button>
           )}
@@ -92,7 +97,9 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
         />
         <div className="draw-focus-copy">
           <div className="draw-current-summary">
-            <span className="eyebrow">CURRENT ROUND · {schedule?.currentRoundId.toString() ?? "—"}</span>
+            <span className="eyebrow">
+              CURRENT ROUND · {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}
+            </span>
             <strong>{drawStateLabel(schedule)}</strong>
           </div>
           <div className="draw-mini-metrics">
@@ -137,7 +144,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           <section className="draw-result-card" data-tour="draw-result">
             <div>
               <span className="eyebrow">LATEST RESULT</span>
-              <h2>{result ? `ROUND ${result.id}` : "NO SETTLED RESULT"}</h2>
+              <h2>{result ? `ROUND ${result.id.toString().padStart(2, "0")}` : "NO SETTLED RESULT"}</h2>
               <p>
                 {result?.winner
                   ? `Verified winner ${shortAddress(result.winner)}.`
@@ -208,6 +215,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
                       />
                       <button
                         className="button-secondary"
+                        type="button"
                         disabled={Boolean(unveil.busy)}
                         onClick={() => (revealed ? unveil.hidePrize() : unveil.revealPrizeForRound(deliveredRound.id))}
                       >

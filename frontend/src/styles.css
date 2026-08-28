@@ -3166,9 +3166,6 @@ html[data-motion-reduced="true"] .save-page .private-instrument-material {
     min-width: 58px;
     padding: 0 7px;
   }
-  .app-nav a span {
-    display: none;
-  }
   .app-public-state {
     font-size: 7px;
   }
@@ -3648,17 +3645,13 @@ body,
   margin: 0;
   color: var(--danger);
   font-size: 11px;
+  letter-spacing: 0.05em;
   line-height: 1.5;
 }
 
 .draw-advance-button {
   width: 100%;
   min-height: 48px;
-}
-
-.draw-advance-warning {
-  color: var(--danger);
-  letter-spacing: 0.05em;
 }
 
 /* Premium UI pass 4A: product object, semantic surfaces, and state-led motion. */
@@ -3932,6 +3925,8 @@ body,
 
 .amount-input:focus-within {
   border-color: color-mix(in srgb, var(--signal) 65%, var(--border));
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
 }
 
 .amount-input input {
@@ -5043,9 +5038,6 @@ body,
     max-width: 54%;
     font-size: 10px;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
 }
 
 /* 6A — landing art direction. These rules refine the existing production composition. */
@@ -8631,6 +8623,7 @@ body {
 @media (max-width: 1100px) {
   .app-topbar { gap: var(--space-2); padding-inline: var(--gutter-md); }
   .app-nav a { min-width: 60px; padding-inline: var(--space-2); }
+  .app-nav a span { display: inline; }
   .app-public-state { font-size: 10px; }
   .app-topbar-tools .demo-badge { display: none; }
   .app-content { padding-inline: var(--gutter-md); }

@@ -64,6 +64,7 @@ export function RoundHistory({
             <strong>{prizeLabel(round)}</strong>
             <button
               className="verification-replay-button"
+              type="button"
               data-cursor="verify"
               onClick={() => setReplay({ id: round.id, token: (replay?.token ?? 0) + 1 })}
             >
