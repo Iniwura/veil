@@ -180,8 +180,12 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             </p>
             {!unveil.connected ? (
               <div className="empty-state">
-                <span>WALLET DISCONNECTED</span>
-                <p>Connect the winner wallet to find its recent delivered prizes.</p>
+                <span>{unveil.wrongNetwork ? "WRONG NETWORK" : "WALLET DISCONNECTED"}</span>
+                <p>
+                  {unveil.wrongNetwork
+                    ? "Switch to Sepolia to inspect wallet-dependent prizes."
+                    : "Connect the winner wallet to find its recent delivered prizes."}
+                </p>
               </div>
             ) : unveil.myDeliveredPrizes.length === 0 ? (
               <div className="empty-state">

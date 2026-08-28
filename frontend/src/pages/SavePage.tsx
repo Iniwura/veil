@@ -142,9 +142,19 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
       : unveil.dashboard?.seated
         ? "ACTIVE"
         : unveil.dashboard?.joined
-          ? "EXPIRED"
-          : "NOT JOINED";
+        ? "EXPIRED"
+        : "NOT JOINED";
   const latestWithdrawal = unveil.dashboard?.latestWithdrawal;
+  const walletLabel = unveil.wrongNetwork
+    ? "CONNECTED"
+    : unveil.connected
+      ? shortAddress(unveil.address)
+      : "DISCONNECTED";
+  const accountStatusHeadline = unveil.wrongNetwork
+    ? "Network change required."
+    : mode === "deposit"
+      ? "Quietly ready."
+      : "Request in view.";
 
   useEffect(() => {
     if (selectedRoundId !== roundId) setRoundId(selectedRoundId);
@@ -260,7 +270,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           </div>
           <DepositStageRail stage={mode === "deposit" ? saveStage : "IDLE"} />
           {mode === "withdraw" && <WithdrawRequestVisual active={withdrawRequestActive} />}
-          {!unveil.connected && (
+          {!unveil.connected && !unveil.wrongNetwork && (
             <div className="notice save-wallet-note">
               <strong>WALLET DISCONNECTED</strong>
               <p>Connect a Sepolia wallet before submitting a confidential transaction.</p>
@@ -307,12 +317,12 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <aside className="account-status-region account-status-region--utility">
           <div className="account-status-heading">
             <span className="eyebrow">ACCOUNT STATUS</span>
-            <h2>{mode === "deposit" ? "Quietly ready." : "Request in view."}</h2>
+            <h2>{accountStatusHeadline}</h2>
           </div>
           <dl className="account-status-list">
             <div>
               <dt>WALLET</dt>
-              <dd>{unveil.connected ? shortAddress(unveil.address) : "DISCONNECTED"}</dd>
+              <dd>{walletLabel}</dd>
             </div>
             <div>
               <dt>DRAW ELIGIBILITY</dt>
