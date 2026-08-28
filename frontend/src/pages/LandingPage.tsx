@@ -8,7 +8,6 @@ import { RoundHistory } from "../components/RoundHistory";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
 import { useRevealOnScroll } from "../hooks/useMotion";
-import { LandingCursor } from "../components/LandingCursor";
 import { LandingProgress } from "../components/LandingProgress";
 import { ProtocolTicker } from "../components/ProtocolTicker";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
@@ -26,16 +25,17 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
       : "LOADING";
   return (
     <main className="landing-page">
-      <LandingCursor />
       <LandingProgress />
       <header className="landing-nav">
-        <a className="wordmark" href="/" aria-label="UNVEIL home">
+        <RouteLink className="wordmark" to="/" dataCursor="enter">
           <BrandMark compact />
           <strong>UNVEIL</strong>
-        </a>
+        </RouteLink>
         <nav aria-label="Landing navigation">
           <a href="#product">Product</a>
-          <a href="#privacy">Privacy</a>
+          <a href="#privacy-intro" data-cursor="verify">
+            Privacy
+          </a>
           <a href="#live">Live</a>
           <a href="https://github.com/Iniwura/veil" target="_blank" rel="noreferrer">
             GitHub
@@ -52,9 +52,6 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
       </header>
 
       <section className="landing-hero" id="product">
-        <div className="hero-depth-word" aria-hidden="true">
-          VERIFIABLY.
-        </div>
         <div className="hero-annotation hero-annotation--top" aria-hidden="true">
           <span>ENCRYPTED PRINCIPAL</span>
           <span>PUBLIC PROOF</span>
@@ -75,14 +72,14 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
               VERIFIABLY.
             </span>
           </h1>
-          <p className="hero-lede">
+          <p className="hero-lede" data-native-cursor>
             Save into an encrypted position. Stay eligible for verifiable prize draws without publishing your balance.
           </p>
           <div className="hero-actions">
             <RouteLink className="button-primary" to="/app" dataCursor="enter">
               Launch app <span>↗</span>
             </RouteLink>
-            <a className="button-text" href="#privacy">
+            <a className="button-text" href="#privacy-intro" data-cursor="verify">
               See how it works <span>↓</span>
             </a>
           </div>
@@ -114,6 +111,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
       <ProtocolTicker />
 
       <section className="privacy-boundary" id="privacy" data-reveal>
+        <span id="privacy-intro" className="privacy-intro-anchor" aria-hidden="true" />
         <div className="privacy-story">
           <div className="privacy-matter" aria-hidden="true">
             <EncryptedMatterArtwork idPrefix="privacy-matter" variant="privacy" />
@@ -121,7 +119,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
           <div className="privacy-boundary-heading">
             <p className="eyebrow">PRIVACY BOUNDARY</p>
             <h2>What the protocol reveals.</h2>
-            <p>Verification stays public while individual financial state stays encrypted.</p>
+            <p data-native-cursor>Verification stays public while individual financial state stays encrypted.</p>
           </div>
           <div className="privacy-ledger">
             <div className="privacy-ledger-column" data-cursor="verify">
@@ -145,7 +143,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
               </ul>
             </div>
           </div>
-          <p className="privacy-boundary-note">
+          <p className="privacy-boundary-note" data-native-cursor>
             UNVEIL does not provide address or transaction anonymity. Participant count is public, but it is not a
             denominator for exact weighted odds.
           </p>
@@ -171,7 +169,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
           <div className="live-proof-intro">
             <p className="eyebrow">PUBLIC PROOF</p>
             <h2>Live on Sepolia.</h2>
-            <p>Current public state, read directly from the deployed V2 contracts.</p>
+            <p data-native-cursor>Current public state, read directly from the deployed V2 contracts.</p>
           </div>
           <div className="live-round-anchor" aria-hidden="true">
             <span>ROUND</span>
@@ -222,7 +220,7 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
             <strong>Public proof.</strong>
           </h2>
           <p>SAVE WITHOUT SHOWING YOUR BALANCE.</p>
-          <RouteLink className="button-primary" to="/app/save" dataCursor="enter">
+          <RouteLink className="button-primary" to="/app" dataCursor="enter">
             Launch UNVEIL <span>↗</span>
           </RouteLink>
         </div>

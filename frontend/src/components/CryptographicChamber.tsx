@@ -89,6 +89,7 @@ export function CryptographicChamber({
       data-chamber-state={state}
       data-chamber-phase={activePhase}
       data-chamber-visible={visible}
+      data-cursor="sealed"
       aria-label={`Live cryptographic chamber. ${displayPhase}.`}
     >
       <div className="chamber-header">
@@ -98,12 +99,12 @@ export function CryptographicChamber({
         </div>
         <div className="chamber-public-meta">
           <span>ROUND {roundId?.toString().padStart(2, "0") ?? "—"}</span>
+          <span>{state}</span>
           <span>{participantCount ?? "—"} PUBLIC PARTICIPANTS</span>
         </div>
       </div>
       <div className="chamber-stage" ref={stageRef} data-chamber-stage aria-hidden="true">
         <div className="chamber-field">
-          <div className="chamber-field-grid" />
           <div className="chamber-ribbons">
             {Array.from({ length: 7 }, (_, index) => (
               <i key={index} style={{ "--ribbon-index": index } as CSSProperties} />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { ProductTour } from "./components/ProductTour";
+import { UnveilCursor } from "./components/UnveilCursor";
 import { useRoute } from "./hooks/useRoute";
 import { useDocumentMotion } from "./hooks/useMotion";
 import { useUnveil } from "./hooks/useUnveil";
@@ -25,6 +26,7 @@ export default function App() {
 
   return (
     <>
+      <UnveilCursor />
       {route === "/" ? (
         <LandingPage unveil={unveil} />
       ) : (

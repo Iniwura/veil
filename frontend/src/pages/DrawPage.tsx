@@ -59,8 +59,11 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
   return (
     <div className="page-stack route-enter">
       <header className="draw-page-intro">
-        <span className="eyebrow">DRAW · CRYPTOGRAPHIC CHAMBER</span>
-        <p>
+        <div className="draw-page-intro-heading">
+          <span className="eyebrow">PUBLIC SETTLEMENT</span>
+          <strong>{schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</strong>
+        </div>
+        <p data-native-cursor>
           Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.
         </p>
       </header>
@@ -119,7 +122,13 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             <span className="eyebrow">SETTLEMENT + HISTORY</span>
             <h2>Recent verified activity.</h2>
           </div>
-          <a className="text-link" href={explorerAddress(UNVEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
+          <a
+            className="text-link"
+            data-cursor="verify"
+            href={explorerAddress(UNVEIL_CONTRACTS.pool)}
+            target="_blank"
+            rel="noreferrer"
+          >
             VERIFY V2 POOL ↗
           </a>
         </header>
@@ -143,7 +152,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
               <span>STATE</span>
               <strong>{result?.status ?? "—"}</strong>
               {result?.winner && (
-                <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer">
+                <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer" data-cursor="verify">
                   VERIFY WINNER ↗
                 </a>
               )}
@@ -158,7 +167,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
               </div>
               <span className="draw-prize-note">NO CLAIM TRANSACTION</span>
             </div>
-            <p className="draw-prize-intro">
+            <p className="draw-prize-intro" data-native-cursor>
               Processed winners receive confidential TEST strategy shares directly. Only the winning wallet can unveil
               the delivered amount.
             </p>

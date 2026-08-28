@@ -30,7 +30,7 @@ export function RoundHistory({
   }
   const visible = compact ? rounds.slice(0, 3) : rounds;
   return (
-    <div className="round-history">
+    <div className={`round-history ${compact ? "round-history--compact" : "round-history--full"}`}>
       {visible.map((round) => (
         <article className="round-row" key={round.id.toString()}>
           <div className="round-row-number">
@@ -44,7 +44,7 @@ export function RoundHistory({
           <div>
             <span>{round.status === "FINALIZED" ? "WINNER" : "RESULT"}</span>
             {round.winner ? (
-              <a href={explorerAddress(round.winner)} target="_blank" rel="noreferrer">
+              <a href={explorerAddress(round.winner)} target="_blank" rel="noreferrer" data-cursor="verify">
                 {shortAddress(round.winner)} ↗
               </a>
             ) : (
@@ -64,6 +64,7 @@ export function RoundHistory({
             <strong>{prizeLabel(round)}</strong>
             <button
               className="verification-replay-button"
+              data-cursor="verify"
               onClick={() => setReplay({ id: round.id, token: (replay?.token ?? 0) + 1 })}
             >
               {round.status === "SKIPPED" ? "VIEW VERIFIED SKIP" : "REPLAY VERIFICATION"}
@@ -112,7 +113,13 @@ export function RoundHistory({
         </article>
       ))}
       {showExplorerLink && (
-        <a className="text-link" href={explorerAddress(UNVEIL_CONTRACTS.pool)} target="_blank" rel="noreferrer">
+        <a
+          className="text-link"
+          href={explorerAddress(UNVEIL_CONTRACTS.pool)}
+          target="_blank"
+          rel="noreferrer"
+          data-cursor="verify"
+        >
           VERIFY ALL POOL STATE ON ETHERSCAN ↗
         </a>
       )}

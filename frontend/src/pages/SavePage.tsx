@@ -263,6 +263,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           )}
           <button
             className={`button-primary button-full save-primary-action save-primary-action--${saveStage.toLowerCase()}`}
+            data-cursor="enter"
             data-tour="save-submit"
             disabled={Boolean(unveil.busy) || !amount}
             type="submit"
@@ -337,6 +338,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
       <section
         className={`vault-surface private-position-instrument ${revealed ? "vault-surface--revealed" : ""} ${unveil.busy === "reveal-vault" ? "vault-surface--unveiling" : ""}`}
         data-tour="private-position"
+        data-cursor="sealed"
       >
         <div className="save-section-heading">
           <div>
@@ -395,6 +397,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <div className="vault-actions">
           <button
             className="button-primary"
+            data-cursor="sealed"
             data-tour="private-reveal"
             disabled={Boolean(unveil.busy)}
             onClick={revealed ? unveil.hideVault : unveil.revealVaultStats}
@@ -408,7 +411,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         </div>
       </section>
 
-      <details className="weight-reveal advanced-private-data">
+      <details className="weight-reveal advanced-private-data" data-cursor="sealed">
         <summary>Inspect historical draw weight</summary>
         <div className="weight-reveal-body">
           <div>

@@ -3,16 +3,18 @@ import { RoundHistory } from "../components/RoundHistory";
 import { RouteLink } from "../components/RouteLink";
 import type { UnveilController } from "../hooks/useUnveil";
 import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
+import { walletActionLabel } from "../lib/walletPresentation";
 
 export function HomePage({ unveil }: { unveil: UnveilController }) {
   const data = unveil.dashboard;
   const schedule = unveil.schedule;
   const result = unveil.latestResult;
+  const drawAction = unveil.drawAction;
   const privateState = unveil.busy === "reveal-vault" ? "UNVEILING" : unveil.vault ? "UNVEILED TO YOU" : "SEALED";
   const seatState = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : !unveil.connected
-      ? "CONNECT WALLET"
+      ? walletActionLabel(unveil)
       : data?.seated
         ? "ACTIVE"
         : data?.joined
@@ -20,7 +22,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           : "NOT JOINED";
 
   const action = !unveil.connected
-    ? { kind: "button" as const, label: unveil.wrongNetwork ? "SWITCH TO SEPOLIA" : "CONNECT WALLET" }
+    ? { kind: "button" as const, label: walletActionLabel(unveil) }
     : data?.joined && !data.seated
       ? { kind: "button" as const, label: "RENEW SEAT" }
       : data?.seated
@@ -39,12 +41,17 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
         </div>
         <div className="home-command-actions">
           {action.kind === "link" ? (
-            <RouteLink className="button-primary" to={action.label === "VIEW DRAW" ? "/app/draw" : "/app/save"}>
+            <RouteLink
+              className="button-primary"
+              to={action.label === "VIEW DRAW" ? "/app/draw" : "/app/save"}
+              dataCursor="enter"
+            >
               {action.label} <span>↗</span>
             </RouteLink>
           ) : (
             <button
-              className="button-primary"
+              className="button-secondary home-wallet-action"
+              data-cursor="enter"
               onClick={unveil.wrongNetwork ? unveil.switchToSepolia : data?.joined ? unveil.renewSeat : unveil.connect}
               disabled={Boolean(unveil.busy)}
             >
@@ -56,7 +63,10 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           <div className="home-command-status">
             <span className="eyebrow">ROUND STATUS</span>
             <strong>{drawStateLabel(schedule)}</strong>
-            <span>NEXT: {action.kind === "link" ? action.label : (data?.drawAction?.title ?? "LOADING")}</span>
+            <div className="home-command-next">
+              <span className="eyebrow">NEXT STEP</span>
+              {drawAction ? <strong>{drawAction.title}</strong> : <span className="home-command-resolving">RESOLVING</span>}
+            </div>
           </div>
           <div className="home-command-metrics">
             <span>
@@ -73,13 +83,13 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
       </section>
 
       <section className="home-dashboard-grid">
-        <article className="private-panel" data-tour="private-position">
+        <article className="private-panel" data-tour="private-position" data-cursor="sealed">
           <div className="home-section-head">
             <div>
               <span className="eyebrow">MY PRIVATE POSITION</span>
               <h2>{privateState}</h2>
             </div>
-            <RouteLink className="text-link" to="/app/save">
+            <RouteLink className="text-link" to="/app/save" dataCursor="enter">
               OPEN SAVE →
             </RouteLink>
           </div>
@@ -111,6 +121,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
           </div>
           <button
             className="button-secondary"
+            data-cursor="sealed"
             data-tour="private-reveal"
             disabled={Boolean(unveil.busy)}
             onClick={unveil.vault ? unveil.hideVault : unveil.revealVaultStats}
@@ -175,7 +186,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
             <span className="eyebrow">VERIFIED HISTORY</span>
             <h2>Recent draws.</h2>
           </div>
-          <RouteLink className="text-link" to="/app/draw">
+          <RouteLink className="text-link" to="/app/draw" dataCursor="enter">
             VIEW ALL →
           </RouteLink>
         </div>

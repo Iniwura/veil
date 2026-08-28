@@ -4,7 +4,7 @@ import { DemoBadge } from "./DemoBadge";
 import { RouteLink } from "./RouteLink";
 import type { UnveilController } from "../hooks/useUnveil";
 import type { AppRoute } from "../lib/routes";
-import { shortAddress } from "../lib/format";
+import { walletActionLabel } from "../lib/walletPresentation";
 
 const NAV: Array<[AppRoute, string, string]> = [
   ["/app", "01", "Home"],
@@ -24,18 +24,7 @@ export function AppShell({
   onReplayGuide: () => void;
 }) {
   const walletAction = unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect;
-  const walletLabel =
-    unveil.busy === "switch-network"
-      ? "SWITCHING…"
-      : unveil.wrongNetwork
-        ? "SWITCH TO SEPOLIA"
-        : unveil.busy === "connect"
-          ? "CONNECTING…"
-          : unveil.address
-            ? shortAddress(unveil.address)
-            : unveil.walletState === "reconnect-required" || unveil.walletState === "account-changed"
-              ? "RECONNECT WALLET"
-              : "CONNECT WALLET";
+  const walletLabel = walletActionLabel(unveil);
   const globalNotice = unveil.noticeScope === "global" ? unveil.notice : "";
   const globalError = unveil.errorScope === "global" ? unveil.error : "";
   const publicState = unveil.publicError
@@ -58,7 +47,7 @@ export function AppShell({
     <div className="app-shell">
       <div className="app-workspace">
         <header className="app-topbar">
-          <RouteLink to="/" className="wordmark app-brand">
+          <RouteLink to="/" className="wordmark app-brand" dataCursor="enter">
             <BrandMark compact />
             <strong>UNVEIL</strong>
           </RouteLink>
@@ -67,6 +56,7 @@ export function AppShell({
               <RouteLink
                 to={to}
                 className={route === to ? "active" : ""}
+                dataCursor="enter"
                 dataTour={to === "/app/save" ? "nav-save" : to === "/app/draw" ? "nav-draw" : "nav-home"}
                 key={to}
               >
@@ -90,7 +80,13 @@ export function AppShell({
               HELP
             </button>
           </div>
-          <button className="wallet-button" onClick={walletAction} disabled={Boolean(unveil.busy)} data-tour="wallet">
+          <button
+            className="wallet-button"
+            onClick={walletAction}
+            disabled={Boolean(unveil.busy)}
+            data-tour="wallet"
+            data-cursor="enter"
+          >
             {walletLabel}
           </button>
         </header>
@@ -115,6 +111,7 @@ export function AppShell({
           <RouteLink
             to={to}
             className={route === to ? "active" : ""}
+            dataCursor="enter"
             dataTour={to === "/app/save" ? "nav-save" : to === "/app/draw" ? "nav-draw" : "nav-home"}
             key={to}
           >

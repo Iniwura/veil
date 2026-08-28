@@ -49,6 +49,7 @@ export function DrawAdvancePanel({
       {showButton && (
         <button
           className="button-primary draw-advance-button"
+          data-cursor="enter"
           type="button"
           disabled={Boolean(busy)}
           onClick={() => {
