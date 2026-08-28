@@ -28,7 +28,7 @@ export default function App() {
   return (
     <>
       {route === "/" ? (
-        <LandingPage unveil={unveil} theme={theme} />
+        <LandingPage unveil={unveil} />
       ) : (
         <AppShell
           route={route}

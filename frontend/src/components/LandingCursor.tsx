@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 type CursorIntent = "default" | "enter" | "sealed" | "verify";
 
+const CURSOR_LABELS: Record<CursorIntent, string> = {
+  default: "",
+  enter: "ENTER ↗",
+  sealed: "SEALED",
+  verify: "VERIFY",
+};
+
 /** A small marketing-only pointer aid. It never runs in the application shell. */
 export function LandingCursor() {
   const ref = useRef<HTMLDivElement>(null);
@@ -36,7 +43,7 @@ export function LandingCursor() {
   return (
     <div className={`landing-cursor landing-cursor--${intent}`} ref={ref} aria-hidden="true">
       <i />
-      {intent !== "default" && <span>{intent.toUpperCase()}</span>}
+      {intent !== "default" && <span>{CURSOR_LABELS[intent]}</span>}
     </div>
   );
 }

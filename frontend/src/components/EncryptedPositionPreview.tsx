@@ -1,3 +1,4 @@
+import { EncryptedMatterArtwork } from "./EncryptedMatterArtwork";
 import { SeamLoader } from "./SeamLoader";
 
 type EncryptedPositionPreviewProps = {
@@ -16,6 +17,7 @@ export function EncryptedPositionPreview({ roundId, state, participants, publicS
       data-cursor="sealed"
       aria-label="Conceptual product preview showing a masked private position and separate public draw proof"
     >
+      <EncryptedMatterArtwork idPrefix="hero-matter" />
       <div className="position-preview-private">
         <header className="position-preview-header">
           <div>

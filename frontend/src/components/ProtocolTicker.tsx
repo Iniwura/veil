@@ -3,7 +3,8 @@ const CONCEPTS = [
   "PRIVATE PRINCIPAL",
   "PUBLIC VERIFICATION",
   "AUTOMATIC CONFIDENTIAL PRIZES",
-  "SEPOLIA V2",
+  "ZAMA FHE",
+  "SEPOLIA",
 ] as const;
 
 function TickerContent() {

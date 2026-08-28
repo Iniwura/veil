@@ -1,21 +1,33 @@
+import { useEffect } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { DemoBadge } from "../components/DemoBadge";
 import { DrawCountdown } from "../components/DrawCountdown";
+import { EncryptedMatterArtwork } from "../components/EncryptedMatterArtwork";
 import { EncryptedPositionPreview } from "../components/EncryptedPositionPreview";
 import { RouteLink } from "../components/RouteLink";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { RoundHistory } from "../components/RoundHistory";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import type { UnveilController } from "../hooks/useUnveil";
-import type { ThemeController } from "../hooks/useTheme";
 import { useRevealOnScroll } from "../hooks/useMotion";
 import { LandingCursor } from "../components/LandingCursor";
 import { LandingProgress } from "../components/LandingProgress";
 import { ProtocolTicker } from "../components/ProtocolTicker";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
-export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme: ThemeController }) {
+export function LandingPage({ unveil }: { unveil: UnveilController }) {
   useRevealOnScroll();
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousTheme = root.dataset.theme;
+    const previousColorScheme = root.style.colorScheme;
+    root.dataset.theme = "dark";
+    root.style.colorScheme = "dark";
+    return () => {
+      if (previousTheme) root.dataset.theme = previousTheme;
+      else delete root.dataset.theme;
+      root.style.colorScheme = previousColorScheme;
+    };
+  }, []);
   const schedule = unveil.schedule;
   const publicParticipants = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
   const publicState = unveil.publicError
@@ -34,6 +46,10 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
           <BrandMark compact />
           <strong>UNVEIL</strong>
         </a>
+        <div className="landing-nav-meta" aria-hidden="true">
+          <span>01 / PRIVATE PRIZE SAVINGS</span>
+          <span>SEPOLIA V2</span>
+        </div>
         <nav aria-label="Landing navigation">
           <a href="#product">Product</a>
           <a href="#privacy">Privacy</a>
@@ -43,24 +59,38 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
           </a>
         </nav>
         <div className="landing-nav-actions">
-          <ThemeToggle {...theme} />
-          <RouteLink className="button-primary button-small" to="/app">
+          <span className="landing-nav-status">
+            <i /> SEPOLIA LIVE
+          </span>
+          <RouteLink className="button-primary button-small" to="/app" dataCursor="enter">
             Launch app
           </RouteLink>
         </div>
       </header>
 
       <section className="landing-hero" id="product">
+        <div className="hero-annotation hero-annotation--top" aria-hidden="true">
+          <span>ENCRYPTED PRINCIPAL</span>
+          <span>PUBLIC PROOF</span>
+        </div>
         <div className="hero-copy">
           <p className="eyebrow">PRIVATE PRIZE SAVINGS · ZAMA FHE</p>
-          <h1>
-            SAVE PRIVATELY.
-            <br />
-            <em>WIN VERIFIABLY.</em>
+          <h1 className="hero-title" aria-label="SAVE PRIVATELY. WIN VERIFIABLY.">
+            <span className="hero-word hero-word--save" aria-hidden="true">
+              SAVE
+            </span>
+            <span className="hero-word hero-word--privately" aria-hidden="true">
+              PRIVATELY.
+            </span>
+            <span className="hero-word hero-word--win" aria-hidden="true">
+              WIN
+            </span>
+            <span className="hero-word hero-word--verifiably" aria-hidden="true">
+              VERIFIABLY.
+            </span>
           </h1>
           <p className="hero-lede">
-            Save into an encrypted position, participate in verifiable weighted draws, and receive confidential prizes
-            without publishing your balance.
+            Save into an encrypted position. Stay eligible for verifiable prize draws without publishing your balance.
           </p>
           <div className="hero-actions">
             <RouteLink className="button-primary" to="/app" dataCursor="enter">
@@ -72,12 +102,22 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
           </div>
           <p className="campaign">Nothing to see. Everything to verify.</p>
         </div>
-        <EncryptedPositionPreview
-          roundId={schedule?.currentRoundId}
-          state={schedule ? drawStateLabel(schedule) : undefined}
-          participants={publicParticipants}
-          publicState={publicState}
-        />
+        <div className="hero-art-direction">
+          <EncryptedPositionPreview
+            roundId={schedule?.currentRoundId}
+            state={schedule ? drawStateLabel(schedule) : undefined}
+            participants={publicParticipants}
+            publicState={publicState}
+          />
+          <div className="hero-art-caption" aria-hidden="true">
+            <span>02 / PRIVATE POSITION</span>
+            <span>SEALED BY DESIGN</span>
+          </div>
+        </div>
+        <div className="hero-annotation hero-annotation--bottom" aria-hidden="true">
+          <span>FHE / 01</span>
+          <span>VERIFICATION BOUNDARY</span>
+        </div>
         <div className="hero-proof-details" aria-hidden="true">
           <span>FHE</span>
           <span>SEALED</span>
@@ -89,6 +129,12 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
 
       <section className="privacy-boundary" id="privacy" data-reveal>
         <div className="privacy-story">
+          <div className="privacy-scenic-word" aria-hidden="true">
+            PRIVATE
+          </div>
+          <div className="privacy-matter" aria-hidden="true">
+            <EncryptedMatterArtwork idPrefix="privacy-matter" />
+          </div>
           <div className="privacy-boundary-heading">
             <p className="eyebrow">PRIVACY BOUNDARY</p>
             <h2>What the protocol reveals.</h2>
@@ -130,6 +176,14 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
       </section>
 
       <section className="live-proof-section" id="live" data-reveal>
+        <div className="live-status-band" aria-label="Current public Sepolia status">
+          <span>
+            <i /> {schedule ? "SEPOLIA LIVE" : `SEPOLIA ${publicState}`}
+          </span>
+          <span>ROUND {schedule?.currentRoundId?.toString().padStart(2, "0") ?? "—"}</span>
+          <span>PARTICIPANTS {publicParticipants ?? "—"}</span>
+          <span>FINALIZATION {schedule?.ready ? "READY" : "PENDING"}</span>
+        </div>
         <div className="live-proof-head">
           <div>
             <p className="eyebrow">PUBLIC PROOF</p>
@@ -174,11 +228,17 @@ export function LandingPage({ unveil, theme }: { unveil: UnveilController; theme
       </section>
 
       <section className="final-cta" data-reveal>
-        <p className="eyebrow">TEST/DEMO · ZAMA FHE</p>
-        <h2>Private savings. Public proof.</h2>
-        <RouteLink className="button-primary" to="/app/save">
-          Launch UNVEIL <span>↗</span>
-        </RouteLink>
+        <div className="final-cta-copy">
+          <p className="eyebrow">TEST/DEMO · ZAMA FHE</p>
+          <h2>Private savings. Public proof.</h2>
+          <p>SAVE WITHOUT SHOWING YOUR BALANCE.</p>
+          <RouteLink className="button-primary" to="/app/save" dataCursor="enter">
+            Launch UNVEIL <span>↗</span>
+          </RouteLink>
+        </div>
+        <div className="final-cta-matter" aria-hidden="true">
+          <EncryptedMatterArtwork idPrefix="final-matter" />
+        </div>
       </section>
       <footer className="landing-footer">
         <div className="wordmark">
