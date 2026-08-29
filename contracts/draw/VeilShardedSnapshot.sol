@@ -38,16 +38,8 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
     mapping(uint256 => mapping(address => uint8)) private _snapshotIndexByAccount;
 
     event ShardedSnapshotBegun(uint256 indexed roundId, uint64 startedBlock);
-    event ShardSnapshotted(
-        uint256 indexed roundId,
-        uint8 indexed shard,
-        uint8 participantCount
-    );
-    event ShardedSnapshotFinalized(
-        uint256 indexed roundId,
-        uint16 participantCount,
-        uint64 finalizedBlock
-    );
+    event ShardSnapshotted(uint256 indexed roundId, uint8 indexed shard, uint8 participantCount);
+    event ShardedSnapshotFinalized(uint256 indexed roundId, uint16 participantCount, uint64 finalizedBlock);
 
     function getShardedSnapshotRound(
         uint256 roundId
@@ -117,8 +109,12 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
 
         uint8 sourceParticipantCount = _historicalShardSourceParticipantCount(roundId, shard);
         uint64 closesAt = _rosterScheduledDrawClosesAt(roundId);
-        (uint8 snapshotParticipantCount, euint64 shardTotalWeight) =
-            _buildShardSnapshot(roundId, shard, sourceParticipantCount, closesAt);
+        (uint8 snapshotParticipantCount, euint64 shardTotalWeight) = _buildShardSnapshot(
+            roundId,
+            shard,
+            sourceParticipantCount,
+            closesAt
+        );
 
         snapshot.participantCount = snapshotParticipantCount;
         snapshot.encryptedTotalWeight = shardTotalWeight;
@@ -150,8 +146,12 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         shardTotalWeight = FHE.asEuint64(0);
 
         for (uint8 i = 0; i < sourceParticipantCount; i++) {
-            (address account, euint64 matureWeight, bool eligible) =
-                _matureHistoricalWeight(roundId, shard, i, closesAt);
+            (address account, euint64 matureWeight, bool eligible) = _matureHistoricalWeight(
+                roundId,
+                shard,
+                i,
+                closesAt
+            );
             if (!eligible) continue;
 
             _recordSnapshotParticipant(roundId, shard, snapshotParticipantCount, account, matureWeight);
@@ -171,16 +171,14 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         uint64 expiresAt;
         euint64 closeWeight;
         uint256 eligibleFromRoundId;
-        (account, expiresAt, closeWeight, eligibleFromRoundId) =
-            _historicalShardPlayerAt(roundId, shard, sourceIndex);
+        (account, expiresAt, closeWeight, eligibleFromRoundId) = _historicalShardPlayerAt(roundId, shard, sourceIndex);
 
         if (expiresAt < closesAt || eligibleFromRoundId == 0 || eligibleFromRoundId > roundId) {
             return (account, closeWeight, false);
         }
 
-        euint64 previousCloseWeight = roundId == 1
-            ? FHE.asEuint64(0)
-            : _historicalShardWeightOf(roundId - 1, shard, account);
+        euint64 previousCloseWeight =
+            roundId == 1 ? FHE.asEuint64(0) : _historicalShardWeightOf(roundId - 1, shard, account);
         matureWeight = FHE.min(previousCloseWeight, closeWeight);
         eligible = true;
     }

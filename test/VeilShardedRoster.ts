@@ -10,7 +10,11 @@ const SHARD_SIZE = 24;
 const CAPACITY = SHARD_COUNT * SHARD_SIZE;
 
 function testAddress(index: number) {
-  return ethers.getAddress(`0x${BigInt(index + 10_000).toString(16).padStart(40, "0")}`);
+  return ethers.getAddress(
+    `0x${BigInt(index + 10_000)
+      .toString(16)
+      .padStart(40, "0")}`,
+  );
 }
 
 async function deployRoster() {

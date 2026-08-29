@@ -318,8 +318,9 @@ contract VeilPoolV4 is VeilShardedDraw {
         DrawRecord storage draw = draws[roundId];
         if (draw.state != DrawState.SNAPSHOTTED) revert RoundNotSnapshotting();
 
-        (, , uint16 participantCount, uint8 processedShardCount, bool begun, bool finalized) =
-            getShardedSnapshotRound(roundId);
+        (, , uint16 participantCount, uint8 processedShardCount, bool begun, bool finalized) = getShardedSnapshotRound(
+            roundId
+        );
         if (!begun) revert SnapshotNotBegun();
         if (finalized) revert SnapshotAlreadyFinalized();
         if (processedShardCount != SHARD_COUNT) revert ShardsPending();

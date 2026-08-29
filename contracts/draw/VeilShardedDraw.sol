@@ -177,11 +177,7 @@ abstract contract VeilShardedDraw is VeilShardedSnapshot {
         }
     }
 
-    function _selectMember(
-        uint256 roundId,
-        uint8 shard,
-        euint64 target
-    ) private returns (eaddress winner) {
+    function _selectMember(uint256 roundId, uint8 shard, euint64 target) private returns (eaddress winner) {
         uint8 participantCount = _snapshotShardParticipantCount(roundId, shard);
         euint64 cumulative = FHE.asEuint64(0);
         ebool selected = FHE.asEbool(false);

@@ -163,11 +163,7 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
         uint256 roundId,
         uint8 shard,
         uint8 index
-    )
-        internal
-        view
-        returns (address account, uint64 expiresAt, euint64 weight, uint256 eligibleFromRoundId)
-    {
+    ) internal view returns (address account, uint64 expiresAt, euint64 weight, uint256 eligibleFromRoundId) {
         _requireShard(shard);
         uint256 epochId = _shardEpochForRound(shard, roundId);
         uint8 sourceParticipantCount =
@@ -194,8 +190,7 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
             epochId == 0 ? shardPlayerCount[shard] : _shardStateEpochs[shard][epochId].participantCount;
 
         for (uint8 i = 0; i < sourceParticipantCount; i++) {
-            address candidate =
-                epochId == 0 ? _shardPlayers[shard][i] : _shardStateEpochPlayers[shard][epochId][i];
+            address candidate = epochId == 0 ? _shardPlayers[shard][i] : _shardStateEpochPlayers[shard][epochId][i];
             if (candidate != account) continue;
             return epochId == 0 ? _rosterCurrentWeight(account) : _shardStateEpochWeights[shard][epochId][i];
         }
@@ -212,13 +207,12 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
             epochId == 0 ? shardPlayerCount[shard] : _shardStateEpochs[shard][epochId].participantCount;
 
         for (uint8 i = 0; i < sourceParticipantCount; i++) {
-            address account =
-                epochId == 0 ? _shardPlayers[shard][i] : _shardStateEpochPlayers[shard][epochId][i];
-            uint64 expiresAt =
-                epochId == 0 ? seatExpiresAt[account] : _shardStateEpochSeatExpiresAt[shard][epochId][i];
-            uint256 eligibleFromRoundId = epochId == 0
-                ? seatEligibleFromRoundId[account]
-                : _shardStateEpochSeatEligibleFromRoundId[shard][epochId][i];
+            address account = epochId == 0 ? _shardPlayers[shard][i] : _shardStateEpochPlayers[shard][epochId][i];
+            uint64 expiresAt = epochId == 0 ? seatExpiresAt[account] : _shardStateEpochSeatExpiresAt[shard][epochId][i];
+            uint256 eligibleFromRoundId =
+                epochId == 0
+                    ? seatEligibleFromRoundId[account]
+                    : _shardStateEpochSeatEligibleFromRoundId[shard][epochId][i];
             if (expiresAt >= closesAt && eligibleFromRoundId != 0 && eligibleFromRoundId <= roundId) count++;
         }
     }

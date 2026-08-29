@@ -10,7 +10,11 @@ const SHARD_SIZE = 24;
 const CAPACITY = SHARD_COUNT * SHARD_SIZE;
 
 function testAddress(index: number) {
-  return ethers.getAddress(`0x${BigInt(index + 100_000).toString(16).padStart(40, "0")}`);
+  return ethers.getAddress(
+    `0x${BigInt(index + 100_000)
+      .toString(16)
+      .padStart(40, "0")}`,
+  );
 }
 
 async function deployDraw() {
@@ -49,9 +53,7 @@ describe("VeilShardedDraw max-capacity runtime", function () {
     const draw = await deployDraw();
 
     for (let batch = 0; batch < SHARD_SIZE; batch++) {
-      const accounts = Array.from({ length: SHARD_COUNT }, (_, shard) =>
-        testAddress(batch * SHARD_COUNT + shard),
-      );
+      const accounts = Array.from({ length: SHARD_COUNT }, (_, shard) => testAddress(batch * SHARD_COUNT + shard));
       await (await draw.acquireManyWithWeight(accounts, 100)).wait();
     }
 

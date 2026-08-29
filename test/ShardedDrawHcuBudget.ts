@@ -28,8 +28,6 @@ describe("Sharded BlindDraw HCU budget", function () {
   });
 
   it("does not model 576 savers as one sequential encrypted scan", function () {
-    expect(() => estimateTwoStageShardedDrawHcu(576, 24)).to.throw(
-      "participants must be an integer between 1 and 255",
-    );
+    expect(() => estimateTwoStageShardedDrawHcu(576, 24)).to.throw("participants must be an integer between 1 and 255");
   });
 });
