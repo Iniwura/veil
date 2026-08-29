@@ -33,7 +33,7 @@ function chamberPhaseForAction(
 
 export function DrawPage({ unveil }: { unveil: UnveilController }) {
   const schedule = unveil.schedule;
-  const participantCount = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
+  const currentSeatCount = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
   const fieldState: CryptographicChamberState = schedule?.insufficientParticipants
     ? "INSUFFICIENT"
     : schedule?.overdue
@@ -64,7 +64,8 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           <strong>{schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</strong>
         </div>
         <p data-native-cursor>
-          Timing and winners are public. Balances, weights, and prizes stay encrypted until your wallet unveils them.
+          Timing and winners are public. Balances, eligible ticket weights, and prize amounts stay encrypted until an
+          authorized wallet unveils them.
         </p>
       </header>
 
@@ -91,7 +92,8 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       <section className="draw-focus draw-focus--field" data-tour="draw-current">
         <CryptographicChamber
           roundId={schedule?.currentRoundId}
-          participantCount={participantCount}
+          participantCount={currentSeatCount}
+          participantLabel="CURRENT SEATS"
           state={fieldState}
           phase={chamberPhase}
         />
@@ -107,6 +109,10 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             <span>CLOSES {formatDate(schedule?.closesAt)}</span>
             <span>{schedule?.unsettledRounds.toString() ?? "—"} UNSETTLED</span>
           </div>
+          <p className="draw-note">
+            CURRENT SEATS is the live public roster. Past draws show the immutable ROUND PARTICIPANTS captured for that
+            round.
+          </p>
           {schedule?.insufficientParticipants && (
             <p className="draw-note">This round can be marked SKIPPED. No draw or encrypted winner exists for it.</p>
           )}
@@ -136,7 +142,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             target="_blank"
             rel="noreferrer"
           >
-            VERIFY V2 POOL ↗
+            VERIFY POOL ↗
           </a>
         </header>
 
