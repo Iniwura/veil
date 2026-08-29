@@ -671,9 +671,8 @@ contract VeilPoolV3 is ZamaEthereumConfig {
         for (uint8 i = 0; i < sourceParticipantCount; i++) {
             address account = epochId == 0 ? players[i] : stateEpochPlayers[epochId][i];
             uint64 expiresAt = epochId == 0 ? seatExpiresAt[account] : stateEpochSeatExpiresAt[epochId][i];
-            uint256 eligibleFromRoundId = epochId == 0
-                ? seatEligibleFromRoundId[account]
-                : stateEpochSeatEligibleFromRoundId[epochId][i];
+            uint256 eligibleFromRoundId =
+                epochId == 0 ? seatEligibleFromRoundId[account] : stateEpochSeatEligibleFromRoundId[epochId][i];
             if (expiresAt >= closesAt && eligibleFromRoundId != 0 && eligibleFromRoundId <= roundId) count++;
         }
     }

@@ -146,11 +146,7 @@ async function proveDepositBatch(system: System, batchId = 1n): Promise<void> {
 
 async function exposeSafeSurplus(system: System): Promise<bigint> {
   await (await system.manager.connect(signers.keeper).exposeAccountingForTest()).wait();
-  return decrypt64(
-    await system.manager.getAddress(),
-    await system.manager.lastSafeSurplusShares(),
-    signers.keeper,
-  );
+  return decrypt64(await system.manager.getAddress(), await system.manager.lastSafeSurplusShares(), signers.keeper);
 }
 
 async function drawAndFinalizeAllPrizes(system: System, roundId: bigint): Promise<void> {
@@ -269,18 +265,10 @@ describe("UNVEIL V3 prize integration", function () {
     // Funding/delivery never changes protected principal liability and consumes only safe surplus.
     await (await system.manager.connect(signers.keeper).exposeAccountingForTest()).wait();
     expect(
-      await decrypt64(
-        await system.manager.getAddress(),
-        await system.manager.lastPrincipalLiability(),
-        signers.keeper,
-      ),
+      await decrypt64(await system.manager.getAddress(), await system.manager.lastPrincipalLiability(), signers.keeper),
     ).to.equal(200n);
     expect(
-      await decrypt64(
-        await system.manager.getAddress(),
-        await system.manager.lastSafeSurplusShares(),
-        signers.keeper,
-      ),
+      await decrypt64(await system.manager.getAddress(), await system.manager.lastSafeSurplusShares(), signers.keeper),
     ).to.equal(0n);
   });
 });

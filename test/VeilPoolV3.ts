@@ -207,9 +207,7 @@ describe("VeilPoolV3", function () {
       Object.keys(firstProof.clearValues)[0] as keyof typeof firstProof.clearValues
     ] as string;
     const encodedFirstWinner = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [firstWinner]);
-    await (
-      await system.pool.finalizePrizeWinner(2, 0, encodedFirstWinner, firstProof.decryptionProof)
-    ).wait();
+    await (await system.pool.finalizePrizeWinner(2, 0, encodedFirstWinner, firstProof.decryptionProof)).wait();
 
     const secondWinner = await drawAndFinalizePrize(system, 2n, 1);
     const thirdWinner = await drawAndFinalizePrize(system, 2n, 2);

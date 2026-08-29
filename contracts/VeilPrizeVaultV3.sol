@@ -137,10 +137,7 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
         return prize.amount;
     }
 
-    function prizeStatus(
-        uint256 roundId,
-        uint8 prizeIndex
-    ) external view returns (bool processed, address winner) {
+    function prizeStatus(uint256 roundId, uint8 prizeIndex) external view returns (bool processed, address winner) {
         if (prizeIndex > SAVER_PRIZE_TWO_INDEX) revert InvalidPrizeIndex();
         Prize storage prize = _prizes[roundId][prizeIndex];
         return (prize.processed, prize.winner);

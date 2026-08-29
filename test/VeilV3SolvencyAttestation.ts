@@ -137,9 +137,7 @@ async function settleInvestment(system: System): Promise<void> {
 async function decryptPendingCoverage(system: System): Promise<{ covered: boolean; proof: string }> {
   const handle = await system.manager.encryptedPendingPrincipalCoverage();
   const result = await fhevm.publicDecrypt([handle]);
-  const covered = result.clearValues[
-    Object.keys(result.clearValues)[0] as keyof typeof result.clearValues
-  ] as boolean;
+  const covered = result.clearValues[Object.keys(result.clearValues)[0] as keyof typeof result.clearValues] as boolean;
   return { covered, proof: result.decryptionProof };
 }
 
@@ -173,16 +171,11 @@ describe("UNVEIL V3 principal coverage attestation", function () {
     const first = await decryptPendingCoverage(system);
     expect(first.covered).to.equal(true);
 
-    await expect(
-      system.manager
-        .connect(signers.keeper)
-        .finalizePrincipalCoverageAttestation(1, false, first.proof),
-    ).to.be.reverted;
+    await expect(system.manager.connect(signers.keeper).finalizePrincipalCoverageAttestation(1, false, first.proof)).to
+      .be.reverted;
 
     await (
-      await system.manager
-        .connect(signers.keeper)
-        .finalizePrincipalCoverageAttestation(1, true, first.proof)
+      await system.manager.connect(signers.keeper).finalizePrincipalCoverageAttestation(1, true, first.proof)
     ).wait();
 
     expect(await system.manager.coverageAttestationPending()).to.equal(false);
@@ -192,9 +185,7 @@ describe("UNVEIL V3 principal coverage attestation", function () {
     expect(await system.manager.principalCoverageVerifiedAt()).to.be.greaterThan(0n);
 
     await expect(
-      system.manager
-        .connect(signers.keeper)
-        .finalizePrincipalCoverageAttestation(1, true, first.proof),
+      system.manager.connect(signers.keeper).finalizePrincipalCoverageAttestation(1, true, first.proof),
     ).to.be.revertedWithCustomError(system.manager, "CoverageAttestationNotPending");
 
     // TEST/DEMO ONLY: reduce ERC-4626 backing enough that settled strategy shares no longer
@@ -208,9 +199,7 @@ describe("UNVEIL V3 principal coverage attestation", function () {
     expect(second.covered).to.equal(false);
 
     await (
-      await system.manager
-        .connect(signers.keeper)
-        .finalizePrincipalCoverageAttestation(2, false, second.proof)
+      await system.manager.connect(signers.keeper).finalizePrincipalCoverageAttestation(2, false, second.proof)
     ).wait();
 
     expect(await system.manager.principalCoverageVerified()).to.equal(true);

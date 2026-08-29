@@ -82,17 +82,11 @@ async function deploySystem(): Promise<System> {
   return { asset, principal, vault, shares, deposits, withdrawals, pool, prizeVault, manager };
 }
 
-async function fundAndApprove(
-  system: System,
-  signer: HardhatEthersSigner,
-  amount = 1_000n,
-): Promise<void> {
+async function fundAndApprove(system: System, signer: HardhatEthersSigner, amount = 1_000n): Promise<void> {
   await (await system.asset.mint(signer.address, amount)).wait();
   await (await system.asset.connect(signer).approve(await system.principal.getAddress(), amount)).wait();
   await (await system.principal.connect(signer).wrap(signer.address, amount)).wait();
-  await (
-    await system.principal.connect(signer).setOperator(await system.pool.getAddress(), MAX_OPERATOR_UNTIL)
-  ).wait();
+  await (await system.principal.connect(signer).setOperator(await system.pool.getAddress(), MAX_OPERATOR_UNTIL)).wait();
 }
 
 async function deposit(system: System, signer: HardhatEthersSigner, amount: bigint | number): Promise<void> {
@@ -127,11 +121,7 @@ async function reachFirstMatureRound(system: System, keeper: HardhatEthersSigner
   await advanceToClose(system.pool);
 }
 
-async function snapshotWeight(
-  system: System,
-  signer: HardhatEthersSigner,
-  roundId = 2n,
-): Promise<bigint> {
+async function snapshotWeight(system: System, signer: HardhatEthersSigner, roundId = 2n): Promise<bigint> {
   const handle = await system.pool.connect(signer).encryptedSnapshotWeightOf(roundId);
   return fhevm.userDecryptEuint(FhevmType.euint64, handle, await system.pool.getAddress(), signer);
 }
