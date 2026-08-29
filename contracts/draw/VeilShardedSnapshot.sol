@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.27;
+
+// solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-struct-packing
+
+import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
+import {VeilShardedRoster} from "./VeilShardedRoster.sol";
+
+/// @title VeilShardedSnapshot
+/// @notice Permissionless round checkpointing split into one HCU-bounded transaction per 24-seat shard.
+/// @dev A shard snapshot uses the same boundary-maturity rule as V3:
+///      min(weight at the previous scheduled close, weight at this scheduled close).
+///      The aggregate round total is updated once per shard, so no transaction scans all 576 savers.
+abstract contract VeilShardedSnapshot is VeilShardedRoster {
+    struct SnapshotShard {
+        uint8 participantCount;
+        euint64 encryptedTotalWeight;
+        bool processed;
+    }
+
+    struct ShardedSnapshotRound {
+        uint64 startedBlock;
+        uint64 finalizedBlock;
+        uint16 participantCount;
+        uint8 processedShardCount;
+        euint64 encryptedTotalWeight;
+        bool begun;
+        bool finalized;
+    }
+
+    mapping(uint256 => ShardedSnapshotRound) private _snapshotRounds;
+    mapping(uint256 => mapping(uint8 => SnapshotShard)) private _snapshotShards;
+    mapping(uint256 => mapping(uint8 => mapping(uint8 => address))) private _snapshotPlayers;
+    mapping(uint256 => mapping(uint8 => mapping(uint8 => euint64))) private _snapshotWeights;
+    mapping(uint256 => mapping(address => bool)) private _snapshotIncluded;
+    mapping(uint256 => mapping(address => uint8)) private _snapshotShardByAccount;
+    mapping(uint256 => mapping(address => uint8)) private _snapshotIndexByAccount;
+
+    event ShardedSnapshotBegun(uint256 indexed roundId, uint64 startedBlock);
+    event ShardSnapshotted(
+        uint256 indexed roundId,
+        uint8 indexed shard,
+        uint8 participantCount
+    );
+    event ShardedSnapshotFinalized(
+        uint256 indexed roundId,
+        uint16 participantCount,
+        uint64 finalizedBlock
+    );
+
+    function getShardedSnapshotRound(
+        uint256 roundId
+    )
+        public
+        view
+        returns (
+            uint64 startedBlock,
+            uint64 finalizedBlock,
+            uint16 participantCount,
+            uint8 processedShardCount,
+            bool begun,
+            bool finalized
+        )
+    {
+        ShardedSnapshotRound storage round = _snapshotRounds[roundId];
+        return (
+            round.startedBlock,
+            round.finalizedBlock,
+            round.participantCount,
+            round.processedShardCount,
+            round.begun,
+            round.finalized
+        );
+    }
+
+    function getSnapshotShard(
+        uint256 roundId,
+        uint8 shard
+    ) public view returns (uint8 participantCount, bool processed) {
+        require(shard < SHARD_COUNT, "Invalid shard");
+        SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
+        return (snapshot.participantCount, snapshot.processed);
+    }
+
+    function getSnapshotPlayer(uint256 roundId, uint8 shard, uint8 index) public view returns (address) {
+        require(shard < SHARD_COUNT, "Invalid shard");
+        SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
+        require(snapshot.processed, "Shard not snapshotted");
+        require(index < snapshot.participantCount, "Invalid snapshot index");
+        return _snapshotPlayers[roundId][shard][index];
+    }
+
+    function _beginShardedSnapshot(uint256 roundId) internal {
+        require(roundId > 0, "Invalid round");
+        require(block.timestamp >= _rosterScheduledDrawClosesAt(roundId), "Draw still open");
+
+        ShardedSnapshotRound storage round = _snapshotRounds[roundId];
+        require(!round.begun, "Snapshot already begun");
+
+        round.startedBlock = uint64(block.number);
+        round.begun = true;
+        round.encryptedTotalWeight = FHE.asEuint64(0);
+        FHE.allowThis(round.encryptedTotalWeight);
+
+        emit ShardedSnapshotBegun(roundId, round.startedBlock);
+    }
+
+    function _snapshotOneShard(uint256 roundId, uint8 shard) internal {
+        require(shard < SHARD_COUNT, "Invalid shard");
+        ShardedSnapshotRound storage round = _snapshotRounds[roundId];
+        require(round.begun, "Snapshot not begun");
+        require(!round.finalized, "Snapshot finalized");
+
+        SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
+        require(!snapshot.processed, "Shard already snapshotted");
+
+        uint256 epochId = _shardEpochForRound(shard, roundId);
+        uint8 sourceParticipantCount;
+        if (epochId == 0) {
+            sourceParticipantCount = shardPlayerCount[shard];
+        } else {
+            (, , sourceParticipantCount) = getShardEpoch(shard, epochId);
+        }
+
+        uint64 closesAt = _rosterScheduledDrawClosesAt(roundId);
+        euint64 shardTotalWeight = FHE.asEuint64(0);
+        uint8 snapshotParticipantCount;
+
+        for (uint8 i = 0; i < sourceParticipantCount; i++) {
+            (address account, uint64 expiresAt, euint64 closeWeight, uint256 eligibleFromRoundId) =
+                _historicalShardPlayerAt(roundId, shard, i);
+            if (expiresAt < closesAt || eligibleFromRoundId == 0 || eligibleFromRoundId > roundId) continue;
+
+            euint64 previousCloseWeight = roundId == 1
+                ? FHE.asEuint64(0)
+                : _historicalShardWeightOf(roundId - 1, shard, account);
+            euint64 matureWeight = FHE.min(previousCloseWeight, closeWeight);
+
+            _snapshotPlayers[roundId][shard][snapshotParticipantCount] = account;
+            _snapshotWeights[roundId][shard][snapshotParticipantCount] = matureWeight;
+            _snapshotIncluded[roundId][account] = true;
+            _snapshotShardByAccount[roundId][account] = shard;
+            _snapshotIndexByAccount[roundId][account] = snapshotParticipantCount;
+            shardTotalWeight = FHE.add(shardTotalWeight, matureWeight);
+
+            FHE.allowThis(_snapshotWeights[roundId][shard][snapshotParticipantCount]);
+            FHE.allow(_snapshotWeights[roundId][shard][snapshotParticipantCount], account);
+            unchecked {
+                snapshotParticipantCount++;
+            }
+        }
+
+        snapshot.participantCount = snapshotParticipantCount;
+        snapshot.encryptedTotalWeight = shardTotalWeight;
+        snapshot.processed = true;
+        round.encryptedTotalWeight = FHE.add(round.encryptedTotalWeight, shardTotalWeight);
+        round.participantCount += snapshotParticipantCount;
+        unchecked {
+            round.processedShardCount++;
+        }
+
+        FHE.allowThis(snapshot.encryptedTotalWeight);
+        FHE.allowThis(round.encryptedTotalWeight);
+        emit ShardSnapshotted(roundId, shard, snapshotParticipantCount);
+    }
+
+    function _finalizeShardedSnapshot(uint256 roundId) internal {
+        ShardedSnapshotRound storage round = _snapshotRounds[roundId];
+        require(round.begun, "Snapshot not begun");
+        require(!round.finalized, "Snapshot finalized");
+        require(round.processedShardCount == SHARD_COUNT, "Shards pending");
+        require(round.participantCount >= 2, "Need 2 mature seats");
+
+        round.finalizedBlock = uint64(block.number);
+        round.finalized = true;
+        emit ShardedSnapshotFinalized(roundId, round.participantCount, round.finalizedBlock);
+    }
+
+    function _encryptedSnapshotShardTotal(uint256 roundId, uint8 shard) internal view returns (euint64) {
+        SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
+        require(snapshot.processed, "Shard not snapshotted");
+        return snapshot.encryptedTotalWeight;
+    }
+
+    function _encryptedShardedSnapshotTotal(uint256 roundId) internal view returns (euint64) {
+        ShardedSnapshotRound storage round = _snapshotRounds[roundId];
+        require(round.finalized, "Snapshot not finalized");
+        return round.encryptedTotalWeight;
+    }
+
+    function _encryptedShardedSnapshotWeightOf(uint256 roundId, address account) internal view returns (euint64) {
+        require(_snapshotIncluded[roundId][account], "Not in round");
+        uint8 shard = _snapshotShardByAccount[roundId][account];
+        uint8 index = _snapshotIndexByAccount[roundId][account];
+        return _snapshotWeights[roundId][shard][index];
+    }
+}
