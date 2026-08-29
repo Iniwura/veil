@@ -182,13 +182,7 @@ export type VerifiedRound = {
   processedPrize: boolean;
 };
 
-export type WithdrawalStatus =
-  | "REQUESTED"
-  | "QUEUED"
-  | "COMMITTED"
-  | "AWAITING LIQUIDITY"
-  | "READY / SETTLED"
-  | "CANCELED";
+export type WithdrawalStatus = "REQUESTED" | "QUEUED" | "COMMITTED" | "AWAITING LIQUIDITY" | "SETTLED" | "CANCELED";
 
 export type WithdrawalView = {
   requestId: bigint;
@@ -592,7 +586,7 @@ function withdrawalStatus(
   queued: boolean,
   committed: boolean,
 ) {
-  if (settled) return "READY / SETTLED" as const;
+  if (settled) return "SETTLED" as const;
   if (canceled) return "CANCELED" as const;
   if (!classified) return "REQUESTED" as const;
   if (!queued) return "COMMITTED" as const;
