@@ -255,7 +255,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     [V3_DEPLOYMENT_NAMES.manager]: manager.address,
   };
 
-  console.log("UNVEIL V3 deployment — SEPOLIA TESTNET / DEMO ASSET");
+  console.log(`UNVEIL V3 deployment — ${isSepolia ? "SEPOLIA TESTNET" : "LOCAL TEST"} / DEMO ASSET`);
   for (const [label, address] of records) console.log(`  ${label.padEnd(42)} ${address}`);
   console.log(`  draw period:                               ${drawPeriod} seconds`);
   console.log(`  batch age:                                 ${batchAge} seconds`);
