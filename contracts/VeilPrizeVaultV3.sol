@@ -96,7 +96,7 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
     /// @dev Grand and first saver prizes are 50% and 30% of the originally funded encrypted amount. The final
     ///      saver prize receives the encrypted remainder after those two actual transfers, preserving all rounding.
     function deliverPrize(uint256 roundId, uint8 prizeIndex) external nonReentrant {
-        if (prizeIndex >= PRIZE_SLOTS) revert InvalidPrizeIndex();
+        if (prizeIndex > SAVER_PRIZE_TWO_INDEX) revert InvalidPrizeIndex();
 
         PrizeRound storage round = _rounds[roundId];
         if (!round.funded) revert RoundNotFunded(roundId);
@@ -107,17 +107,7 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
         address winner = pool.getPrizeWinner(roundId, prizeIndex);
         if (winner == address(0)) revert InvalidWinner(roundId, prizeIndex);
 
-        euint64 requested;
-        if (prizeIndex == GRAND_PRIZE_INDEX) {
-            requested = _percentage(round.fundedAmount, 50);
-        } else if (prizeIndex == SAVER_PRIZE_ONE_INDEX) {
-            requested = _percentage(round.fundedAmount, 30);
-        } else {
-            if (!_prizes[roundId][GRAND_PRIZE_INDEX].processed || !_prizes[roundId][SAVER_PRIZE_ONE_INDEX].processed) {
-                revert PriorPrizesPending(roundId);
-            }
-            requested = round.remainingAmount;
-        }
+        euint64 requested = _requestedPrizeAmount(roundId, prizeIndex, round);
 
         FHE.allowThis(requested);
         FHE.allowTransient(requested, address(asset));
@@ -128,7 +118,7 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
         prize.amount = delivered;
         round.remainingAmount = FHESafeMath.saturatingSub(round.remainingAmount, delivered);
         unchecked {
-            round.deliveredCount++;
+            ++round.deliveredCount;
         }
 
         FHE.allowThis(delivered);
@@ -140,7 +130,7 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
     }
 
     function encryptedPrizeOf(uint256 roundId, uint8 prizeIndex) external view returns (euint64) {
-        if (prizeIndex >= PRIZE_SLOTS) revert InvalidPrizeIndex();
+        if (prizeIndex > SAVER_PRIZE_TWO_INDEX) revert InvalidPrizeIndex();
         Prize storage prize = _prizes[roundId][prizeIndex];
         if (!prize.processed) revert PrizeNotProcessed(roundId, prizeIndex);
         if (msg.sender != prize.winner) revert NotWinner();
@@ -151,7 +141,7 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
         uint256 roundId,
         uint8 prizeIndex
     ) external view returns (bool processed, address winner) {
-        if (prizeIndex >= PRIZE_SLOTS) revert InvalidPrizeIndex();
+        if (prizeIndex > SAVER_PRIZE_TWO_INDEX) revert InvalidPrizeIndex();
         Prize storage prize = _prizes[roundId][prizeIndex];
         return (prize.processed, prize.winner);
     }
@@ -159,6 +149,19 @@ contract VeilPrizeVaultV3 is ReentrancyGuardTransient, ZamaEthereumConfig {
     function roundStatus(uint256 roundId) external view returns (bool funded, uint8 deliveredCount, bool delivered) {
         PrizeRound storage round = _rounds[roundId];
         return (round.funded, round.deliveredCount, round.deliveredCount == PRIZE_SLOTS);
+    }
+
+    function _requestedPrizeAmount(
+        uint256 roundId,
+        uint8 prizeIndex,
+        PrizeRound storage round
+    ) private returns (euint64) {
+        if (prizeIndex == GRAND_PRIZE_INDEX) return _percentage(round.fundedAmount, 50);
+        if (prizeIndex == SAVER_PRIZE_ONE_INDEX) return _percentage(round.fundedAmount, 30);
+        if (!_prizes[roundId][GRAND_PRIZE_INDEX].processed || !_prizes[roundId][SAVER_PRIZE_ONE_INDEX].processed) {
+            revert PriorPrizesPending(roundId);
+        }
+        return round.remainingAmount;
     }
 
     function _percentage(euint64 amount, uint128 percent) private returns (euint64) {
