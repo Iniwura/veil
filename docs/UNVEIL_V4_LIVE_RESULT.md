@@ -1,6 +1,6 @@
 # UNVEIL V4 Sepolia Deployment
 
-Status: deployed successfully on Ethereum Sepolia.
+Status: deployed successfully and live sharded-draw smoke passed on Ethereum Sepolia.
 
 Network: Sepolia  
 Chain ID: 11155111  
@@ -58,10 +58,42 @@ Those checks cover pool/manager/prize-vault wiring, principal/share/vault/batche
 The compiler emitted the OpenZeppelin EIP-1153 transient-storage warning while compiling dependencies. The deployment
 itself completed successfully.
 
-## Validation status
+## Local validation status
 
-Before deployment, the branch had already passed the full local protocol regression (`210 passing`), the dedicated V4
-deployment test (`4 passing`), TypeScript build, Solidity lint, TypeScript lint, and Prettier check.
+After the V4 Sepolia smoke tooling and formatting changes were committed, the exact branch passed the full local protocol
+regression with `214 passing` in approximately four minutes. TypeScript build, Solidity lint, TypeScript lint, and
+Prettier check were also green before the live smoke run.
 
-A separate live V4 end-to-end Sepolia smoke flow should be recorded after it is executed. This deployment document does
-not claim that an end-to-end live sharded draw has already been completed on these addresses.
+## Live V4 Sepolia smoke result
+
+Command:
+
+```bash
+UNVEIL_V4_SMOKE_WAIT=true npm run smoke:v4:sepolia
+```
+
+The live smoke resolved the deployed V4 records, verified bytecode and immutable wiring, confirmed signer gas balances,
+and established two confidential 100-unit saver positions for Alice and Bob.
+
+The resumable smoke then processed the sharded draw lifecycle on the deployed `VeilPoolV4` address:
+
+- Round 1 processed all 24 shard snapshots and ended `SKIPPED`.
+- Round 2 processed all 24 shard snapshots and ended `SKIPPED`.
+- Round 3 processed all 24 shard snapshots with private mature weights Alice = 0 and Bob = 0.
+- All three round-3 two-stage encrypted prize draws resolved to shard 0 and the zero address.
+- Round 3 ended `CANCELLED`, proving the live all-zero lifecycle does not fabricate a winner.
+- Round 4 processed all 24 shard snapshots with private mature weights Alice = 100 and Bob = 100.
+- Round-4 prize 0 resolved to shard 0 and Alice.
+- Round-4 prize 1 resolved to shard 1 and Bob.
+- Round-4 prize 2 resolved to shard 0 and Alice.
+- All three round-4 prize slots finalized to eligible savers, and the round ended successfully.
+
+The terminal finished with:
+
+```text
+UNVEIL V4 Sepolia sharded-draw smoke PASSED
+```
+
+A transient Zama relayer timeout occurred during an earlier invocation of the resumable smoke. Re-running the same smoke
+continued from already-completed on-chain state rather than duplicating completed shard or prize stages, and the final
+live run completed successfully.
