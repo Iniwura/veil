@@ -905,6 +905,34 @@ describe("VeilPoolV2", function () {
     expect(await decryptReserved(cancelSystem, signers.bob)).to.equal(50n);
   });
 
+  it("advances a later canceled FIFO head permissionlessly after the earlier request settles", async function () {
+    const system = await freshSystem();
+    await deposit(system, signers.alice, 100);
+    await (await system.manager.investExcess()).wait();
+    await advanceBatchAge(system.deposits);
+    await (await system.deposits.dispatchBatch()).wait();
+    await proveDepositBatch(system);
+    await (await system.manager.resolveDepositBatch(1)).wait();
+
+    const firstRequest = await withdraw(system, signers.alice, 40);
+    const canceledRequest = await withdraw(system, signers.alice, 40);
+    expect(await classifyWithdrawal(system, firstRequest)).to.equal(false);
+    expect(await classifyWithdrawal(system, canceledRequest)).to.equal(false);
+    await (await system.pool.connect(signers.alice).cancelWithdrawal(canceledRequest)).wait();
+
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(1n);
+    await settleQueuedWithdrawal(system, firstRequest);
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(2n);
+    expect((await system.manager.withdrawalRequest(canceledRequest)).canceled).to.equal(true);
+
+    await (await system.manager.connect(signers.outsider).advanceWithdrawalQueue()).wait();
+    expect(await system.manager.nextWithdrawalQueueSequenceToSettle()).to.equal(3n);
+    await expect(system.manager.connect(signers.bob).advanceWithdrawalQueue()).to.be.revertedWithCustomError(
+      system.manager,
+      "WithdrawalQueueNotBlocked",
+    );
+  });
+
   it("covers first, middle, penultimate, latest, and current-unsealed epoch lookups", async function () {
     const system = await freshSystem();
     await deposit(system, signers.alice, 10);

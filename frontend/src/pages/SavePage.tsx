@@ -346,7 +346,14 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           ) : (
             <>
               <p>Requests settle instantly when liquid or remain queued until strategy liquidity is available.</p>
-              <WithdrawalStatus request={latestWithdrawal} />
+              <WithdrawalStatus
+                request={latestWithdrawal}
+                connected={unveil.connected}
+                address={unveil.address}
+                busy={unveil.busy}
+                onAdvance={unveil.advanceWithdrawal}
+                onCancel={unveil.cancelWithdrawal}
+              />
             </>
           )}
         </aside>

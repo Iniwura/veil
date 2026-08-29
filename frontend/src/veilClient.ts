@@ -12,6 +12,12 @@ import {
 import { UNVEIL_CONTRACTS, UNVEIL_NETWORK } from "./contracts";
 import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/bundle";
 import { deriveNextDrawAction, sameDrawAction, type DrawAction } from "./lib/drawAdvance";
+import {
+  deriveWithdrawalLifecycle,
+  sameWithdrawalAction,
+  type WithdrawalLifecycleAction,
+  type WithdrawalLifecycleState,
+} from "../../shared/withdrawalLifecycle";
 
 type ZamaRelayerSDK = {
   initSDK: (options?: Record<string, unknown>) => Promise<boolean>;
@@ -93,6 +99,7 @@ const CONFIDENTIAL_TOKEN_ABI = [
   "function isOperator(address holder,address spender) view returns (bool)",
   "function setOperator(address operator,uint48 until)",
   "function confidentialBalanceOf(address account) view returns (bytes32)",
+  "function unwrapAmount(bytes32 requestId) view returns (bytes32)",
 ] as const;
 
 const PRINCIPAL_ABI = [
@@ -109,9 +116,31 @@ const MANAGER_ABI = [
   "function nextPrizeRoundId() view returns (uint256)",
   "function processNextPrizeRound()",
   "function nextWithdrawalRequestId() view returns (uint256)",
+  "function nextWithdrawalQueueSequenceToSettle() view returns (uint256)",
+  "function withdrawalQueueRequest(uint256 queueSequence) view returns (uint256)",
+  "function managerWithdrawalBatch(uint256 batchId) view returns (bool)",
+  "function managerWithdrawalBatchResolved(uint256 batchId) view returns (bool)",
+  "function lastManagerWithdrawalBatchId() view returns (uint256)",
+  "function withdrawalBatchFundingNonce(uint256 batchId) view returns (uint256)",
   "function withdrawalRequest(uint256 requestId) view returns (address account,bytes32 amount,bytes32 remaining,bytes32 paid,bytes32 completed,uint256 createdWithdrawalBatchId,uint256 createdWithdrawalFundingNonce,bool exists,bool canceled,bool settled)",
   "function withdrawalRequestQueueState(uint256 requestId) view returns (bool classified,bool queued,uint256 queueSequence)",
   "function withdrawalRequestCommitted(uint256 requestId) view returns (bool)",
+  "function classifyWithdrawal(uint256 requestId,bool completed,bytes decryptionProof)",
+  "function fundWithdrawalLiquidity()",
+  "function resolveWithdrawalBatch(uint256 batchId)",
+  "function settleWithdrawal(uint256 requestId)",
+  "function finalizeWithdrawal(uint256 requestId,bool completed,bytes decryptionProof)",
+  "function advanceWithdrawalQueue()",
+] as const;
+
+const WITHDRAWAL_BATCHER_ABI = [
+  "function currentBatchId() view returns (uint256)",
+  "function currentBatchOpenedAt() view returns (uint64)",
+  "function minimumBatchAge() view returns (uint64)",
+  "function batchState(uint256 batchId) view returns (uint8)",
+  "function unwrapRequestId(uint256 batchId) view returns (bytes32)",
+  "function dispatchBatch()",
+  "function dispatchBatchCallback(uint256 batchId,uint64 unwrapAmountCleartext,bytes decryptionProof)",
 ] as const;
 
 export const DRAW_STATES = {
@@ -172,6 +201,23 @@ export type WithdrawalView = {
   committed: boolean;
   queueSequence: bigint;
   createdWithdrawalBatchId: bigint;
+  createdWithdrawalFundingNonce: bigint;
+  completedHandle: string;
+  completion?: boolean;
+  completionProofAvailable: boolean;
+  currentBatchId: bigint;
+  currentBatchOpenedAt: bigint;
+  minimumBatchAge: bigint;
+  batchMaturesAt: bigint;
+  lastManagerWithdrawalBatchId: bigint;
+  lastManagerBatchFundingNonce: bigint;
+  lastManagerBatchRecognized: boolean;
+  lastManagerBatchResolved: boolean;
+  lastManagerBatchState?: number;
+  fifoHeadSequence: bigint;
+  fifoHeadRequestId: bigint;
+  fifoHeadCanceled: boolean;
+  action: WithdrawalLifecycleAction;
   status: WithdrawalStatus;
 };
 
@@ -379,6 +425,7 @@ export function contracts(signer: JsonRpcSigner) {
     pool: new Contract(UNVEIL_CONTRACTS.pool, POOL_ABI, signer),
     prizeVault: new Contract(UNVEIL_CONTRACTS.prizeVault, PRIZE_ABI, signer),
     manager: new Contract(UNVEIL_CONTRACTS.manager, MANAGER_ABI, signer),
+    withdrawals: new Contract(UNVEIL_CONTRACTS.withdrawalBatcher, WITHDRAWAL_BATCHER_ABI, signer),
   };
 }
 
@@ -390,6 +437,7 @@ function readContracts() {
     pool: new Contract(UNVEIL_CONTRACTS.pool, POOL_ABI, readProvider),
     prizeVault: new Contract(UNVEIL_CONTRACTS.prizeVault, PRIZE_ABI, readProvider),
     manager: new Contract(UNVEIL_CONTRACTS.manager, MANAGER_ABI, readProvider),
+    withdrawals: new Contract(UNVEIL_CONTRACTS.withdrawalBatcher, WITHDRAWAL_BATCHER_ABI, readProvider),
   };
 }
 
@@ -554,11 +602,25 @@ function withdrawalStatus(
 
 export async function readWithdrawalRequest(requestId: bigint): Promise<WithdrawalView> {
   try {
-    const { manager } = readContracts();
-    const [request, queue, committed] = await Promise.all([
+    const { manager, withdrawals } = readContracts();
+    const [
+      request,
+      queue,
+      committed,
+      currentBatchId,
+      currentBatchOpenedAt,
+      minimumBatchAge,
+      lastBatchId,
+      headSequence,
+    ] = await Promise.all([
       manager.withdrawalRequest(requestId),
       manager.withdrawalRequestQueueState(requestId),
       manager.withdrawalRequestCommitted(requestId),
+      withdrawals.currentBatchId(),
+      withdrawals.currentBatchOpenedAt(),
+      withdrawals.minimumBatchAge(),
+      manager.lastManagerWithdrawalBatchId(),
+      manager.nextWithdrawalQueueSequenceToSettle(),
     ]);
     const exists = Boolean(request.exists);
     if (!exists) throw new Error("Request does not exist.");
@@ -567,6 +629,83 @@ export async function readWithdrawalRequest(requestId: bigint): Promise<Withdraw
     const classified = Boolean(queue.classified);
     const queued = Boolean(queue.queued);
     const isCommitted = Boolean(committed);
+    const createdWithdrawalBatchId = BigInt(request.createdWithdrawalBatchId);
+    const createdWithdrawalFundingNonce = BigInt(request.createdWithdrawalFundingNonce);
+    const currentBatch = BigInt(currentBatchId);
+    const openedAt = BigInt(currentBatchOpenedAt);
+    const batchAge = BigInt(minimumBatchAge);
+    const lastManagerWithdrawalBatchId = BigInt(lastBatchId);
+    const fifoHeadSequence = BigInt(headSequence);
+    const fifoHeadRequestId = BigInt(await manager.withdrawalQueueRequest(fifoHeadSequence));
+    let fifoHeadCanceled = false;
+    if (fifoHeadRequestId !== 0n && fifoHeadRequestId !== requestId) {
+      const headRequest = await manager.withdrawalRequest(fifoHeadRequestId);
+      fifoHeadCanceled = Boolean(headRequest.canceled);
+    }
+
+    let lastManagerBatchRecognized = false;
+    let lastManagerBatchResolved = false;
+    let lastManagerBatchFundingNonce = 0n;
+    let lastManagerBatchState: number | undefined;
+    if (lastManagerWithdrawalBatchId !== 0n) {
+      [lastManagerBatchRecognized, lastManagerBatchResolved] = await Promise.all([
+        manager.managerWithdrawalBatch(lastManagerWithdrawalBatchId),
+        manager.managerWithdrawalBatchResolved(lastManagerWithdrawalBatchId),
+      ]).then(([recognized, resolved]) => [Boolean(recognized), Boolean(resolved)] as const);
+      if (lastManagerBatchRecognized) {
+        [lastManagerBatchFundingNonce, lastManagerBatchState] = await Promise.all([
+          manager.withdrawalBatchFundingNonce(lastManagerWithdrawalBatchId),
+          withdrawals.batchState(lastManagerWithdrawalBatchId),
+        ]).then(([fundingNonce, batchState]) => [BigInt(fundingNonce), Number(batchState)] as const);
+      }
+    }
+
+    let completion: boolean | undefined;
+    let completionProofAvailable = false;
+    const completedHandle = String(request.completed);
+    if (completedHandle !== ZeroHash) {
+      try {
+        const result = await withTimeout(
+          (await relayer()).publicDecrypt([completedHandle]),
+          60_000,
+          "Withdrawal completion proof timed out.",
+        );
+        const key = Object.keys(result.clearValues)[0] as keyof typeof result.clearValues;
+        completion = Boolean(result.clearValues[key]);
+        completionProofAvailable = true;
+      } catch {
+        completionProofAvailable = false;
+      }
+    }
+
+    const latestBlock = await readProvider.getBlock("latest");
+    const now = BigInt(latestBlock?.timestamp ?? Math.floor(Date.now() / 1000));
+    const lifecycleState: WithdrawalLifecycleState = {
+      requestId,
+      exists,
+      canceled,
+      settled,
+      classified,
+      queued,
+      committed: isCommitted,
+      queueSequence: BigInt(queue.queueSequence),
+      createdWithdrawalBatchId,
+      createdWithdrawalFundingNonce,
+      completed: completion,
+      completionProofAvailable,
+      currentBatchId: currentBatch,
+      currentBatchOpenedAt: openedAt,
+      minimumBatchAge: batchAge,
+      now,
+      lastManagerWithdrawalBatchId,
+      lastManagerBatchFundingNonce,
+      lastManagerBatchRecognized,
+      lastManagerBatchResolved,
+      lastManagerBatchState,
+      fifoHeadSequence,
+      fifoHeadRequestId,
+      fifoHeadCanceled,
+    };
     return {
       requestId,
       account: request.account as string,
@@ -577,7 +716,24 @@ export async function readWithdrawalRequest(requestId: bigint): Promise<Withdraw
       queued,
       committed: isCommitted,
       queueSequence: BigInt(queue.queueSequence),
-      createdWithdrawalBatchId: BigInt(request.createdWithdrawalBatchId),
+      createdWithdrawalBatchId,
+      createdWithdrawalFundingNonce,
+      completedHandle,
+      completion,
+      completionProofAvailable,
+      currentBatchId: currentBatch,
+      currentBatchOpenedAt: openedAt,
+      minimumBatchAge: batchAge,
+      batchMaturesAt: openedAt + batchAge,
+      lastManagerWithdrawalBatchId,
+      lastManagerBatchFundingNonce,
+      lastManagerBatchRecognized,
+      lastManagerBatchResolved,
+      lastManagerBatchState,
+      fifoHeadSequence,
+      fifoHeadRequestId,
+      fifoHeadCanceled,
+      action: deriveWithdrawalLifecycle(lifecycleState),
       status: withdrawalStatus(settled, canceled, classified, queued, isCommitted),
     };
   } catch (error) {
@@ -629,8 +785,190 @@ export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
   }
 }
 
-export async function cancelWithdrawal(signer: JsonRpcSigner, requestId: bigint) {
+async function withdrawalPublicDecrypt(handle: string, message: string) {
+  if (handle === ZeroHash) throw new Error(`UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE: ${message}`);
   try {
+    const result = await withTimeout(
+      (await relayer()).publicDecrypt([handle]),
+      60_000,
+      "Withdrawal public decryption timed out.",
+    );
+    const key = Object.keys(result.clearValues)[0] as keyof typeof result.clearValues;
+    return { value: result.clearValues[key] as unknown, proof: result.decryptionProof };
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE:")) throw error;
+    throw new Error(`UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE: ${message}`);
+  }
+}
+
+export async function advanceWithdrawal(
+  signer: JsonRpcSigner,
+  expectedAction: WithdrawalLifecycleAction,
+  onStep?: (message: string) => void,
+  isCurrent?: () => boolean,
+) {
+  const live = await readWithdrawalRequest(expectedAction.requestId);
+  if (!sameWithdrawalAction(live.action, expectedAction)) {
+    throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: The withdrawal state changed before submission.");
+  }
+  if (!live.action.actionable) {
+    throw new Error("UNVEIL_WITHDRAWAL_NOT_ACTIONABLE: This withdrawal step is not available yet.");
+  }
+  if (isCurrent && !isCurrent()) {
+    throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: Wallet session is no longer current.");
+  }
+
+  const { manager, withdrawals, shares } = contracts(signer);
+  const assertLive = async () => {
+    const latest = await readWithdrawalRequest(expectedAction.requestId);
+    if (!sameWithdrawalAction(latest.action, expectedAction)) {
+      throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: The withdrawal state changed before submission.");
+    }
+    if (isCurrent && !isCurrent()) {
+      throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: Wallet session is no longer current.");
+    }
+    return latest;
+  };
+
+  try {
+    if (expectedAction.kind === "CLASSIFY") {
+      onStep?.("VERIFYING REQUEST WITH ZAMA/KMS…");
+      const completion = await withdrawalPublicDecrypt(
+        live.completedHandle,
+        "The encrypted withdrawal completion proof is not available yet.",
+      );
+      const completed = Boolean(completion.value);
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.classifyWithdrawal(expectedAction.requestId, completed, completion.proof),
+        30_000,
+        "Wallet did not respond to withdrawal verification.",
+      );
+      onStep?.("REQUEST VERIFICATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Withdrawal verification is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "FUND_LIQUIDITY") {
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.fundWithdrawalLiquidity(),
+        30_000,
+        "Wallet did not respond to withdrawal liquidity funding.",
+      );
+      onStep?.("LIQUIDITY FUNDING SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Withdrawal liquidity funding is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "DISPATCH_BATCH") {
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        withdrawals.dispatchBatch(),
+        30_000,
+        "Wallet did not respond to withdrawal batch dispatch.",
+      );
+      onStep?.("BATCH DISPATCH SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Withdrawal batch dispatch is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "PROVE_BATCH") {
+      const unwrapRequestId = String(await withdrawals.unwrapRequestId(expectedAction.batchId));
+      const encryptedAmount = String(await shares.unwrapAmount(unwrapRequestId));
+      onStep?.("VERIFYING STRATEGY ROUTE WITH ZAMA/KMS…");
+      const result = await withdrawalPublicDecrypt(
+        encryptedAmount,
+        "The aggregate strategy-route proof is not available yet.",
+      );
+      const clearAmount = BigInt(result.value as bigint | number | string);
+      if (clearAmount < 0n || clearAmount > MAX_UINT64) {
+        throw new Error("UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE: The strategy-route proof is outside the valid range.");
+      }
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        withdrawals.dispatchBatchCallback(expectedAction.batchId, clearAmount, result.proof),
+        30_000,
+        "Wallet did not respond to strategy-route verification.",
+      );
+      onStep?.("STRATEGY ROUTE VERIFICATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Strategy-route verification is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "RESOLVE_BATCH") {
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.resolveWithdrawalBatch(expectedAction.batchId),
+        30_000,
+        "Wallet did not respond to withdrawal liquidity resolution.",
+      );
+      onStep?.("LIQUIDITY RESOLUTION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Withdrawal liquidity resolution is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "SETTLE") {
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.settleWithdrawal(expectedAction.requestId),
+        30_000,
+        "Wallet did not respond to withdrawal settlement.",
+      );
+      onStep?.("SETTLEMENT SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Withdrawal settlement is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "FINALIZE") {
+      onStep?.("VERIFYING SETTLEMENT WITH ZAMA/KMS…");
+      const completion = await withdrawalPublicDecrypt(
+        live.completedHandle,
+        "The final encrypted settlement proof is not available yet.",
+      );
+      if (!Boolean(completion.value)) {
+        throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: The settlement is not complete yet.");
+      }
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.finalizeWithdrawal(expectedAction.requestId, true, completion.proof),
+        30_000,
+        "Wallet did not respond to settlement finalization.",
+      );
+      onStep?.("SETTLEMENT FINALIZATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Settlement finalization is still pending on Sepolia.");
+    }
+
+    if (expectedAction.kind === "ADVANCE_CANCELED_HEAD") {
+      await assertLive();
+      onStep?.("WAITING FOR WALLET CONFIRMATION…");
+      const tx = await withTimeout(
+        manager.advanceWithdrawalQueue(),
+        30_000,
+        "Wallet did not respond to canceled queue advancement.",
+      );
+      onStep?.("QUEUE ADVANCEMENT SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
+      return await withTimeout(tx.wait(), 120_000, "Canceled queue advancement is still pending on Sepolia.");
+    }
+
+    throw new Error("UNVEIL_WITHDRAWAL_NOT_ACTIONABLE: This withdrawal step is not available yet.");
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("UNVEIL_WITHDRAWAL_") ||
+        error.message.startsWith("UNVEIL_MANAGER_REQUEST_UNAVAILABLE:"))
+    ) {
+      throw error;
+    }
+    actionError("UNVEIL_WITHDRAWAL_LIFECYCLE_FAILED:", error);
+  }
+}
+
+export async function cancelWithdrawal(signer: JsonRpcSigner, requestId: bigint, isCurrent?: () => boolean) {
+  try {
+    if (isCurrent && !isCurrent())
+      throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: Wallet session is no longer current.");
     const tx = await withTimeout(
       contracts(signer).pool.cancelWithdrawal(requestId),
       30_000,

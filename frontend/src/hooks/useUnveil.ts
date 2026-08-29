@@ -4,6 +4,8 @@ import { UNVEIL_NETWORK } from "../contracts";
 import {
   connectWallet,
   advanceDraw as advanceDrawTransaction,
+  advanceWithdrawal as advanceWithdrawalTransaction,
+  cancelWithdrawal as cancelWithdrawalTransaction,
   deliveredPrizeForRound,
   deliveredPrizesForAddress,
   ensureSepolia,
@@ -13,6 +15,7 @@ import {
   readDashboard,
   readInjectedWalletState,
   readPublicProtocol,
+  readWithdrawalRequest,
   renewDrawSeat,
   resetWalletRelayer,
   revealMyRoundWeight,
@@ -24,6 +27,7 @@ import {
   type MyVault,
 } from "../veilClient";
 import type { DrawAction } from "../lib/drawAdvance";
+import type { WithdrawalLifecycleAction } from "../../../shared/withdrawalLifecycle";
 import { productError } from "../lib/errors";
 import { advanceWalletSessionEpoch } from "../lib/walletSession";
 
@@ -331,6 +335,59 @@ export function useUnveil() {
     }
   }
 
+  async function advanceWithdrawal(expectedAction: WithdrawalLifecycleAction) {
+    const wallet = privateWallet();
+    if (!wallet) return;
+    try {
+      setScopedError("save", "");
+      setBusy("withdrawal-lifecycle");
+      setScopedNotice("save", expectedAction.description);
+      await advanceWithdrawalTransaction(
+        wallet.signer,
+        expectedAction,
+        (nextNotice) => {
+          if (walletEpoch.current === wallet.epoch) setScopedNotice("save", nextNotice);
+        },
+        () => walletEpoch.current === wallet.epoch,
+      );
+      if (walletEpoch.current !== wallet.epoch) return;
+      await refresh(wallet.signer, "save");
+      if (walletEpoch.current === wallet.epoch) {
+        setScopedNotice("save", "Withdrawal lifecycle advanced. The latest public state is now loaded.");
+      }
+    } catch (cause) {
+      if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
+    } finally {
+      if (walletEpoch.current === wallet.epoch) setBusy("");
+    }
+  }
+
+  async function cancelWithdrawal(requestId: bigint) {
+    const wallet = privateWallet();
+    if (!wallet) return;
+    try {
+      setScopedError("save", "");
+      setBusy("withdrawal-cancel");
+      const live = await readWithdrawalRequest(requestId);
+      if (walletEpoch.current !== wallet.epoch) return;
+      if (live.account.toLowerCase() !== wallet.address.toLowerCase()) {
+        throw new Error("UNVEIL_WITHDRAWAL_NOT_ACTIONABLE: Only the request owner can cancel this withdrawal.");
+      }
+      if (live.settled || live.canceled || live.committed) {
+        throw new Error("UNVEIL_WITHDRAWAL_NOT_ACTIONABLE: This withdrawal can no longer be canceled.");
+      }
+      setScopedNotice("save", "Waiting for wallet confirmation to cancel the encrypted request…");
+      await cancelWithdrawalTransaction(wallet.signer, requestId, () => walletEpoch.current === wallet.epoch);
+      if (walletEpoch.current !== wallet.epoch) return;
+      await refresh(wallet.signer, "save");
+      if (walletEpoch.current === wallet.epoch) setScopedNotice("save", "Withdrawal request canceled.");
+    } catch (cause) {
+      if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
+    } finally {
+      if (walletEpoch.current === wallet.epoch) setBusy("");
+    }
+  }
+
   async function revealVaultStats() {
     const wallet = privateWallet();
     if (!wallet) return;
@@ -487,6 +544,8 @@ export function useUnveil() {
     fundTestToken,
     deposit,
     withdraw,
+    advanceWithdrawal,
+    cancelWithdrawal,
     revealVaultStats,
     revealRound,
     revealPrizeForRound,
