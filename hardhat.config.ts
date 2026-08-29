@@ -16,6 +16,28 @@ const LOCAL_MNEMONIC: string = vars.get("MNEMONIC", LOCAL_TEST_MNEMONIC);
 const SEPOLIA_MNEMONIC: string = vars.get("MNEMONIC", "").trim();
 const SEPOLIA_RPC_URL: string = vars.get("SEPOLIA_RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com");
 
+const DEFAULT_SOLIDITY_SETTINGS = {
+  metadata: {
+    bytecodeHash: "none",
+  },
+  optimizer: {
+    enabled: true,
+    runs: 800,
+  },
+  evmVersion: "cancun",
+} as const;
+
+const V4_SIZE_OPTIMIZED_SOLIDITY_SETTINGS = {
+  metadata: {
+    bytecodeHash: "none",
+  },
+  optimizer: {
+    enabled: true,
+    runs: 1,
+  },
+  evmVersion: "cancun",
+} as const;
+
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   namedAccounts: {
@@ -66,16 +88,17 @@ const config: HardhatUserConfig = {
     tests: "./test",
   },
   solidity: {
-    version: "0.8.27",
-    settings: {
-      metadata: {
-        bytecodeHash: "none",
+    compilers: [
+      {
+        version: "0.8.27",
+        settings: DEFAULT_SOLIDITY_SETTINGS,
       },
-      optimizer: {
-        enabled: true,
-        runs: 800,
+    ],
+    overrides: {
+      "contracts/VeilPoolV4.sol": {
+        version: "0.8.27",
+        settings: V4_SIZE_OPTIMIZED_SOLIDITY_SETTINGS,
       },
-      evmVersion: "cancun",
     },
   },
   typechain: {
