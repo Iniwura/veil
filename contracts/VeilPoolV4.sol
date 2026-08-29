@@ -3,7 +3,7 @@ pragma solidity ^0.8.27;
 
 // UNVEIL V4 keeps the V3 confidential custody and prize economics while replacing the
 // single linear draw roster with a 24 x 24 sharded snapshot and two-stage encrypted draw.
-// solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-strict-inequalities
+// solhint-disable use-natspec, gas-increment-by-one, gas-strict-inequalities
 // solhint-disable gas-indexed-events, immutable-vars-naming, named-parameters-mapping
 // solhint-disable gas-struct-packing, max-states-count, function-max-lines
 
@@ -35,6 +35,34 @@ interface IVeilStrategyManagerV4 {
 contract VeilPoolV4 is VeilShardedDraw {
     uint8 public constant PRIZE_SLOTS = 3;
     uint64 public constant SEAT_LEASE = 30 days;
+
+    error InvalidAsset();
+    error InvalidDrawPeriod();
+    error ScheduleOverflow();
+    error NotOwner();
+    error ManagerAlreadyConfigured();
+    error InvalidManager();
+    error InvalidManagerPool();
+    error InvalidManagerAsset();
+    error ManagerNotConfigured();
+    error PoolNotOperator();
+    error NotJoined();
+    error NotSeated();
+    error NotRequestOwner();
+    error OnlyManager();
+    error UnknownRequest();
+    error RequestCanceled();
+    error RequestAlreadyCanceled();
+    error DrawStillOpen();
+    error RoundAlreadyAdvanced();
+    error RoundNotSnapshotting();
+    error SnapshotNotBegun();
+    error SnapshotAlreadyFinalized();
+    error ShardsPending();
+    error RoundNotDrawing();
+    error RoundNotFinalizing();
+    error UnknownRound();
+    error InvalidRound();
 
     enum DrawState {
         NONE,
@@ -98,9 +126,9 @@ contract VeilPoolV4 is VeilShardedDraw {
     event RoundCancelled(uint256 indexed roundId);
 
     constructor(IERC7984 asset_, uint64 drawPeriod_) {
-        require(address(asset_) != address(0), "Invalid asset");
-        require(drawPeriod_ > 0, "Invalid draw period");
-        require(block.timestamp <= type(uint64).max - drawPeriod_, "Schedule overflow");
+        if (address(asset_) == address(0)) revert InvalidAsset();
+        if (drawPeriod_ == 0) revert InvalidDrawPeriod();
+        if (block.timestamp > type(uint64).max - drawPeriod_) revert ScheduleOverflow();
 
         owner = msg.sender;
         asset = asset_;
@@ -113,11 +141,11 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function configureStrategyManager(address manager_) external {
-        require(msg.sender == owner, "Not owner");
-        require(!strategyManagerConfigured, "Manager already configured");
-        require(manager_ != address(0), "Invalid manager");
-        require(IVeilStrategyManagerV4(manager_).pool() == address(this), "Invalid manager pool");
-        require(IVeilStrategyManagerV4(manager_).principalAsset() == address(asset), "Invalid manager asset");
+        if (msg.sender != owner) revert NotOwner();
+        if (strategyManagerConfigured) revert ManagerAlreadyConfigured();
+        if (manager_ == address(0)) revert InvalidManager();
+        if (IVeilStrategyManagerV4(manager_).pool() != address(this)) revert InvalidManagerPool();
+        if (IVeilStrategyManagerV4(manager_).principalAsset() != address(asset)) revert InvalidManagerAsset();
 
         strategyManager = manager_;
         strategyManagerConfigured = true;
@@ -125,8 +153,8 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function deposit(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
-        require(strategyManagerConfigured, "Manager not configured");
-        require(asset.isOperator(msg.sender, address(this)), "Pool not operator");
+        if (!strategyManagerConfigured) revert ManagerNotConfigured();
+        if (!asset.isOperator(msg.sender, address(this))) revert PoolNotOperator();
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
         FHE.allowTransient(requested, address(asset));
@@ -156,12 +184,12 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function renewDrawSeat() external {
-        require(joined[msg.sender], "Not joined");
+        if (!joined[msg.sender]) revert NotJoined();
         _acquireOrRenewShardedSeat(msg.sender);
     }
 
     function leaveDrawSeat() external {
-        require(seated[msg.sender], "Not seated");
+        if (!seated[msg.sender]) revert NotSeated();
         _releaseShardedSeat(msg.sender);
     }
 
@@ -170,8 +198,8 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external returns (uint256 requestId) {
-        require(strategyManagerConfigured, "Manager not configured");
-        require(joined[msg.sender], "Not joined");
+        if (!strategyManagerConfigured) revert ManagerNotConfigured();
+        if (!joined[msg.sender]) revert NotJoined();
 
         _sealShardedAccountState(msg.sender);
 
@@ -200,16 +228,16 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function cancelWithdrawal(uint256 requestId) external returns (euint64 canceledAmount) {
-        require(strategyManagerConfigured, "Manager not configured");
-        require(withdrawalRequestAccount[requestId] == msg.sender, "Not request owner");
+        if (!strategyManagerConfigured) revert ManagerNotConfigured();
+        if (withdrawalRequestAccount[requestId] != msg.sender) revert NotRequestOwner();
         canceledAmount = IVeilStrategyManagerV4(strategyManager).cancelPrincipalWithdrawal(requestId);
     }
 
     function onManagerWithdrawalPaid(uint256 requestId, euint64 amount) external {
-        require(msg.sender == strategyManager, "Only manager");
+        if (msg.sender != strategyManager) revert OnlyManager();
         address account = withdrawalRequestAccount[requestId];
-        require(account != address(0), "Unknown request");
-        require(!withdrawalRequestCanceled[requestId], "Request canceled");
+        if (account == address(0)) revert UnknownRequest();
+        if (withdrawalRequestCanceled[requestId]) revert RequestCanceled();
 
         euint64 requestRemaining = withdrawalRequestReserved[requestId];
         euint64 applied = FHE.select(FHE.le(amount, requestRemaining), amount, FHE.asEuint64(0));
@@ -222,10 +250,10 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function onManagerWithdrawalCanceled(uint256 requestId, euint64 amount) external {
-        require(msg.sender == strategyManager, "Only manager");
+        if (msg.sender != strategyManager) revert OnlyManager();
         address account = withdrawalRequestAccount[requestId];
-        require(account != address(0), "Unknown request");
-        require(!withdrawalRequestCanceled[requestId], "Request already canceled");
+        if (account == address(0)) revert UnknownRequest();
+        if (withdrawalRequestCanceled[requestId]) revert RequestAlreadyCanceled();
 
         _sealShardedAccountState(account);
 
@@ -246,12 +274,12 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function encryptedBalanceOf() external view returns (euint64) {
-        require(joined[msg.sender], "Not joined");
+        if (!joined[msg.sender]) revert NotJoined();
         return positions[msg.sender].balance;
     }
 
     function encryptedReservedWithdrawalOf() external view returns (euint64) {
-        require(joined[msg.sender], "Not joined");
+        if (!joined[msg.sender]) revert NotJoined();
         return reservedWithdrawals[msg.sender];
     }
 
@@ -262,11 +290,11 @@ contract VeilPoolV4 is VeilShardedDraw {
     /// @notice Begins the current closed round and immediately opens scheduling for the next round.
     /// @dev Individual shard snapshots remain permissionless and can be completed over multiple transactions.
     function beginSnapshotRound() external returns (uint256 roundId) {
-        require(block.timestamp >= nextDrawClosesAt, "Draw still open");
+        if (block.timestamp < nextDrawClosesAt) revert DrawStillOpen();
 
         roundId = nextRoundId;
         DrawRecord storage draw = draws[roundId];
-        require(draw.state == DrawState.NONE, "Round already advanced");
+        if (draw.state != DrawState.NONE) revert RoundAlreadyAdvanced();
 
         _beginShardedSnapshot(roundId);
         draw.snapshotBlock = uint64(block.number);
@@ -281,20 +309,20 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function snapshotRoundShard(uint256 roundId, uint8 shard) external {
-        require(draws[roundId].state == DrawState.SNAPSHOTTED, "Round not snapshotting");
+        if (draws[roundId].state != DrawState.SNAPSHOTTED) revert RoundNotSnapshotting();
         _snapshotOneShard(roundId, shard);
     }
 
     /// @notice Completes a 24-shard snapshot or marks the round skipped when fewer than two mature seats exist.
     function completeSnapshotRound(uint256 roundId) external {
         DrawRecord storage draw = draws[roundId];
-        require(draw.state == DrawState.SNAPSHOTTED, "Round not snapshotting");
+        if (draw.state != DrawState.SNAPSHOTTED) revert RoundNotSnapshotting();
 
         (, , uint16 participantCount, uint8 processedShardCount, bool begun, bool finalized) =
             getShardedSnapshotRound(roundId);
-        require(begun, "Snapshot not begun");
-        require(!finalized, "Snapshot finalized");
-        require(processedShardCount == SHARD_COUNT, "Shards pending");
+        if (!begun) revert SnapshotNotBegun();
+        if (finalized) revert SnapshotAlreadyFinalized();
+        if (processedShardCount != SHARD_COUNT) revert ShardsPending();
 
         draw.participantCount = participantCount;
         if (participantCount < 2) {
@@ -311,7 +339,7 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function drawPrizeShard(uint256 roundId, uint8 prizeIndex) public override {
-        require(draws[roundId].state == DrawState.SNAPSHOTTED, "Round not drawing");
+        if (draws[roundId].state != DrawState.SNAPSHOTTED) revert RoundNotDrawing();
         super.drawPrizeShard(roundId, prizeIndex);
     }
 
@@ -321,13 +349,13 @@ contract VeilPoolV4 is VeilShardedDraw {
         uint8 shard,
         bytes calldata decryptionProof
     ) public override {
-        require(draws[roundId].state == DrawState.SNAPSHOTTED, "Round not drawing");
+        if (draws[roundId].state != DrawState.SNAPSHOTTED) revert RoundNotDrawing();
         super.finalizePrizeShard(roundId, prizeIndex, shard, decryptionProof);
     }
 
     function drawPrizeMember(uint256 roundId, uint8 prizeIndex) public override {
         DrawState state = draws[roundId].state;
-        require(state == DrawState.SNAPSHOTTED || state == DrawState.DRAWN, "Round not drawing");
+        if (state != DrawState.SNAPSHOTTED && state != DrawState.DRAWN) revert RoundNotDrawing();
         super.drawPrizeMember(roundId, prizeIndex);
         _syncDrawnState(roundId);
     }
@@ -339,7 +367,7 @@ contract VeilPoolV4 is VeilShardedDraw {
         bytes calldata decryptionProof
     ) public override {
         DrawState state = draws[roundId].state;
-        require(state == DrawState.SNAPSHOTTED || state == DrawState.DRAWN, "Round not finalizing");
+        if (state != DrawState.SNAPSHOTTED && state != DrawState.DRAWN) revert RoundNotFinalizing();
         super.finalizePrizeMember(roundId, prizeIndex, abiEncodedClearWinner, decryptionProof);
         _syncRoundFinalization(roundId);
     }
@@ -359,7 +387,7 @@ contract VeilPoolV4 is VeilShardedDraw {
         )
     {
         DrawRecord storage draw = draws[roundId];
-        require(draw.state != DrawState.NONE, "Unknown round");
+        if (draw.state == DrawState.NONE) revert UnknownRound();
         (drawnPrizeCount, finalizedPrizeCount, winningPrizeCount) = _prizeCounts(roundId);
         return (
             draw.snapshotBlock,
@@ -506,9 +534,9 @@ contract VeilPoolV4 is VeilShardedDraw {
     }
 
     function _scheduledDrawOpensAt(uint256 roundId) private view returns (uint64) {
-        require(roundId > 0, "Invalid round");
+        if (roundId == 0) revert InvalidRound();
         uint256 opensAt = uint256(firstDrawOpensAt) + ((roundId - 1) * uint256(drawPeriod));
-        require(opensAt <= type(uint64).max - uint256(drawPeriod), "Schedule overflow");
+        if (opensAt > type(uint64).max - uint256(drawPeriod)) revert ScheduleOverflow();
         return uint64(opensAt);
     }
 
