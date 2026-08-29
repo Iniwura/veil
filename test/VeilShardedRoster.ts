@@ -106,6 +106,10 @@ describe("VeilShardedRoster", function () {
 
     await roster.setWeight(bob, 75);
     expect(await roster.shardLastSealedRoundId(1)).to.equal(1);
-    expect(await roster.historicalParticipantCount(1, 1, firstClose)).to.equal(1);
+
+    const historicalBob = await roster.historicalSeat(1, 1, 0);
+    expect(historicalBob.account).to.equal(bob);
+    expect(historicalBob.eligibleFromRoundId).to.equal(2);
+    expect(await roster.historicalParticipantCount(1, 1, firstClose)).to.equal(0);
   });
 });
