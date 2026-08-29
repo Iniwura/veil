@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-struct-packing
+// solhint-disable named-parameters-mapping
 
 import {FHE, ebool, eaddress, euint8, euint64, euint128} from "@fhevm/solidity/lib/FHE.sol";
 import {VeilShardedSnapshot} from "./VeilShardedSnapshot.sol";
