@@ -447,17 +447,7 @@ contract VeilPoolV3 is ZamaEthereumConfig {
         euint64 randomValue = FHE.randEuint64();
         euint128 product = FHE.mul(FHE.asEuint128(randomValue), FHE.asEuint128(draw.encryptedTotalWeight));
         euint64 target = FHE.asEuint64(FHE.shr(product, 64));
-        euint64 cumulative = FHE.asEuint64(0);
-        eaddress winner = FHE.asEaddress(address(0));
-        ebool selected = FHE.asEbool(false);
-
-        for (uint8 i = 0; i < draw.participantCount; i++) {
-            cumulative = FHE.add(cumulative, drawWeights[roundId][i]);
-            ebool crossesTarget = FHE.lt(target, cumulative);
-            ebool chooseThisPlayer = FHE.and(crossesTarget, FHE.not(selected));
-            winner = FHE.select(chooseThisPlayer, FHE.asEaddress(drawPlayers[roundId][i]), winner);
-            selected = FHE.or(selected, crossesTarget);
-        }
+        eaddress winner = _selectPrizeWinner(roundId, draw.participantCount, target);
 
         prize.encryptedWinner = winner;
         prize.drawn = true;
@@ -466,6 +456,24 @@ contract VeilPoolV3 is ZamaEthereumConfig {
         FHE.makePubliclyDecryptable(prize.encryptedWinner);
         if (draw.drawnPrizeCount == PRIZE_SLOTS) draw.state = DrawState.DRAWN;
         emit BlindDrawPrizeCompleted(roundId, prizeIndex, prize.encryptedWinner);
+    }
+
+    function _selectPrizeWinner(
+        uint256 roundId,
+        uint8 participantCount,
+        euint64 target
+    ) private returns (eaddress winner) {
+        euint64 cumulative = FHE.asEuint64(0);
+        winner = FHE.asEaddress(address(0));
+        ebool selected = FHE.asEbool(false);
+
+        for (uint8 i = 0; i < participantCount; i++) {
+            cumulative = FHE.add(cumulative, drawWeights[roundId][i]);
+            ebool crossesTarget = FHE.lt(target, cumulative);
+            ebool chooseThisPlayer = FHE.and(crossesTarget, FHE.not(selected));
+            winner = FHE.select(chooseThisPlayer, FHE.asEaddress(drawPlayers[roundId][i]), winner);
+            selected = FHE.or(selected, crossesTarget);
+        }
     }
 
     function finalizePrizeWinner(
@@ -645,7 +653,7 @@ contract VeilPoolV3 is ZamaEthereumConfig {
         }
     }
 
-    function _historicalWeightOf(uint256 roundId, address account) private view returns (euint64) {
+    function _historicalWeightOf(uint256 roundId, address account) private returns (euint64) {
         if (roundId == 0) return FHE.asEuint64(0);
         uint256 epochId = _stateEpochForRound(roundId);
         uint8 sourceParticipantCount = epochId == 0 ? playerCount : stateEpochs[epochId].participantCount;
