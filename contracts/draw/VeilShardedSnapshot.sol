@@ -231,4 +231,21 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         uint8 index = _snapshotIndexByAccount[roundId][account];
         return _snapshotWeights[roundId][shard][index];
     }
+
+    function _snapshotShardParticipantCount(uint256 roundId, uint8 shard) internal view returns (uint8) {
+        require(shard < SHARD_COUNT, "Invalid shard");
+        SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
+        require(snapshot.processed, "Shard not snapshotted");
+        return snapshot.participantCount;
+    }
+
+    function _snapshotPlayerAt(uint256 roundId, uint8 shard, uint8 index) internal view returns (address) {
+        require(index < _snapshotShardParticipantCount(roundId, shard), "Invalid snapshot index");
+        return _snapshotPlayers[roundId][shard][index];
+    }
+
+    function _snapshotWeightAt(uint256 roundId, uint8 shard, uint8 index) internal view returns (euint64) {
+        require(index < _snapshotShardParticipantCount(roundId, shard), "Invalid snapshot index");
+        return _snapshotWeights[roundId][shard][index];
+    }
 }
