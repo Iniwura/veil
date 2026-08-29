@@ -52,7 +52,7 @@ export function RoundHistory({
             )}
           </div>
           <div>
-            <span>PARTICIPANTS</span>
+            <span>ROUND PARTICIPANTS</span>
             <strong>{round.participantCount}</strong>
           </div>
           <div>
