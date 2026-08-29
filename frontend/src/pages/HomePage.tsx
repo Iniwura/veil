@@ -74,7 +74,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
               ELIGIBILITY <strong>{seatState}</strong>
             </span>
             <span>
-              PARTICIPANTS <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
+              CURRENT SEATS <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
             </span>
             <span>
               CLOSES <strong>{formatDate(schedule?.closesAt)}</strong>
@@ -101,7 +101,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
               value={unveil.vault?.activePrincipal}
               revealed={Boolean(unveil.vault)}
               busy={unveil.busy === "reveal-vault"}
-              unit=" TEST"
+              unit=" cUSDC"
             />
             <VeilReveal
               compact
@@ -109,7 +109,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
               value={unveil.vault?.reservedPrincipal}
               revealed={Boolean(unveil.vault)}
               busy={unveil.busy === "reveal-vault"}
-              unit=" TEST"
+              unit=" cUSDC"
             />
             <VeilReveal
               compact
