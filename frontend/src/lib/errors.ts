@@ -9,17 +9,17 @@ export function productError(error: unknown) {
   if (code === 4001 || message.toLowerCase().includes("user rejected")) return "Request cancelled in your wallet.";
   if (message.toLowerCase().includes("insufficient funds")) return "Not enough Sepolia ETH to pay network gas.";
   if (message.startsWith("UNVEIL_TEST_FUNDING_FAILED:"))
-    return "TEST TOKEN mint, approval, or confidential wrapping failed.";
+    return "Demo cUSDC mint, approval, or confidential wrapping failed.";
   if (message.startsWith("UNVEIL_OPERATOR_AUTH_FAILED:"))
     return "Pool authorization failed. Approve the confidential principal operator request.";
   if (message.startsWith("UNVEIL_ENCRYPTION_FAILED:"))
     return "Encryption failed. Reconnect the wallet and the Zama relayer, then retry.";
-  if (message.startsWith("UNVEIL_DEPOSIT_FAILED:")) return "The V2 pool rejected this encrypted deposit.";
-  if (message.startsWith("UNVEIL_WITHDRAW_FAILED:")) return "The V2 pool rejected this withdrawal request.";
+  if (message.startsWith("UNVEIL_DEPOSIT_FAILED:")) return "The pool rejected this encrypted deposit.";
+  if (message.startsWith("UNVEIL_WITHDRAW_FAILED:")) return "The pool rejected this withdrawal request.";
   if (message.startsWith("UNVEIL_PRIZE_WINNER_ONLY:"))
     return "Only the finalized winner can unveil this delivered prize.";
   if (message.startsWith("UNVEIL_ROUND_WEIGHT_UNAVAILABLE:"))
-    return "Your wallet was not included in that historical round.";
+    return "Round data unavailable. This wallet was not included in that historical round.";
   if (message.startsWith("UNVEIL_MANAGER_REQUEST_UNAVAILABLE:"))
     return "The strategy manager cannot provide this withdrawal request yet.";
   if (message.startsWith("UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE:"))
