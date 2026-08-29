@@ -114,41 +114,10 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
         require(!snapshot.processed, "Shard already snapshotted");
 
-        uint256 epochId = _shardEpochForRound(shard, roundId);
-        uint8 sourceParticipantCount;
-        if (epochId == 0) {
-            sourceParticipantCount = shardPlayerCount[shard];
-        } else {
-            (, , sourceParticipantCount) = getShardEpoch(shard, epochId);
-        }
-
+        uint8 sourceParticipantCount = _historicalShardSourceParticipantCount(roundId, shard);
         uint64 closesAt = _rosterScheduledDrawClosesAt(roundId);
-        euint64 shardTotalWeight = FHE.asEuint64(0);
-        uint8 snapshotParticipantCount;
-
-        for (uint8 i = 0; i < sourceParticipantCount; i++) {
-            (address account, uint64 expiresAt, euint64 closeWeight, uint256 eligibleFromRoundId) =
-                _historicalShardPlayerAt(roundId, shard, i);
-            if (expiresAt < closesAt || eligibleFromRoundId == 0 || eligibleFromRoundId > roundId) continue;
-
-            euint64 previousCloseWeight = roundId == 1
-                ? FHE.asEuint64(0)
-                : _historicalShardWeightOf(roundId - 1, shard, account);
-            euint64 matureWeight = FHE.min(previousCloseWeight, closeWeight);
-
-            _snapshotPlayers[roundId][shard][snapshotParticipantCount] = account;
-            _snapshotWeights[roundId][shard][snapshotParticipantCount] = matureWeight;
-            _snapshotIncluded[roundId][account] = true;
-            _snapshotShardByAccount[roundId][account] = shard;
-            _snapshotIndexByAccount[roundId][account] = snapshotParticipantCount;
-            shardTotalWeight = FHE.add(shardTotalWeight, matureWeight);
-
-            FHE.allowThis(_snapshotWeights[roundId][shard][snapshotParticipantCount]);
-            FHE.allow(_snapshotWeights[roundId][shard][snapshotParticipantCount], account);
-            unchecked {
-                snapshotParticipantCount++;
-            }
-        }
+        (uint8 snapshotParticipantCount, euint64 shardTotalWeight) =
+            _buildShardSnapshot(roundId, shard, sourceParticipantCount, closesAt);
 
         snapshot.participantCount = snapshotParticipantCount;
         snapshot.encryptedTotalWeight = shardTotalWeight;
@@ -162,6 +131,74 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         FHE.allowThis(snapshot.encryptedTotalWeight);
         FHE.allowThis(round.encryptedTotalWeight);
         emit ShardSnapshotted(roundId, shard, snapshotParticipantCount);
+    }
+
+    function _historicalShardSourceParticipantCount(uint256 roundId, uint8 shard) private view returns (uint8) {
+        uint256 epochId = _shardEpochForRound(shard, roundId);
+        if (epochId == 0) return shardPlayerCount[shard];
+        (, , uint8 participantCount) = getShardEpoch(shard, epochId);
+        return participantCount;
+    }
+
+    function _buildShardSnapshot(
+        uint256 roundId,
+        uint8 shard,
+        uint8 sourceParticipantCount,
+        uint64 closesAt
+    ) private returns (uint8 snapshotParticipantCount, euint64 shardTotalWeight) {
+        shardTotalWeight = FHE.asEuint64(0);
+
+        for (uint8 i = 0; i < sourceParticipantCount; i++) {
+            (address account, euint64 matureWeight, bool eligible) =
+                _matureHistoricalWeight(roundId, shard, i, closesAt);
+            if (!eligible) continue;
+
+            _recordSnapshotParticipant(roundId, shard, snapshotParticipantCount, account, matureWeight);
+            shardTotalWeight = FHE.add(shardTotalWeight, matureWeight);
+            unchecked {
+                snapshotParticipantCount++;
+            }
+        }
+    }
+
+    function _matureHistoricalWeight(
+        uint256 roundId,
+        uint8 shard,
+        uint8 sourceIndex,
+        uint64 closesAt
+    ) private returns (address account, euint64 matureWeight, bool eligible) {
+        uint64 expiresAt;
+        euint64 closeWeight;
+        uint256 eligibleFromRoundId;
+        (account, expiresAt, closeWeight, eligibleFromRoundId) =
+            _historicalShardPlayerAt(roundId, shard, sourceIndex);
+
+        if (expiresAt < closesAt || eligibleFromRoundId == 0 || eligibleFromRoundId > roundId) {
+            return (account, closeWeight, false);
+        }
+
+        euint64 previousCloseWeight = roundId == 1
+            ? FHE.asEuint64(0)
+            : _historicalShardWeightOf(roundId - 1, shard, account);
+        matureWeight = FHE.min(previousCloseWeight, closeWeight);
+        eligible = true;
+    }
+
+    function _recordSnapshotParticipant(
+        uint256 roundId,
+        uint8 shard,
+        uint8 snapshotIndex,
+        address account,
+        euint64 matureWeight
+    ) private {
+        _snapshotPlayers[roundId][shard][snapshotIndex] = account;
+        _snapshotWeights[roundId][shard][snapshotIndex] = matureWeight;
+        _snapshotIncluded[roundId][account] = true;
+        _snapshotShardByAccount[roundId][account] = shard;
+        _snapshotIndexByAccount[roundId][account] = snapshotIndex;
+
+        FHE.allowThis(_snapshotWeights[roundId][shard][snapshotIndex]);
+        FHE.allow(_snapshotWeights[roundId][shard][snapshotIndex], account);
     }
 
     function _finalizeShardedSnapshot(uint256 roundId) internal {
