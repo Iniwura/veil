@@ -34,7 +34,7 @@ contract VeilStrategyManagerV3 is VeilStrategyManagerV2 {
     bool public principalCoverage;
 
     event PrincipalCoverageAttestationRequested(uint256 indexed requestId);
-    event PrincipalCoverageAttestationVerified(uint256 indexed requestId, bool covered, uint64 verifiedAt);
+    event PrincipalCoverageAttestationVerified(uint256 indexed requestId, bool indexed covered, uint64 indexed verifiedAt);
 
     constructor(
         address pool_,
