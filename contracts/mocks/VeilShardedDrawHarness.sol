@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-// solhint-disable use-natspec, gas-custom-errors
+// solhint-disable use-natspec, gas-custom-errors, named-parameters-mapping, immutable-vars-naming
+// solhint-disable gas-strict-inequalities, gas-increment-by-one
 
 import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {VeilShardedDraw} from "../draw/VeilShardedDraw.sol";
