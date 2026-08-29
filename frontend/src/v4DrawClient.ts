@@ -1,4 +1,12 @@
-import { AbiCoder, Contract, JsonRpcProvider, ZeroAddress, ZeroHash, type JsonRpcSigner } from "ethers";
+import {
+  AbiCoder,
+  Contract,
+  JsonRpcProvider,
+  ZeroAddress,
+  ZeroHash,
+  type Eip1193Provider,
+  type JsonRpcSigner,
+} from "ethers";
 import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/bundle";
 import { UNVEIL_CONTRACTS, UNVEIL_NETWORK } from "./contracts";
 import { sameDrawAction, type DrawAction, type DrawLifecycleStage } from "./lib/drawAdvance";
@@ -103,10 +111,19 @@ type ZamaRelayerSDK = {
   __initialized__?: boolean;
 };
 
-type BrowserEthereum = {
+type BrowserEthereum = Eip1193Provider & {
   isMetaMask?: boolean;
   providers?: BrowserEthereum[];
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on?: {
+    (event: "accountsChanged", listener: (accounts: string[]) => void): void;
+    (event: "chainChanged", listener: (chainId: string) => void): void;
+    (event: "disconnect", listener: (error: unknown) => void): void;
+  };
+  removeListener?: {
+    (event: "accountsChanged", listener: (accounts: string[]) => void): void;
+    (event: "chainChanged", listener: (chainId: string) => void): void;
+    (event: "disconnect", listener: (error: unknown) => void): void;
+  };
 };
 
 declare global {
