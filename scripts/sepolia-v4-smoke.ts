@@ -232,7 +232,9 @@ async function finalizePrize(
     const shardProof = await fhevm.publicDecrypt([shardHandle]);
     const shardKey = Object.keys(shardProof.clearValues)[0] as keyof typeof shardProof.clearValues;
     const shard = Number(shardProof.clearValues[shardKey]);
-    await (await pool.connect(caller).finalizePrizeShard(roundId, prizeIndex, shard, shardProof.decryptionProof)).wait();
+    await (
+      await pool.connect(caller).finalizePrizeShard(roundId, prizeIndex, shard, shardProof.decryptionProof)
+    ).wait();
     status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
   }
 
