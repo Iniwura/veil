@@ -5,6 +5,16 @@ export const DRAW_ACTION_KINDS = [
   "BLIND_DRAW",
   "FINALIZE_WINNER",
   "PROCESS_PRIZE",
+  "BEGIN_SNAPSHOT",
+  "SNAPSHOT_SHARD",
+  "COMPLETE_SNAPSHOT",
+  "DRAW_SHARD",
+  "FINALIZE_SHARD",
+  "DRAW_MEMBER",
+  "FINALIZE_MEMBER",
+  "FUND_PRIZE",
+  "DELIVER_PRIZE",
+  "ADVANCE_NO_PRIZE",
   "BLOCKED",
 ] as const;
 
@@ -26,6 +36,8 @@ export type DrawAction = {
   description: string;
   actionable: boolean;
   stage: DrawLifecycleStage;
+  shardIndex?: number;
+  prizeIndex?: number;
 };
 
 function action(
@@ -150,5 +162,10 @@ export function deriveNextDrawAction(
 }
 
 export function sameDrawAction(left: DrawAction, right: DrawAction) {
-  return left.kind === right.kind && left.roundId === right.roundId;
+  return (
+    left.kind === right.kind &&
+    left.roundId === right.roundId &&
+    left.shardIndex === right.shardIndex &&
+    left.prizeIndex === right.prizeIndex
+  );
 }
