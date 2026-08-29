@@ -152,7 +152,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     batchAge,
   ]);
   const pool = await deployment(V3_DEPLOYMENT_NAMES.pool, "VeilPoolV3", [principal.address, drawPeriod]);
-  const prizeVault = await deployment(V3_DEPLOYMENT_NAMES.prizeVault, "VeilPrizeVaultV3", [pool.address, shares.address]);
+  const prizeVault = await deployment(V3_DEPLOYMENT_NAMES.prizeVault, "VeilPrizeVaultV3", [
+    pool.address,
+    shares.address,
+  ]);
   const manager = await deployment(V3_DEPLOYMENT_NAMES.manager, "VeilStrategyManagerV3", [
     pool.address,
     principal.address,
