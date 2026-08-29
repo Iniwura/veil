@@ -24,6 +24,20 @@ contract VeilShardedDrawHarness is VeilShardedDraw {
         _acquireOrRenewShardedSeat(account);
     }
 
+    /// @dev Test-only bounded seeding helper. Call before the first draw close.
+    function acquireManyWithWeight(address[] calldata accounts, uint64 weight) external {
+        require(accounts.length <= SHARD_COUNT, "Batch too large");
+        require(_rosterLatestClosedRoundId() == 0, "Seed only before first close");
+
+        for (uint256 i = 0; i < accounts.length; i++) {
+            address account = accounts[i];
+            _acquireOrRenewShardedSeat(account);
+            _weights[account] = FHE.asEuint64(weight);
+            FHE.allowThis(_weights[account]);
+            FHE.allow(_weights[account], account);
+        }
+    }
+
     function release(address account) external {
         _releaseShardedSeat(account);
     }
