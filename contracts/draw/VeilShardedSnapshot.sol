@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 // solhint-disable use-natspec, gas-custom-errors, gas-increment-by-one, gas-struct-packing
+// solhint-disable named-parameters-mapping, gas-indexed-events, gas-strict-inequalities
 
 import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {VeilShardedRoster} from "./VeilShardedRoster.sol";
