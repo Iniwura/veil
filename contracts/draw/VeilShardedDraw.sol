@@ -32,7 +32,7 @@ abstract contract VeilShardedDraw is VeilShardedSnapshot {
     event PrizeMemberDrawn(uint256 indexed roundId, uint8 indexed prizeIndex, eaddress encryptedWinner);
     event PrizeMemberFinalized(uint256 indexed roundId, uint8 indexed prizeIndex, address indexed winner);
 
-    function drawPrizeShard(uint256 roundId, uint8 prizeIndex) public {
+    function drawPrizeShard(uint256 roundId, uint8 prizeIndex) public virtual {
         _requirePrizeIndex(prizeIndex);
         (, , , , , bool snapshotFinalized) = getShardedSnapshotRound(roundId);
         require(snapshotFinalized, "Snapshot not finalized");
@@ -54,7 +54,7 @@ abstract contract VeilShardedDraw is VeilShardedSnapshot {
         uint8 prizeIndex,
         uint8 shard,
         bytes calldata decryptionProof
-    ) public {
+    ) public virtual {
         _requirePrizeIndex(prizeIndex);
         require(shard < SHARD_COUNT, "Invalid shard");
 
@@ -71,7 +71,7 @@ abstract contract VeilShardedDraw is VeilShardedSnapshot {
         emit PrizeShardFinalized(roundId, prizeIndex, shard);
     }
 
-    function drawPrizeMember(uint256 roundId, uint8 prizeIndex) public {
+    function drawPrizeMember(uint256 roundId, uint8 prizeIndex) public virtual {
         _requirePrizeIndex(prizeIndex);
         ShardedPrizeResult storage prize = _shardedPrizeResults[roundId][prizeIndex];
         require(prize.shardFinalized, "Prize shard not finalized");
@@ -92,7 +92,7 @@ abstract contract VeilShardedDraw is VeilShardedSnapshot {
         uint8 prizeIndex,
         bytes calldata abiEncodedClearWinner,
         bytes calldata decryptionProof
-    ) public {
+    ) public virtual {
         _requirePrizeIndex(prizeIndex);
         ShardedPrizeResult storage prize = _shardedPrizeResults[roundId][prizeIndex];
         require(prize.winnerDrawn, "Prize member not drawn");
