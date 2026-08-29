@@ -87,7 +87,7 @@
     "deploy:sepolia": "hardhat deploy --network sepolia",
     "deploy:v2:localhost": "hardhat deploy --network localhost --tags UNVEIL_V2 --reset",
     "deploy:v2:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V2",
-    "deploy:v3:hardhat": "hardhat deploy --network hardhat --tags UNVEIL_V3 --reset",
+    "deploy:v3:localhost": "hardhat deploy --network localhost --tags UNVEIL_V3 --reset",
     "deploy:v3:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V3",
     "smoke:v2:sepolia": "hardhat run scripts/sepolia-v2-smoke.ts --network sepolia",
     "verify:sepolia": "hardhat verify --network sepolia"
