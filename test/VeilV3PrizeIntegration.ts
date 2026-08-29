@@ -78,8 +78,8 @@ async function deploySystem(): Promise<System> {
     await ethers.getContractFactory("VeilPrizeVaultV3")
   ).deploy(await pool.getAddress(), await shares.getAddress())) as VeilPrizeVaultV3;
 
-  // VeilPrizeVaultV3 deliberately preserves the two-argument prize-delivery ABI used by
-  // VeilStrategyManagerV2. This lets V3 reuse the already-reviewed custody/solvency manager.
+  // V3 preserves the two-argument manager ABI, but manager processing now only funds the round.
+  // Each prize slot is delivered permissionlessly in its own HCU-bounded transaction.
   const manager = (await (
     await ethers.getContractFactory("VeilStrategyManagerV2TestHarness")
   ).deploy(
@@ -191,14 +191,13 @@ describe("UNVEIL V3 prize integration", function () {
     if (!fhevm.isMock) this.skip();
   });
 
-  it("splits only safe surplus 50/30/remainder and delivers all three prizes confidentially", async function () {
+  it("funds only safe surplus and delivers 50/30/remainder across bounded prize transactions", async function () {
     const system = await deploySystem();
     await fundAndApprove(system, signers.alice);
     await fundAndApprove(system, signers.bob);
     await deposit(system, signers.alice, 100);
     await deposit(system, signers.bob, 100);
 
-    // Invest only the encrypted amount above the 20% principal buffer.
     await (await system.manager.connect(signers.keeper).investExcess()).wait();
     await advanceBatchAge(system.deposits);
     await (await system.deposits.connect(signers.keeper).dispatchBatch()).wait();
@@ -223,12 +222,32 @@ describe("UNVEIL V3 prize integration", function () {
     const safeSurplusBefore = await exposeSafeSurplus(system);
     expect(safeSurplusBefore).to.be.greaterThan(0n);
 
-    // The manager advances over skipped Round 1, then processes finalized Round 2.
+    // The manager advances over skipped Round 1, then funds finalized Round 2 without doing
+    // prize division/transfers in the same FHE depth chain.
     await (await system.manager.connect(signers.keeper).processNextPrizeRound()).wait();
     expect(await system.manager.nextPrizeRoundId()).to.equal(2n);
     await (await system.manager.connect(signers.keeper).processNextPrizeRound()).wait();
     expect(await system.manager.nextPrizeRoundId()).to.equal(3n);
-    expect(await system.prizeVault.roundProcessed(2)).to.equal(true);
+
+    const fundedStatus = await system.prizeVault.roundStatus(2);
+    expect(fundedStatus[0]).to.equal(true);
+    expect(fundedStatus[1]).to.equal(0n);
+    expect(fundedStatus[2]).to.equal(false);
+
+    await expect(system.prizeVault.connect(signers.keeper).deliverPrize(2, 2)).to.be.revertedWithCustomError(
+      system.prizeVault,
+      "PriorPrizesPending",
+    );
+
+    // One slot per transaction keeps the FHE operation chain below the HCU depth limit.
+    await (await system.prizeVault.connect(signers.keeper).deliverPrize(2, 0)).wait();
+    await (await system.prizeVault.connect(signers.keeper).deliverPrize(2, 1)).wait();
+    await (await system.prizeVault.connect(signers.keeper).deliverPrize(2, 2)).wait();
+
+    const deliveredStatus = await system.prizeVault.roundStatus(2);
+    expect(deliveredStatus[0]).to.equal(true);
+    expect(deliveredStatus[1]).to.equal(3n);
+    expect(deliveredStatus[2]).to.equal(true);
 
     const expected = [
       (safeSurplusBefore * 50n) / 100n,
@@ -247,7 +266,7 @@ describe("UNVEIL V3 prize integration", function () {
     }
     expect(deliveredTotal).to.equal(safeSurplusBefore);
 
-    // Prize processing never changes protected principal liability and consumes the safe surplus.
+    // Funding/delivery never changes protected principal liability and consumes only safe surplus.
     await (await system.manager.connect(signers.keeper).exposeAccountingForTest()).wait();
     expect(
       await decrypt64(
