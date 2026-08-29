@@ -48,6 +48,8 @@ type System = {
   manager: VeilStrategyManagerV3;
 };
 
+type PrizeResult = { shard: number; winner: string };
+
 const drawStateNames = ["NONE", "SNAPSHOTTED", "DRAWN", "FINALIZED", "CANCELLED", "SKIPPED"];
 
 function namedDrawState(state: number): string {
@@ -217,7 +219,7 @@ async function finalizePrize(
   roundId: bigint,
   prizeIndex: number,
   caller: HardhatEthersSigner,
-): Promise<{ shard: number; winner: string }> {
+): Promise<PrizeResult> {
   let status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
 
   if (!status[0]) {
@@ -252,6 +254,16 @@ async function finalizePrize(
   }
 
   return { shard: Number(status[2]), winner: status[5] };
+}
+
+async function readFinalizedPrizes(pool: VeilPoolV4, roundId: bigint): Promise<PrizeResult[]> {
+  const results: PrizeResult[] = [];
+  for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
+    const status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
+    if (!status[4]) throw new Error(`Round ${roundId} prize ${prizeIndex} is not finalized`);
+    results.push({ shard: Number(status[2]), winner: status[5] });
+  }
+  return results;
 }
 
 async function loadSystem(addresses: V4Addresses): Promise<System> {
@@ -362,16 +374,7 @@ async function run() {
     let state = Number(await system.pool.getDrawState(roundId));
     console.log(`  round ${roundId}: ${namedDrawState(state)}`);
     if (state === 5) continue;
-
-    if (state === 3 || state === 4) {
-      if (state === 3) {
-        console.log(`  round ${roundId} was already finalized on a previous smoke invocation`);
-        console.log("\nUNVEIL V4 Sepolia sharded-draw smoke PASSED");
-        return;
-      }
-      continue;
-    }
-    if (state !== 1 && state !== 2) {
+    if (state !== 1 && state !== 2 && state !== 3 && state !== 4) {
       throw new Error(`Round ${roundId} entered unexpected state ${namedDrawState(state)}`);
     }
 
@@ -391,15 +394,21 @@ async function run() {
     if (aliceWeight > 0n) positive.add(alice.address.toLowerCase());
     if (bobWeight > 0n) positive.add(bob.address.toLowerCase());
 
-    console.log("C. TWO-STAGE ENCRYPTED PRIZE DRAW");
-    const results: { shard: number; winner: string }[] = [];
-    for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
-      const result = await finalizePrize(system.pool, roundId, prizeIndex, deployer);
-      results.push(result);
-      console.log(`  prize ${prizeIndex}: shard=${result.shard} winner=${result.winner}`);
+    let results: PrizeResult[];
+    if (state === 1 || state === 2) {
+      console.log("C. TWO-STAGE ENCRYPTED PRIZE DRAW");
+      results = [];
+      for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
+        const result = await finalizePrize(system.pool, roundId, prizeIndex, deployer);
+        results.push(result);
+        console.log(`  prize ${prizeIndex}: shard=${result.shard} winner=${result.winner}`);
+      }
+      state = Number(await system.pool.getDrawState(roundId));
+    } else {
+      results = await readFinalizedPrizes(system.pool, roundId);
+      console.log(`  round ${roundId}: reusing its already-finalized prize results`);
     }
 
-    state = Number(await system.pool.getDrawState(roundId));
     if (positive.size === 0) {
       if (state !== 4) throw new Error(`All-zero round ${roundId} did not end CANCELLED`);
       if (results.some((result) => result.winner !== ethers.ZeroAddress)) {
