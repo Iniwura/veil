@@ -31,6 +31,8 @@ export function DrawAdvancePanel({
     : busyAdvancing
       ? "ADVANCING…"
       : `ADVANCE: ${action?.title ?? "DRAW"}`;
+  const stepLabel = action?.kind === "WAIT" ? "NEXT STEP" : "NEXT PERMISSIONLESS STEP";
+  const stepRound = action ? ` · ROUND ${action.roundId.toString().padStart(2, "0")}` : "";
 
   return (
     <section
@@ -39,7 +41,10 @@ export function DrawAdvancePanel({
       data-tour="draw-advance"
     >
       <div className="draw-advance-heading">
-        <span className="eyebrow">{action?.kind === "WAIT" ? "NEXT STEP" : "NEXT PERMISSIONLESS STEP"}</span>
+        <span className="eyebrow">
+          {stepLabel}
+          {stepRound}
+        </span>
         <strong>{action?.title ?? "LOADING DRAW STATE"}</strong>
       </div>
       <DrawLifecycleRail action={action} terminalState={terminalState} />
