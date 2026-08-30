@@ -2,12 +2,28 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import { UNVEIL_CONTRACTS } from "../contracts";
 import { explorerAddress, shortAddress } from "../lib/format";
-import type { VerifiedRound } from "../veilClient";
+import type { VerifiedRoundV4 } from "../v4DrawClient";
 
-function prizeLabel(round: VerifiedRound) {
+function prizeLabel(round: VerifiedRoundV4) {
   if (round.status === "CANCELLED") return "NO PRIZE · ROUND CANCELLED";
   if (round.status === "SKIPPED") return "NO PRIZE · ROUND SKIPPED";
-  return round.processedPrize ? "DELIVERED" : "PROCESSING";
+  const delivered = round.prizes.filter((prize) => prize.delivered).length;
+  return delivered === round.prizes.length ? "3 / 3 DELIVERED" : `${delivered} / 3 DELIVERED`;
+}
+
+function finalizedWinnerLinks(round: VerifiedRoundV4) {
+  return round.prizes.map((prize, index) => (
+    <span key={`${round.id}-${prize.index}`}>
+      {index > 0 ? " · " : ""}
+      {prize.winner ? (
+        <a href={explorerAddress(prize.winner)} target="_blank" rel="noreferrer" data-cursor="verify">
+          P{prize.index + 1} · S{prize.shard} · {shortAddress(prize.winner)} ↗
+        </a>
+      ) : (
+        <>P{prize.index + 1} · ZERO</>
+      )}
+    </span>
+  ));
 }
 
 export function RoundHistory({
@@ -15,7 +31,7 @@ export function RoundHistory({
   compact = false,
   showExplorerLink = !compact,
 }: {
-  rounds: VerifiedRound[];
+  rounds: VerifiedRoundV4[];
   compact?: boolean;
   showExplorerLink?: boolean;
 }) {
@@ -24,7 +40,7 @@ export function RoundHistory({
     return (
       <div className="empty-state">
         <span>NO SETTLED ROUNDS LOADED</span>
-        <p>Verified results will appear after a round is finalized, cancelled, or skipped.</p>
+        <p>Verified V4 results will appear after a round is finalized, cancelled, or skipped.</p>
       </div>
     );
   }
@@ -42,13 +58,11 @@ export function RoundHistory({
             <strong data-state={round.status}>{round.status}</strong>
           </div>
           <div>
-            <span>{round.status === "FINALIZED" ? "WINNER" : "RESULT"}</span>
-            {round.winner ? (
-              <a href={explorerAddress(round.winner)} target="_blank" rel="noreferrer" data-cursor="verify">
-                {shortAddress(round.winner)} ↗
-              </a>
+            <span>{round.status === "FINALIZED" ? "3 PRIZE SLOTS" : "RESULT"}</span>
+            {round.status === "FINALIZED" ? (
+              <strong>{finalizedWinnerLinks(round)}</strong>
             ) : (
-              <strong>{round.status === "CANCELLED" ? "KMS-PROVEN ZERO" : "INSUFFICIENT PARTICIPANTS"}</strong>
+              <strong>{round.status === "CANCELLED" ? "KMS-PROVEN ZERO ×3" : "INSUFFICIENT MATURE SEATS"}</strong>
             )}
           </div>
           <div>
@@ -60,7 +74,7 @@ export function RoundHistory({
             <strong>{round.snapshotBlock.toString()}</strong>
           </div>
           <div>
-            <span>PRIZE</span>
+            <span>PRIZES</span>
             <strong>{prizeLabel(round)}</strong>
             <button
               className="verification-replay-button"
@@ -77,19 +91,21 @@ export function RoundHistory({
               key={`${round.id}-${replay.token}`}
             >
               <span>
-                {round.status === "SKIPPED" ? "VERIFIED ONCHAIN LIFECYCLE" : "VISUAL REPLAY OF VERIFIED ONCHAIN RESULT"}
+                {round.status === "SKIPPED" ? "VERIFIED V4 LIFECYCLE" : "VISUAL REPLAY OF VERIFIED V4 ONCHAIN RESULT"}
               </span>
-              <div className="verification-steps" aria-label={`${round.status} round verification path`}>
+              <div className="verification-steps" aria-label={`${round.status} V4 round verification path`}>
                 {(round.status === "SKIPPED"
-                  ? ["SCHEDULE CLOSE", "INSUFFICIENT", "SKIPPED"]
+                  ? ["SHARDED SNAPSHOT", "<2 MATURE SEATS", "SKIPPED"]
                   : round.status === "CANCELLED"
-                    ? ["SNAPSHOT", "BLIND DRAW", "KMS ZERO", "CANCELLED"]
+                    ? ["SHARDED SNAPSHOT", "SHARD + MEMBER DRAWS", "KMS ZERO ×3", "CANCELLED"]
                     : [
-                        "SNAPSHOT",
-                        "BLIND DRAW",
-                        "KMS PROOF",
+                        "SHARDED SNAPSHOT",
+                        "SHARD DRAW ×3",
+                        "KMS SHARD PROOFS",
+                        "MEMBER DRAW ×3",
+                        "KMS WINNER PROOFS",
                         "FINALIZED",
-                        round.processedPrize ? "PRIZE DELIVERED" : "PRIZE PROCESSING",
+                        round.processedPrize ? "3 PRIZES DELIVERED" : "PRIZE DELIVERY IN PROGRESS",
                       ]
                 ).map((step, index) => (
                   <i style={{ "--proof-index": index } as CSSProperties} key={step}>
@@ -99,13 +115,11 @@ export function RoundHistory({
               </div>
               <strong className="verification-outcome">
                 {round.status === "SKIPPED" ? (
-                  "NO DRAW EXECUTED · INSUFFICIENT PARTICIPANTS"
+                  "NO DRAW EXECUTED · FEWER THAN TWO MATURE SEATS"
                 ) : round.status === "CANCELLED" ? (
-                  "KMS-PROVEN ZERO WINNER · ROUND CANCELLED"
+                  "THREE KMS-PROVEN ZERO WINNERS · ROUND CANCELLED"
                 ) : (
-                  <>
-                    VERIFIED WINNER · <code>{round.winner}</code>
-                  </>
+                  <>THREE INDEPENDENT V4 PRIZE SLOTS · {finalizedWinnerLinks(round)}</>
                 )}
               </strong>
               <small>SNAPSHOT BLOCK {round.snapshotBlock.toString()}</small>
@@ -121,7 +135,7 @@ export function RoundHistory({
           rel="noreferrer"
           data-cursor="verify"
         >
-          VERIFY ALL POOL STATE ON ETHERSCAN ↗
+          VERIFY ALL V4 POOL STATE ON ETHERSCAN ↗
         </a>
       )}
     </div>
