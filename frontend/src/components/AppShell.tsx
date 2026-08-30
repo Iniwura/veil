@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BrandMark } from "./BrandMark";
 import { DemoBadge } from "./DemoBadge";
 import { RouteLink } from "./RouteLink";
-import type { UnveilController } from "../hooks/useUnveil";
+import type { UnveilV4Controller } from "../hooks/useUnveilV4";
 import type { AppRoute } from "../lib/routes";
 import { walletActionLabel, walletButtonAction } from "../lib/walletPresentation";
 
@@ -19,7 +19,7 @@ export function AppShell({
   onReplayGuide,
 }: {
   route: AppRoute;
-  unveil: UnveilController;
+  unveil: UnveilV4Controller;
   children: ReactNode;
   onReplayGuide: () => void;
 }) {
@@ -32,20 +32,20 @@ export function AppShell({
   const globalError = unveil.errorScope === "global" ? unveil.error : "";
   const publicState = unveil.publicError
     ? unveil.publicProtocol
-      ? "PUBLIC V2 STATE STALE"
-      : "PUBLIC V2 STATE UNAVAILABLE"
+      ? "PUBLIC V4 STATE STALE"
+      : "PUBLIC V4 STATE UNAVAILABLE"
     : unveil.publicProtocol
-      ? "PUBLIC V2 STATE LIVE"
-      : "PUBLIC V2 STATE LOADING";
+      ? "PUBLIC V4 STATE LIVE"
+      : "PUBLIC V4 STATE LOADING";
   const sessionLabel = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : unveil.walletState === "account-changed"
       ? "WALLET ACCOUNT CHANGED"
       : unveil.walletState === "reconnect-required"
         ? "RECONNECT REQUIRED"
-          : globalError
-            ? "ACTION NEEDS ATTENTION"
-            : "WALLET SESSION";
+        : globalError
+          ? "ACTION NEEDS ATTENTION"
+          : "WALLET SESSION";
 
   useEffect(() => {
     if (!unveil.connected) setSessionMenuOpen(false);
