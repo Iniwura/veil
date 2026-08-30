@@ -6,13 +6,13 @@ import { EncryptedPositionPreview } from "../components/EncryptedPositionPreview
 import { RouteLink } from "../components/RouteLink";
 import { RoundHistory } from "../components/RoundHistory";
 import { UNVEIL_CONTRACTS } from "../contracts";
-import type { UnveilController } from "../hooks/useUnveil";
+import type { UnveilV4Controller } from "../hooks/useUnveilV4";
 import { useRevealOnScroll } from "../hooks/useMotion";
 import { LandingProgress } from "../components/LandingProgress";
 import { ProtocolTicker } from "../components/ProtocolTicker";
 import { drawStateLabel, explorerAddress, formatDate } from "../lib/format";
 
-export function LandingPage({ unveil }: { unveil: UnveilController }) {
+export function LandingPage({ unveil }: { unveil: UnveilV4Controller }) {
   useRevealOnScroll();
   const schedule = unveil.schedule;
   const publicParticipants = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
@@ -108,9 +108,9 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
               <span className="privacy-ledger-label">PUBLIC</span>
               <ul>
                 <li>Round timing</li>
-                <li>Participant addresses</li>
-                <li>Draw lifecycle</li>
-                <li>Finalized winner</li>
+                <li>Seat addresses and shard membership</li>
+                <li>Sharded draw lifecycle</li>
+                <li>Selected shards and three winners</li>
                 <li>Proof and lifecycle events</li>
               </ul>
             </div>
@@ -120,14 +120,14 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
                 <li>Deposit amount</li>
                 <li>Active principal</li>
                 <li>Withdrawal amount</li>
-                <li>Draw weight</li>
+                <li>Mature draw weight</li>
                 <li>Prize amount</li>
               </ul>
             </div>
           </div>
           <p className="privacy-boundary-note" data-native-cursor>
-            UNVEIL does not provide address or transaction anonymity. Participant count is public, but it is not a
-            denominator for exact weighted odds.
+            UNVEIL does not provide address or transaction anonymity. V4 shard membership is public; exact balances,
+            mature ticket weights, shard totals, and weighted odds remain encrypted.
           </p>
           <div className="privacy-editorial" aria-hidden="true">
             <span>THE PROOF</span>
@@ -141,17 +141,17 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
       <section className="live-proof-section" id="live" data-reveal>
         <div className="live-status-band" aria-label="Current public Sepolia status">
           <span>
-            <i /> {schedule ? "SEPOLIA LIVE" : `SEPOLIA ${publicState}`}
+            <i /> {schedule ? "SEPOLIA V4 LIVE" : `SEPOLIA V4 ${publicState}`}
           </span>
           <span>ROUND {schedule?.currentRoundId?.toString().padStart(2, "0") ?? "—"}</span>
-          <span>PARTICIPANTS {publicParticipants ?? "—"}</span>
-          <span>FINALIZATION {schedule?.ready ? "READY" : "PENDING"}</span>
+          <span>SEATS {publicParticipants ?? "—"} / 576</span>
+          <span>24 SHARDS · 3 PRIZES</span>
         </div>
         <div className="live-proof-head">
           <div className="live-proof-intro">
             <p className="eyebrow">PUBLIC PROOF</p>
             <h2>Live on Sepolia.</h2>
-            <p data-native-cursor>Current public state, read directly from the deployed V2 contracts.</p>
+            <p data-native-cursor>Current public state, read directly from the deployed V4 sharded-draw stack.</p>
           </div>
           <div className="live-round-anchor" aria-hidden="true">
             <span>ROUND</span>
@@ -170,8 +170,8 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
             <strong>{drawStateLabel(schedule)}</strong>
           </div>
           <div>
-            <span>PARTICIPANTS</span>
-            <strong>{unveil.publicProtocol?.playerCount ?? "—"}</strong>
+            <span>ACTIVE SEATS</span>
+            <strong>{unveil.publicProtocol?.playerCount ?? "—"} / 576</strong>
           </div>
           <div>
             <span>SCHEDULED CLOSE</span>
@@ -190,13 +190,13 @@ export function LandingPage({ unveil }: { unveil: UnveilController }) {
           target="_blank"
           rel="noreferrer"
         >
-          VERIFY V2 POOL ↗
+          VERIFY V4 POOL ↗
         </a>
       </section>
 
       <section className="final-cta" data-reveal>
         <div className="final-cta-copy">
-          <p className="eyebrow">TEST/DEMO · ZAMA FHE</p>
+          <p className="eyebrow">TEST/DEMO · ZAMA FHE · V4</p>
           <h2>
             <span>Private savings.</span>
             <strong>Public proof.</strong>
