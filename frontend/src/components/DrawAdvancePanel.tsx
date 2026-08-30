@@ -44,7 +44,7 @@ export function DrawAdvancePanel({
       </div>
       <DrawLifecycleRail action={action} terminalState={terminalState} />
       <p className="draw-advance-description">
-        {action?.description ?? "Reading the public lifecycle state from the V2 contracts."}
+        {action?.description ?? "Reading the public sharded lifecycle from the live V4 contracts."}
       </p>
       {showButton && (
         <button
@@ -67,7 +67,7 @@ export function DrawAdvancePanel({
         <p className="draw-advance-warning">PUBLIC STATE NEEDS REVIEW · NO RECOVERY TRANSACTION</p>
       )}
       <p className="draw-advance-note">
-        Permissionless · any Sepolia wallet can execute · private balances and weights remain encrypted.
+        Permissionless · any Sepolia wallet can execute · each V4 FHE scan stays bounded to one 24-seat shard.
       </p>
     </section>
   );
