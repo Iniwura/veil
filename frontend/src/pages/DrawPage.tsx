@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { DrawAdvancePanel } from "../components/DrawAdvancePanel";
 import {
   CryptographicChamber,
@@ -7,9 +8,11 @@ import {
 import { RoundHistory } from "../components/RoundHistory";
 import { VeilReveal } from "../components/VeilReveal";
 import { UNVEIL_CONTRACTS } from "../contracts";
-import type { UnveilController } from "../hooks/useUnveil";
+import type { UnveilV4Controller } from "../hooks/useUnveilV4";
 import type { DrawAction } from "../lib/drawAdvance";
+import { productError } from "../lib/errors";
 import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
+import { revealPrizeV4 } from "../v4DrawClient";
 
 function chamberPhaseForAction(
   action: DrawAction | undefined,
@@ -23,7 +26,7 @@ function chamberPhaseForAction(
   }
   if (action.kind === "SKIP") return "SKIP";
   if (action.kind === "BLOCKED") return "BACKLOG";
-  if (action.kind === "PROCESS_PRIZE" && action.stage === "COMPLETE") return "COMPLETE";
+  if (action.stage === "COMPLETE") return "COMPLETE";
   if (action.stage === "SNAPSHOT") return "SNAPSHOT";
   if (action.stage === "BLIND_DRAW") return "BLIND_DRAW";
   if (action.stage === "VERIFY") return "VERIFY";
@@ -31,7 +34,7 @@ function chamberPhaseForAction(
   return "SEALED";
 }
 
-export function DrawPage({ unveil }: { unveil: UnveilController }) {
+export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
   const schedule = unveil.schedule;
   const currentSeatCount = unveil.dashboard?.playerCount ?? unveil.publicProtocol?.playerCount;
   const fieldState: CryptographicChamberState = schedule?.insufficientParticipants
@@ -46,7 +49,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
   const drawError = unveil.errorScope === "draw" ? unveil.error : "";
   const drawNotice = unveil.noticeScope === "draw" ? unveil.notice : "";
   const terminalRoundStatus =
-    unveil.drawAction?.kind === "PROCESS_PRIZE" && unveil.drawAction.stage === "COMPLETE"
+    unveil.drawAction?.stage === "COMPLETE"
       ? unveil.history.find((round) => round.id === unveil.drawAction?.roundId)?.status
       : undefined;
   const terminalState =
@@ -55,17 +58,59 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
       : terminalRoundStatus
         ? "COMPLETE"
         : undefined;
+  const [revealedPrize, setRevealedPrize] = useState<{ roundId: bigint; prizeIndex: number; value: bigint }>();
+  const [prizeBusy, setPrizeBusy] = useState("");
+  const [prizeError, setPrizeError] = useState("");
+
+  useEffect(() => {
+    setRevealedPrize(undefined);
+    setPrizeBusy("");
+    setPrizeError("");
+  }, [unveil.address]);
+
+  const myDeliveredPrizeSlots = unveil.myDeliveredPrizes.flatMap((round) =>
+    round.prizes
+      .filter(
+        (prize) =>
+          prize.delivered &&
+          prize.winner.toLowerCase() === unveil.address.toLowerCase(),
+      )
+      .map((prize) => ({ round, prize })),
+  );
+
+  async function togglePrizeReveal(roundId: bigint, prizeIndex: number) {
+    const alreadyRevealed = revealedPrize?.roundId === roundId && revealedPrize.prizeIndex === prizeIndex;
+    if (alreadyRevealed) {
+      setRevealedPrize(undefined);
+      return;
+    }
+    if (!unveil.signer) {
+      setPrizeError("Connect the winning Sepolia wallet before unveiling this prize slot.");
+      return;
+    }
+    const key = `${roundId}-${prizeIndex}`;
+    try {
+      setPrizeError("");
+      setPrizeBusy(key);
+      const value = await revealPrizeV4(unveil.signer, roundId, prizeIndex);
+      setRevealedPrize({ roundId, prizeIndex, value });
+    } catch (cause) {
+      setPrizeError(productError(cause));
+    } finally {
+      setPrizeBusy("");
+    }
+  }
 
   return (
     <div className="page-stack route-enter">
       <header className="draw-page-intro">
         <div className="draw-page-intro-heading">
-          <span className="eyebrow">PUBLIC SETTLEMENT</span>
+          <span className="eyebrow">PUBLIC SETTLEMENT · V4</span>
           <strong>{schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</strong>
         </div>
         <p data-native-cursor>
-          Timing and winners are public. Balances, eligible ticket weights, and prize amounts stay encrypted until an
-          authorized wallet unveils them.
+          Timing, shard checkpoints, selected shards, and winners are public. Balances, mature ticket weights, and prize
+          amounts stay encrypted until an authorized wallet unveils them.
         </p>
       </header>
 
@@ -110,12 +155,13 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             <span>{schedule?.unsettledRounds.toString() ?? "—"} UNSETTLED</span>
           </div>
           <p className="draw-note">
-            CURRENT SEATS is the live public roster. Past draws show the immutable ROUND PARTICIPANTS captured for that
-            round.
+            V4 supports 24 public shards × 24 seats. A closed round is checkpointed one shard per transaction, then each
+            of the three prize slots independently selects an encrypted shard and an encrypted saver inside it.
           </p>
-          {schedule?.insufficientParticipants && (
-            <p className="draw-note">This round can be marked SKIPPED. No draw or encrypted winner exists for it.</p>
-          )}
+          <p className="draw-note">
+            New savings become prize-eligible after one complete draw period. The same saver may win more than one prize
+            slot.
+          </p>
           <DrawAdvancePanel
             action={unveil.drawAction}
             connected={unveil.connected}
@@ -142,7 +188,7 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
             target="_blank"
             rel="noreferrer"
           >
-            VERIFY POOL ↗
+            VERIFY V4 POOL ↗
           </a>
         </header>
 
@@ -152,21 +198,30 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
               <span className="eyebrow">LATEST RESULT</span>
               <h2>{result ? `ROUND ${result.id.toString().padStart(2, "0")}` : "NO SETTLED RESULT"}</h2>
               <p>
-                {result?.winner
-                  ? `Verified winner ${shortAddress(result.winner)}.`
+                {result?.status === "FINALIZED"
+                  ? "Three independently verified two-stage prize slots finalized."
                   : result?.status === "CANCELLED"
-                    ? "KMS-proven zero-weight draw. No prize was delivered."
+                    ? "All three KMS-verified winner outputs were zero. No prize was delivered."
                     : result?.status === "SKIPPED"
-                      ? "Skipped at the scheduled close because fewer than two seats were eligible."
-                      : "The latest finalized, cancelled, or skipped round will appear here."}
+                      ? "The completed sharded checkpoint contained fewer than two mature seats."
+                      : "The latest finalized, cancelled, or skipped V4 round will appear here."}
               </p>
+              {result?.status === "FINALIZED" && (
+                <div className="draw-mini-metrics">
+                  {result.prizes.map((prize) => (
+                    <span key={`${result.id}-${prize.index}`}>
+                      P{prize.index + 1} · S{prize.shard} · {shortAddress(prize.winner)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="draw-result-state">
               <span>STATE</span>
               <strong>{result?.status ?? "—"}</strong>
-              {result?.winner && (
-                <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer" data-cursor="verify">
-                  VERIFY WINNER ↗
+              {result?.status === "FINALIZED" && result.prizes.length > 0 && (
+                <a href={explorerAddress(result.prizes[0].winner)} target="_blank" rel="noreferrer" data-cursor="verify">
+                  VERIFY WINNERS ↗
                 </a>
               )}
             </div>
@@ -175,48 +230,65 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
           <section className="draw-prize" data-tour="draw-prize">
             <div className="home-section-head">
               <div>
-                <span className="eyebrow">MY PRIZE</span>
+                <span className="eyebrow">MY PRIZE SLOTS</span>
                 <h2>Confidential delivery.</h2>
               </div>
               <span className="draw-prize-note">NO CLAIM TRANSACTION</span>
             </div>
             <p className="draw-prize-intro" data-native-cursor>
-              Processed winners receive confidential TEST strategy shares directly. Only the winning wallet can unveil
-              the delivered amount.
+              A finalized V4 round has three independently selected prize slots. Delivered TEST strategy shares are
+              already in each winner wallet; only that wallet can unveil each slot amount.
             </p>
+            {prizeError && (
+              <div className="action-notice action-notice--error" role="alert">
+                <span>PRIZE UNVEIL ERROR</span>
+                <p>{prizeError}</p>
+                <button
+                  className="action-notice-dismiss"
+                  type="button"
+                  onClick={() => setPrizeError("")}
+                  aria-label="Dismiss prize unveil error"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             {!unveil.connected ? (
               <div className="empty-state">
                 <span>{unveil.wrongNetwork ? "WRONG NETWORK" : "WALLET DISCONNECTED"}</span>
                 <p>
                   {unveil.wrongNetwork
-                    ? "Switch to Sepolia to inspect wallet-dependent prizes."
-                    : "Connect the winner wallet to find its recent delivered prizes."}
+                    ? "Switch to Sepolia to inspect wallet-dependent V4 prizes."
+                    : "Connect a winner wallet to find its recent delivered prize slots."}
                 </p>
               </div>
-            ) : unveil.myDeliveredPrizes.length === 0 ? (
+            ) : myDeliveredPrizeSlots.length === 0 ? (
               <div className="empty-state">
-                <span>NO DELIVERED PRIZE IN RECENT HISTORY</span>
-                <p>This wallet is not the processed winner of a loaded finalized round.</p>
+                <span>NO DELIVERED PRIZE SLOT IN RECENT HISTORY</span>
+                <p>This wallet is not a delivered winner of any loaded V4 prize slot.</p>
               </div>
             ) : (
               <div className="prize-list">
-                {unveil.myDeliveredPrizes.map((deliveredRound) => {
-                  const revealed = unveil.prize?.roundId === deliveredRound.id;
-                  const revealing = unveil.busy === `reveal-prize-${deliveredRound.id}`;
+                {myDeliveredPrizeSlots.map(({ round, prize }) => {
+                  const key = `${round.id}-${prize.index}`;
+                  const revealed = revealedPrize?.roundId === round.id && revealedPrize.prizeIndex === prize.index;
+                  const revealing = prizeBusy === key;
                   return (
-                    <article className={revealed ? "revealed" : ""} key={deliveredRound.id.toString()}>
+                    <article className={revealed ? "revealed" : ""} key={key}>
                       <div>
                         <span>ROUND</span>
-                        <strong>{deliveredRound.id.toString().padStart(2, "0")}</strong>
+                        <strong>{round.id.toString().padStart(2, "0")}</strong>
                       </div>
                       <div>
-                        <span>STATUS</span>
-                        <strong>DELIVERED</strong>
+                        <span>PRIZE SLOT</span>
+                        <strong>
+                          {prize.index + 1} · SHARD {prize.shard}
+                        </strong>
                       </div>
                       <VeilReveal
                         compact
                         label="Confidential strategy shares"
-                        value={revealed ? unveil.prize?.value : undefined}
+                        value={revealed ? revealedPrize.value : undefined}
                         revealed={revealed}
                         busy={revealing}
                         revealedLabel="UNVEILED TO WINNER"
@@ -226,10 +298,10 @@ export function DrawPage({ unveil }: { unveil: UnveilController }) {
                       <button
                         className="button-secondary"
                         type="button"
-                        disabled={Boolean(unveil.busy)}
-                        onClick={() => (revealed ? unveil.hidePrize() : unveil.revealPrizeForRound(deliveredRound.id))}
+                        disabled={Boolean(prizeBusy)}
+                        onClick={() => void togglePrizeReveal(round.id, prize.index)}
                       >
-                        {revealing ? "UNVEILING…" : revealed ? "VEIL PRIZE" : "UNVEIL PRIZE"}
+                        {revealing ? "UNVEILING…" : revealed ? "VEIL PRIZE" : `UNVEIL PRIZE ${prize.index + 1}`}
                       </button>
                     </article>
                   );
