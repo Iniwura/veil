@@ -26,6 +26,7 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         uint64 finalizedBlock;
         uint16 participantCount;
         uint8 processedShardCount;
+        euint64 encryptedZeroWeight;
         euint64 encryptedTotalWeight;
         bool begun;
         bool finalized;
@@ -108,8 +109,9 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         round.startedBlock = uint64(block.number);
         round.processedShardCount = SHARD_COUNT - requiredShardCount;
         round.begun = true;
-        round.encryptedTotalWeight = FHE.asEuint64(0);
-        FHE.allowThis(round.encryptedTotalWeight);
+        round.encryptedZeroWeight = FHE.asEuint64(0);
+        round.encryptedTotalWeight = round.encryptedZeroWeight;
+        FHE.allowThis(round.encryptedZeroWeight);
 
         emit ShardedSnapshotBegun(roundId, round.startedBlock);
     }
@@ -244,7 +246,7 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
     }
 
     function _encryptedSnapshotShardTotal(uint256 roundId, uint8 shard) internal view returns (euint64) {
-        if (!_snapshotShardRequired(roundId, shard)) return FHE.asEuint64(0);
+        if (!_snapshotShardRequired(roundId, shard)) return _snapshotRounds[roundId].encryptedZeroWeight;
         SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
         require(snapshot.processed, "Shard not snapshotted");
         return snapshot.encryptedTotalWeight;
