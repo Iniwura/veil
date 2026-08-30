@@ -8,10 +8,12 @@ import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {VeilShardedRoster} from "./VeilShardedRoster.sol";
 
 /// @title VeilShardedSnapshot
-/// @notice Permissionless round checkpointing split into one HCU-bounded transaction per 24-seat shard.
+/// @notice Permissionless round checkpointing split into HCU-bounded 24-seat shard transactions.
 /// @dev A shard snapshot uses the same boundary-maturity rule as V3:
 ///      min(weight at the previous scheduled close, weight at this scheduled close).
-///      The aggregate round total is updated once per shard, so no transaction scans all 576 savers.
+///      Shards with no publicly eligible seats for the closed round are resolved implicitly as zero,
+///      so sparse rounds do not require 24 empty checkpoint transactions. Every shard that can carry
+///      mature encrypted weight is still processed independently and remains bounded at 24 seats.
 abstract contract VeilShardedSnapshot is VeilShardedRoster {
     struct SnapshotShard {
         uint8 participantCount;
@@ -36,6 +38,8 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
     mapping(uint256 => mapping(address => bool)) private _snapshotIncluded;
     mapping(uint256 => mapping(address => uint8)) private _snapshotShardByAccount;
     mapping(uint256 => mapping(address => uint8)) private _snapshotIndexByAccount;
+    mapping(uint256 => uint32) private _snapshotRequiredShardBitmap;
+    mapping(uint256 => uint8) private _snapshotRequiredShardCount;
 
     event ShardedSnapshotBegun(uint256 indexed roundId, uint64 startedBlock);
     event ShardSnapshotted(uint256 indexed roundId, uint8 indexed shard, uint8 participantCount);
@@ -66,11 +70,17 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         );
     }
 
+    function getSnapshotRequirements(uint256 roundId) public view returns (uint8 requiredShardCount, uint32 requiredShardBitmap) {
+        return (_snapshotRequiredShardCount[roundId], _snapshotRequiredShardBitmap[roundId]);
+    }
+
     function getSnapshotShard(
         uint256 roundId,
         uint8 shard
     ) public view returns (uint8 participantCount, bool processed) {
         require(shard < SHARD_COUNT, "Invalid shard");
+        ShardedSnapshotRound storage round = _snapshotRounds[roundId];
+        if (round.begun && !_snapshotShardRequired(roundId, shard)) return (0, true);
         SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
         return (snapshot.participantCount, snapshot.processed);
     }
@@ -85,12 +95,18 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
 
     function _beginShardedSnapshot(uint256 roundId) internal {
         require(roundId > 0, "Invalid round");
-        require(block.timestamp >= _rosterScheduledDrawClosesAt(roundId), "Draw still open");
+        uint64 closesAt = _rosterScheduledDrawClosesAt(roundId);
+        require(block.timestamp >= closesAt, "Draw still open");
 
         ShardedSnapshotRound storage round = _snapshotRounds[roundId];
         require(!round.begun, "Snapshot already begun");
 
+        (uint8 requiredShardCount, uint32 requiredShardBitmap) = _requiredShardsForRound(roundId, closesAt);
+        _snapshotRequiredShardCount[roundId] = requiredShardCount;
+        _snapshotRequiredShardBitmap[roundId] = requiredShardBitmap;
+
         round.startedBlock = uint64(block.number);
+        round.processedShardCount = SHARD_COUNT - requiredShardCount;
         round.begun = true;
         round.encryptedTotalWeight = FHE.asEuint64(0);
         FHE.allowThis(round.encryptedTotalWeight);
@@ -103,6 +119,7 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         ShardedSnapshotRound storage round = _snapshotRounds[roundId];
         require(round.begun, "Snapshot not begun");
         require(!round.finalized, "Snapshot finalized");
+        require(_snapshotShardRequired(roundId, shard), "Shard not required");
 
         SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
         require(!snapshot.processed, "Shard already snapshotted");
@@ -128,6 +145,20 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
         FHE.allowThis(snapshot.encryptedTotalWeight);
         FHE.allowThis(round.encryptedTotalWeight);
         emit ShardSnapshotted(roundId, shard, snapshotParticipantCount);
+    }
+
+    function _requiredShardsForRound(uint256 roundId, uint64 closesAt) private view returns (uint8 count, uint32 bitmap) {
+        for (uint8 shard = 0; shard < SHARD_COUNT; shard++) {
+            if (_historicalShardParticipantCount(roundId, shard, closesAt) == 0) continue;
+            bitmap |= uint32(1) << shard;
+            unchecked {
+                count++;
+            }
+        }
+    }
+
+    function _snapshotShardRequired(uint256 roundId, uint8 shard) private view returns (bool) {
+        return (_snapshotRequiredShardBitmap[roundId] & (uint32(1) << shard)) != 0;
     }
 
     function _historicalShardSourceParticipantCount(uint256 roundId, uint8 shard) private view returns (uint8) {
@@ -213,6 +244,7 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
     }
 
     function _encryptedSnapshotShardTotal(uint256 roundId, uint8 shard) internal view returns (euint64) {
+        if (!_snapshotShardRequired(roundId, shard)) return FHE.asEuint64(0);
         SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
         require(snapshot.processed, "Shard not snapshotted");
         return snapshot.encryptedTotalWeight;
@@ -233,6 +265,7 @@ abstract contract VeilShardedSnapshot is VeilShardedRoster {
 
     function _snapshotShardParticipantCount(uint256 roundId, uint8 shard) internal view returns (uint8) {
         require(shard < SHARD_COUNT, "Invalid shard");
+        if (!_snapshotShardRequired(roundId, shard)) return 0;
         SnapshotShard storage snapshot = _snapshotShards[roundId][shard];
         require(snapshot.processed, "Shard not snapshotted");
         return snapshot.participantCount;
