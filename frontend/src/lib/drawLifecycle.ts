@@ -1,11 +1,11 @@
 import type { DrawAction, DrawLifecycleStage } from "./drawAdvance";
 
 const LIFECYCLE_STEPS = [
-  ["OPEN", "Accepting positions"],
-  ["SNAPSHOT", "Freeze encrypted weights"],
-  ["BLIND DRAW", "Select privately"],
-  ["VERIFY", "Validate KMS proof"],
-  ["DELIVER", "Send the prize"],
+  ["OPEN", "Accepting private positions"],
+  ["SNAPSHOT", "Checkpoint 24 bounded shards"],
+  ["BLIND DRAW", "Select shard + member privately"],
+  ["VERIFY", "Validate Zama KMS proofs"],
+  ["DELIVER", "Deliver three confidential prizes"],
 ] as const;
 
 const ACTIVE_INDEX_BY_STAGE: Partial<Record<DrawLifecycleStage, number>> = {
@@ -49,27 +49,27 @@ function stageStates(activeIndex: number): DrawLifecycleStepState[] {
 function terminalPresentation(terminalState: DrawLifecycleTerminalState): DrawLifecyclePresentation {
   const states: DrawLifecycleStepState[] =
     terminalState === "SKIPPED"
-      ? ["complete", "inactive", "inactive", "inactive", "inactive"]
+      ? ["complete", "complete", "inactive", "inactive", "inactive"]
       : terminalState === "COMPLETE"
-        ? ["complete", "inactive", "inactive", "inactive", "inactive"]
+        ? ["complete", "complete", "inactive", "inactive", "inactive"]
         : ["complete", "complete", "complete", "complete", "inactive"];
   const branch =
     terminalState === "SKIPPED"
       ? {
           kind: "SKIPPED" as const,
           title: "SKIPPED",
-          detail: "FEWER THAN TWO ELIGIBLE SEATS",
+          detail: "FEWER THAN TWO MATURE SEATS AFTER SHARDED CHECKPOINT",
         }
       : terminalState === "CANCELLED"
         ? {
             kind: "CANCELLED" as const,
             title: "CANCELLED",
-            detail: "ZERO-WEIGHT / ZERO-WINNER VERIFIED",
+            detail: "THREE ZERO-WINNER OUTPUTS VERIFIED",
           }
         : {
             kind: "COMPLETE" as const,
             title: "COMPLETE",
-            detail: "NO PRIZE DUE",
+            detail: "NO PRIZE DUE · MANAGER POINTER ADVANCED",
           };
   return { steps: stepsFromStates(states), branch };
 }
@@ -82,11 +82,11 @@ export function deriveLifecyclePresentation(
 
   if (action?.kind === "SKIP") {
     return {
-      steps: stepsFromStates(["complete", "inactive", "inactive", "inactive", "inactive"]),
+      steps: stepsFromStates(["complete", "complete", "inactive", "inactive", "inactive"]),
       branch: {
         kind: "READY_TO_SKIP",
         title: "READY TO SKIP",
-        detail: "FEWER THAN TWO ELIGIBLE SEATS",
+        detail: "FEWER THAN TWO MATURE SEATS",
       },
     };
   }
