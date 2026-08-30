@@ -74,7 +74,7 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
               ELIGIBILITY <strong>{seatState}</strong>
             </span>
             <span>
-              CURRENT SEATS <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"}</strong>
+              CURRENT SEATS <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"} / 576</strong>
             </span>
             <span>
               CLOSES <strong>{formatDate(schedule?.closesAt)}</strong>
