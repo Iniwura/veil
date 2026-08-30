@@ -65,7 +65,9 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
             <span className="eyebrow">ROUND STATUS</span>
             <strong>{drawStateLabel(schedule)}</strong>
             <div className="home-command-next">
-              <span className="eyebrow">NEXT STEP</span>
+              <span className="eyebrow">
+                NEXT STEP{drawAction ? ` · ROUND ${drawAction.roundId.toString().padStart(2, "0")}` : ""}
+              </span>
               {drawAction ? <strong>{drawAction.title}</strong> : <span className="home-command-resolving">RESOLVING</span>}
             </div>
           </div>
