@@ -30,8 +30,11 @@ async function advanceToRoundClose(snapshot: VeilShardedSnapshotHarness, roundId
   return closesAt;
 }
 
-async function processAllShards(snapshot: VeilShardedSnapshotHarness, roundId: bigint, startShard = 0) {
-  for (let shard = startShard; shard < SHARD_COUNT; shard++) {
+async function processRequiredShards(snapshot: VeilShardedSnapshotHarness, roundId: bigint) {
+  const requirements = await snapshot.getSnapshotRequirements(roundId);
+  const bitmap = BigInt(requirements.requiredShardBitmap);
+  for (let shard = 0; shard < SHARD_COUNT; shard++) {
+    if ((bitmap & (1n << BigInt(shard))) === 0n) continue;
     await (await snapshot.snapshotShard(roundId, shard)).wait();
   }
 }
@@ -55,7 +58,7 @@ describe("VeilShardedSnapshot", function () {
     if (!fhevm.isMock) this.skip();
   });
 
-  it("snapshots 24 shards in bounded steps while preserving full-round maturity", async function () {
+  it("snapshots only eligible shards while preserving full-round maturity", async function () {
     const snapshot = await deploySnapshot();
 
     await (await snapshot.acquire(signers.alice.address)).wait();
@@ -76,12 +79,21 @@ describe("VeilShardedSnapshot", function () {
 
     await advanceToRoundClose(snapshot, 2n);
     await (await snapshot.beginSnapshot(2)).wait();
-    await (await snapshot.snapshotShard(2, 0)).wait();
 
+    const requirements = await snapshot.getSnapshotRequirements(2);
+    expect(requirements.requiredShardCount).to.equal(2);
+    expect(BigInt(requirements.requiredShardBitmap)).to.equal(0b11n);
+
+    const begun = await snapshot.getShardedSnapshotRound(2);
+    expect(begun.processedShardCount).to.equal(SHARD_COUNT - 2);
+    expect((await snapshot.getSnapshotShard(2, 2)).processed).to.equal(true);
+    await expect(snapshot.snapshotShard(2, 2)).to.be.revertedWith("Shard not required");
+
+    await (await snapshot.snapshotShard(2, 0)).wait();
     await expect(snapshot.finalizeSnapshot(2)).to.be.revertedWith("Shards pending");
     await expect(snapshot.snapshotShard(2, 0)).to.be.revertedWith("Shard already snapshotted");
 
-    await processAllShards(snapshot, 2n, 1);
+    await (await snapshot.snapshotShard(2, 1)).wait();
     await (await snapshot.finalizeSnapshot(2)).wait();
 
     const round = await snapshot.getShardedSnapshotRound(2);
@@ -92,11 +104,12 @@ describe("VeilShardedSnapshot", function () {
 
     expect((await snapshot.getSnapshotShard(2, 0)).participantCount).to.equal(1);
     expect((await snapshot.getSnapshotShard(2, 1)).participantCount).to.equal(1);
+    expect((await snapshot.getSnapshotShard(2, 2)).participantCount).to.equal(0);
     expect(await decryptSnapshotWeight(snapshot, signers.alice, 2n)).to.equal(100n);
     expect(await decryptSnapshotWeight(snapshot, signers.bob, 2n)).to.equal(100n);
   });
 
-  it("does not let a saver joining after the close backfill the closed round", async function () {
+  it("does not let a saver joining after the close make its shard required for the closed round", async function () {
     const snapshot = await deploySnapshot();
 
     await (await snapshot.acquire(signers.alice.address)).wait();
@@ -115,12 +128,48 @@ describe("VeilShardedSnapshot", function () {
     expect(await snapshot.seatEligibleFromRoundId(signers.late.address)).to.equal(3);
 
     await (await snapshot.beginSnapshot(2)).wait();
-    await processAllShards(snapshot, 2n);
+    const requirements = await snapshot.getSnapshotRequirements(2);
+    expect(requirements.requiredShardCount).to.equal(2);
+    expect(BigInt(requirements.requiredShardBitmap)).to.equal(0b11n);
+
+    await processRequiredShards(snapshot, 2n);
     await (await snapshot.finalizeSnapshot(2)).wait();
 
     const round = await snapshot.getShardedSnapshotRound(2);
     expect(round.participantCount).to.equal(2);
     expect((await snapshot.getSnapshotShard(2, 2)).participantCount).to.equal(0);
+    expect((await snapshot.getSnapshotShard(2, 2)).processed).to.equal(true);
     await expect(snapshot.connect(signers.late).encryptedSnapshotWeightOf(2)).to.be.revertedWith("Not in round");
+  });
+
+  it("still requires all 24 shard transactions when every shard has an eligible seat", async function () {
+    const snapshot = await deploySnapshot();
+    const accounts = await ethers.getSigners();
+
+    for (let shard = 0; shard < SHARD_COUNT; shard++) {
+      const account = accounts[shard + 1];
+      await (await snapshot.acquire(account.address)).wait();
+      await (await snapshot.setWeight(account.address, 1)).wait();
+      expect(await snapshot.seatShard(account.address)).to.equal(shard);
+    }
+
+    await advanceToRoundClose(snapshot, 1n);
+    await (await snapshot.setNextRoundId(2)).wait();
+    await advanceToRoundClose(snapshot, 2n);
+    await (await snapshot.beginSnapshot(2)).wait();
+
+    const requirements = await snapshot.getSnapshotRequirements(2);
+    expect(requirements.requiredShardCount).to.equal(SHARD_COUNT);
+    expect(BigInt(requirements.requiredShardBitmap)).to.equal((1n << 24n) - 1n);
+
+    const begun = await snapshot.getShardedSnapshotRound(2);
+    expect(begun.processedShardCount).to.equal(0);
+
+    await processRequiredShards(snapshot, 2n);
+    await (await snapshot.finalizeSnapshot(2)).wait();
+
+    const round = await snapshot.getShardedSnapshotRound(2);
+    expect(round.participantCount).to.equal(SHARD_COUNT);
+    expect(round.processedShardCount).to.equal(SHARD_COUNT);
   });
 });
