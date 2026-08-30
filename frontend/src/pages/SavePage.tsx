@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { VeilReveal } from "../components/VeilReveal";
 import { WithdrawalStatus } from "../components/WithdrawalStatus";
-import type { UnveilController } from "../hooks/useUnveil";
+import type { UnveilV4Controller } from "../hooks/useUnveilV4";
 import {
   deriveSaveStage,
   DEPOSIT_STAGES,
@@ -33,7 +33,7 @@ const STAGE_DESCRIPTIONS: Record<SaveStage, string> = {
   WALLET_CONFIRMATION: "Motion pauses while your wallet confirms.",
   SEPOLIA_CONFIRMATION: "The encrypted request is settling on Sepolia.",
   WITHDRAW_REQUEST: "Your withdrawal request remains encrypted in transit.",
-  SEALED: "Your encrypted position is eligible according to the live seat state.",
+  SEALED: "Position sealed. New savings mature for prizes after one complete draw period.",
   ERROR: "The request did not complete. Your amount remains available to retry.",
 };
 
@@ -121,7 +121,7 @@ function WithdrawRequestVisual({ active }: { active: boolean }) {
   );
 }
 
-export function SavePage({ unveil }: { unveil: UnveilController }) {
+export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
   const [mode, setMode] = useState<SaveMode>("deposit");
   const [amount, setAmount] = useState("");
   const [amountFocused, setAmountFocused] = useState(false);
@@ -135,15 +135,15 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
   const saveStage = deriveSaveStage({ busy: unveil.busy, notice: saveNotice, error: saveError, mode });
   const amountFragmentsActive = saveStage === "LOCAL_ENCRYPTION";
   const withdrawRequestActive = saveStage === "WITHDRAW_REQUEST";
-  const eligibility = unveil.wrongNetwork
+  const seatStatus = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : !unveil.connected
       ? "CONNECT WALLET"
       : unveil.dashboard?.seated
         ? "ACTIVE"
         : unveil.dashboard?.joined
-        ? "EXPIRED"
-        : "NOT JOINED";
+          ? "EXPIRED"
+          : "NOT JOINED";
   const latestWithdrawal = unveil.dashboard?.latestWithdrawal;
   const walletLabel = unveil.wrongNetwork
     ? "CONNECTED"
@@ -188,14 +188,15 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <div className="save-heading-meta">
           <span>02 / SAVE</span>
           <span>CONFIDENTIAL PRINCIPAL</span>
-          <span>SEPOLIA</span>
+          <span>SEPOLIA · V4</span>
         </div>
         <h1>
           SAVE
           <strong>PRIVATELY.</strong>
         </h1>
         <p>
-          Save TEST principal into a confidential position. The draw uses your encrypted balance without publishing it.
+          Save TEST principal into a confidential position. V4 uses mature encrypted balance for prize weight without
+          publishing the amount.
         </p>
       </header>
 
@@ -327,8 +328,8 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
               <dd>{walletLabel}</dd>
             </div>
             <div>
-              <dt>DRAW ELIGIBILITY</dt>
-              <dd>{eligibility}</dd>
+              <dt>DRAW SEAT</dt>
+              <dd>{seatStatus}</dd>
             </div>
             <div>
               <dt>NETWORK</dt>
@@ -341,7 +342,8 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           </dl>
           {mode === "deposit" ? (
             <p>
-              Deposits become confidential principal and contribute encrypted weight while your draw seat is eligible.
+              Deposits become confidential principal immediately. New savings contribute mature prize weight only after
+              one complete draw period while the draw seat remains active.
             </p>
           ) : (
             <>
@@ -416,7 +418,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
         <div className="private-stat private-stat--odds">
           <span>Your odds</span>
           <strong>NOT AVAILABLE</strong>
-          <small>Aggregate round weight is not wallet-decryptable in V2.</small>
+          <small>Aggregate round and shard totals are not wallet-decryptable in V4.</small>
         </div>
         <div className="vault-actions">
           <button
@@ -442,7 +444,7 @@ export function SavePage({ unveil }: { unveil: UnveilController }) {
           <div>
             <span className="eyebrow">ADVANCED PRIVATE DATA</span>
             <h2>Unveil one round.</h2>
-            <p>If this wallet was included, it can decrypt only its own immutable snapshot weight.</p>
+            <p>If this wallet was included, it can decrypt only its own immutable mature snapshot weight.</p>
           </div>
           <div className="weight-control">
             <label htmlFor="round-select">ROUND</label>
