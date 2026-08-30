@@ -1,4 +1,3 @@
-import { FhevmType } from "@fhevm/hardhat-plugin";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { deployments, ethers, fhevm, network } from "hardhat";
 
