@@ -141,7 +141,10 @@ export function useUnveilV4() {
         setScopedNotice("global", "A Sepolia wallet is available. Reconnect to load its private account state.");
       } else {
         updateWalletState("wrong-network");
-        setScopedNotice("global", "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.");
+        setScopedNotice(
+          "global",
+          "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.",
+        );
       }
     });
     const unsubscribe = subscribeWalletLifecycle({
@@ -162,7 +165,10 @@ export function useUnveilV4() {
           setScopedNotice("global", "Wallet returned to Sepolia. Reconnect before using private account actions.");
         } else {
           updateWalletState("wrong-network");
-          setScopedNotice("global", "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.");
+          setScopedNotice(
+            "global",
+            "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.",
+          );
         }
       },
       disconnect() {
@@ -207,7 +213,10 @@ export function useUnveilV4() {
       setWalletChainId(wallet?.chainId);
       if (wallet?.accounts.length && wallet.chainId !== UNVEIL_NETWORK.chainId) {
         updateWalletState("wrong-network");
-        setScopedNotice("global", "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.");
+        setScopedNotice(
+          "global",
+          "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.",
+        );
       } else if (wallet?.accounts.length) {
         updateWalletState("reconnect-required");
         setScopedNotice("global", "Reconnect to load the current Sepolia account.");

@@ -60,9 +60,9 @@ itself completed successfully.
 
 ## Local validation status
 
-After the V4 Sepolia smoke tooling and formatting changes were committed, the exact branch passed the full local protocol
-regression with `214 passing` in approximately four minutes. TypeScript build, Solidity lint, TypeScript lint, and
-Prettier check were also green before the live smoke run.
+After the V4 Sepolia smoke tooling and formatting changes were committed, the exact branch passed the full local
+protocol regression with `214 passing` in approximately four minutes. TypeScript build, Solidity lint, TypeScript lint,
+and Prettier check were also green before the live smoke run.
 
 ## Live V4 Sepolia smoke result
 

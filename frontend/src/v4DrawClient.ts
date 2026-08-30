@@ -723,7 +723,8 @@ export function deliveredPrizesForAddressV4(history: VerifiedRoundV4[], address:
     (round) =>
       round.status === "FINALIZED" &&
       round.prizes.some(
-        (prize) => prize.delivered && prize.winner !== ZeroAddress && prize.winner.toLowerCase() === address.toLowerCase(),
+        (prize) =>
+          prize.delivered && prize.winner !== ZeroAddress && prize.winner.toLowerCase() === address.toLowerCase(),
       ),
   );
 }
@@ -762,7 +763,8 @@ export async function advanceDrawV4(
   if (!sameDrawAction(live.action, expectedAction)) {
     throw new Error("UNVEIL_DRAW_STATE_CHANGED: Protocol state changed before submission. Review the latest V4 step.");
   }
-  if (!live.action.actionable) throw new Error("UNVEIL_DRAW_NOT_ACTIONABLE: This V4 protocol step is not available yet.");
+  if (!live.action.actionable)
+    throw new Error("UNVEIL_DRAW_NOT_ACTIONABLE: This V4 protocol step is not available yet.");
   if (isCurrent && !isCurrent()) throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
 
   const { pool, manager, prizeVault } = writeContractsV4(signer);
@@ -805,7 +807,8 @@ export async function advanceDrawV4(
     const result = await publicDecryptWithRetry([handle], "V4 shard public decryption");
     const key = Object.keys(result.clearValues)[0] as keyof typeof result.clearValues;
     const shard = Number(result.clearValues[key]);
-    if (isCurrent && !isCurrent()) throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
+    if (isCurrent && !isCurrent())
+      throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
     onStep?.("VERIFYING SHARD ONCHAIN…");
     return waitForTx(
       pool.finalizePrizeShard(live.action.roundId, live.action.prizeIndex, shard, result.decryptionProof),
@@ -828,7 +831,8 @@ export async function advanceDrawV4(
     const key = Object.keys(result.clearValues)[0] as keyof typeof result.clearValues;
     const winner = String(result.clearValues[key]);
     const encodedWinner = AbiCoder.defaultAbiCoder().encode(["address"], [winner]);
-    if (isCurrent && !isCurrent()) throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
+    if (isCurrent && !isCurrent())
+      throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
     onStep?.("VERIFYING WINNER ONCHAIN…");
     return waitForTx(
       pool.finalizePrizeMember(live.action.roundId, live.action.prizeIndex, encodedWinner, result.decryptionProof),
