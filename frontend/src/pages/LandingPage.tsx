@@ -43,7 +43,7 @@ export function LandingPage({ unveil }: { unveil: UnveilV4Controller }) {
         </nav>
         <div className="landing-nav-actions">
           <span className="landing-nav-status">
-            <i /> SEPOLIA V4 LIVE
+            <i /> SEPOLIA LIVE
           </span>
           <RouteLink className="button-primary button-small" to="/app" dataCursor="enter">
             Launch app
@@ -141,7 +141,7 @@ export function LandingPage({ unveil }: { unveil: UnveilV4Controller }) {
       <section className="live-proof-section" id="live" data-reveal>
         <div className="live-status-band" aria-label="Current public Sepolia status">
           <span>
-            <i /> {schedule ? "SEPOLIA V4 LIVE" : `SEPOLIA V4 ${publicState}`}
+            <i /> {schedule ? "SEPOLIA LIVE" : `SEPOLIA ${publicState}`}
           </span>
           <span>ROUND {schedule?.currentRoundId?.toString().padStart(2, "0") ?? "—"}</span>
           <span>SEATS {publicParticipants ?? "—"} / 576</span>
