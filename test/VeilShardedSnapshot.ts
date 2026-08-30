@@ -144,13 +144,12 @@ describe("VeilShardedSnapshot", function () {
 
   it("still requires all 24 shard transactions when every shard has an eligible seat", async function () {
     const snapshot = await deploySnapshot();
-    const accounts = await ethers.getSigners();
 
     for (let shard = 0; shard < SHARD_COUNT; shard++) {
-      const account = accounts[shard + 1];
-      await (await snapshot.acquire(account.address)).wait();
-      await (await snapshot.setWeight(account.address, 1)).wait();
-      expect(await snapshot.seatShard(account.address)).to.equal(shard);
+      const account = ethers.getAddress(ethers.zeroPadValue(ethers.toBeHex(shard + 1), 20));
+      await (await snapshot.acquire(account)).wait();
+      await (await snapshot.setWeight(account, 1)).wait();
+      expect(await snapshot.seatShard(account)).to.equal(shard);
     }
 
     await advanceToRoundClose(snapshot, 1n);
