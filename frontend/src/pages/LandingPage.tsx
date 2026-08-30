@@ -43,7 +43,7 @@ export function LandingPage({ unveil }: { unveil: UnveilV4Controller }) {
         </nav>
         <div className="landing-nav-actions">
           <span className="landing-nav-status">
-            <i /> SEPOLIA LIVE
+            <i /> SEPOLIA V4 LIVE
           </span>
           <RouteLink className="button-primary button-small" to="/app" dataCursor="enter">
             Launch app
