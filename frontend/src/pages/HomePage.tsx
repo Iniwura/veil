@@ -1,11 +1,11 @@
 import { VeilReveal } from "../components/VeilReveal";
 import { RoundHistory } from "../components/RoundHistory";
 import { RouteLink } from "../components/RouteLink";
-import type { UnveilController } from "../hooks/useUnveil";
+import type { UnveilV4Controller } from "../hooks/useUnveilV4";
 import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
 import { walletActionLabel } from "../lib/walletPresentation";
 
-export function HomePage({ unveil }: { unveil: UnveilController }) {
+export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
   const data = unveil.dashboard;
   const schedule = unveil.schedule;
   const result = unveil.latestResult;
@@ -143,24 +143,27 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
             </div>
           </div>
           {!result ? (
-            <p>Verified results will appear here after the first settled round.</p>
+            <p>Verified V4 results will appear here after the first settled round.</p>
           ) : result.status === "FINALIZED" ? (
             <div className="home-result-details">
-              <div>
-                <span>WINNER</span>
-                {result.winner ? (
-                  <a href={explorerAddress(result.winner)} target="_blank" rel="noreferrer">
-                    {shortAddress(result.winner)} ↗
+              {result.prizes.map((prize) => (
+                <div key={`${result.id}-${prize.index}`}>
+                  <span>
+                    PRIZE {prize.index + 1} · SHARD {prize.shard}
+                  </span>
+                  <a href={explorerAddress(prize.winner)} target="_blank" rel="noreferrer">
+                    {shortAddress(prize.winner)} ↗
                   </a>
-                ) : (
-                  <strong>WINNER VERIFIED</strong>
-                )}
-              </div>
+                </div>
+              ))}
               <div>
                 <span>PROOF</span>
-                <strong>KMS VERIFIED</strong>
+                <strong>3 × TWO-STAGE KMS VERIFIED</strong>
               </div>
-              <p>The winner is public; any delivered prize remains confidential to the winner wallet.</p>
+              <p>
+                Each prize slot independently selects an encrypted shard and then an encrypted saver. The same saver can
+                win more than one slot; delivered amounts remain confidential to each winner wallet.
+              </p>
             </div>
           ) : result.status === "CANCELLED" ? (
             <div className="home-result-details">
@@ -168,7 +171,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
                 <span>OUTCOME</span>
                 <strong>CANCELLED</strong>
               </div>
-              <p>KMS-proven zero-weight draw. No winner or prize was delivered.</p>
+              <p>All three KMS-verified winner outputs were zero. No prize was delivered.</p>
             </div>
           ) : (
             <div className="home-result-details">
@@ -176,7 +179,7 @@ export function HomePage({ unveil }: { unveil: UnveilController }) {
                 <span>OUTCOME</span>
                 <strong>SKIPPED</strong>
               </div>
-              <p>Insufficient participants at the scheduled close. No BlindDraw or encrypted winner exists.</p>
+              <p>The 24-shard checkpoint found fewer than two mature seats, so no encrypted prize draw was executed.</p>
             </div>
           )}
         </section>
