@@ -18,6 +18,8 @@ export const V4_DEPLOYMENT_NAMES = {
   depositBatcher: "UNVEIL_V4_DepositBatcher",
   withdrawalBatcher: "UNVEIL_V4_WithdrawalBatcher",
   pool: "UNVEIL_V4_VeilPool",
+  snapshotBatcher: "UNVEIL_V4_SnapshotBatcher",
+  drawBatcher: "UNVEIL_V4_DrawBatcher",
   prizeVault: "UNVEIL_V4_VeilPrizeVault",
   manager: "UNVEIL_V4_VeilStrategyManager",
 } as const;
@@ -152,6 +154,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     batchAge,
   ]);
   const pool = await deployment(V4_DEPLOYMENT_NAMES.pool, "VeilPoolV4", [principal.address, drawPeriod]);
+  const snapshotBatcher = await deployment(V4_DEPLOYMENT_NAMES.snapshotBatcher, "VeilSnapshotBatcher", [pool.address]);
+  const drawBatcher = await deployment(V4_DEPLOYMENT_NAMES.drawBatcher, "VeilDrawBatcher", [pool.address]);
   const prizeVault = await deployment(V4_DEPLOYMENT_NAMES.prizeVault, "VeilPrizeVaultV3", [
     pool.address,
     shares.address,
@@ -174,6 +178,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const sharesContract = await hre.ethers.getContractAt("MockYieldVaultShareConfidentialWrapper", shares.address);
   const depositBatcherContract = await hre.ethers.getContractAt("VeilDepositBatcher", depositBatcher.address);
   const withdrawalBatcherContract = await hre.ethers.getContractAt("VeilWithdrawalBatcher", withdrawalBatcher.address);
+  const snapshotBatcherContract = await hre.ethers.getContractAt("VeilSnapshotBatcher", snapshotBatcher.address);
+  const drawBatcherContract = await hre.ethers.getContractAt("VeilDrawBatcher", drawBatcher.address);
   const prizeVaultContract = await hre.ethers.getContractAt("VeilPrizeVaultV3", prizeVault.address);
   const managerContract = await hre.ethers.getContractAt("VeilStrategyManagerV3", manager.address);
 
@@ -208,6 +214,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   requireAddress("withdrawalBatcher.fromToken", await withdrawalBatcherContract.fromToken(), shares.address);
   requireAddress("withdrawalBatcher.toToken", await withdrawalBatcherContract.toToken(), principal.address);
   requireAddress("withdrawalBatcher.vault", await withdrawalBatcherContract.vault(), vault.address);
+  requireAddress("snapshotBatcher.pool", await snapshotBatcherContract.pool(), pool.address);
+  requireAddress("drawBatcher.pool", await drawBatcherContract.pool(), pool.address);
   requireAddress("pool.strategyManager", await poolContract.strategyManager(), manager.address);
 
   if ((await poolContract.drawPeriod()) !== BigInt(drawPeriod)) {
@@ -249,6 +257,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ["deposit batcher", depositBatcher.address],
     ["withdrawal batcher", withdrawalBatcher.address],
     ["VeilPoolV4", pool.address],
+    ["snapshot batcher", snapshotBatcher.address],
+    ["draw batcher", drawBatcher.address],
     ["VeilPrizeVaultV3", prizeVault.address],
     ["VeilStrategyManagerV3", manager.address],
   ];
@@ -260,6 +270,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     [V4_DEPLOYMENT_NAMES.depositBatcher]: depositBatcher.address,
     [V4_DEPLOYMENT_NAMES.withdrawalBatcher]: withdrawalBatcher.address,
     [V4_DEPLOYMENT_NAMES.pool]: pool.address,
+    [V4_DEPLOYMENT_NAMES.snapshotBatcher]: snapshotBatcher.address,
+    [V4_DEPLOYMENT_NAMES.drawBatcher]: drawBatcher.address,
     [V4_DEPLOYMENT_NAMES.prizeVault]: prizeVault.address,
     [V4_DEPLOYMENT_NAMES.manager]: manager.address,
   };

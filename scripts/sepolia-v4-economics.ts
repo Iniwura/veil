@@ -141,7 +141,9 @@ async function investCurrentExcessAndResolve(system: System): Promise<boolean> {
   if (await system.manager.managerDepositBatch(currentBatchId)) {
     const resolved = await system.manager.managerDepositBatchResolved(currentBatchId);
     if (!resolved) throw new Error(`Current manager deposit batch ${currentBatchId} remains unresolved`);
-    console.log(`  current batch ${currentBatchId} is already a resolved manager batch; no second investment submitted`);
+    console.log(
+      `  current batch ${currentBatchId} is already a resolved manager batch; no second investment submitted`,
+    );
     return true;
   }
 
@@ -202,7 +204,9 @@ async function simulateYield(system: System, caller: HardhatEthersSigner, addres
     console.log("  simulated appreciation already exists; not donating again");
   }
 
-  console.log(`  vault totalAssets=${await system.vault.totalAssets()} totalSupply=${await system.vault.totalSupply()}`);
+  console.log(
+    `  vault totalAssets=${await system.vault.totalAssets()} totalSupply=${await system.vault.totalSupply()}`,
+  );
 }
 
 async function loadSystem(addresses: V4Addresses): Promise<System> {
@@ -240,27 +244,31 @@ async function run(): Promise<void> {
 
   console.log("UNVEIL V4 Sepolia economics preparation");
   console.log(`  caller: ${caller.address}`);
-  console.log(`  round ${TARGET_ROUND}: state=${roundState} funded=${Boolean(roundStatus.funded)}`);
+  console.log(`  round ${TARGET_ROUND}: state=${roundState} funded=${roundStatus.funded}`);
   console.log(`  manager nextPrizeRoundId=${nextPrizeRoundId}`);
 
-  if (Boolean(roundStatus.funded)) {
+  if (roundStatus.funded) {
     console.log(`  Round ${TARGET_ROUND} is already funded. No economic preparation was changed.`);
     return;
   }
   if (roundState !== 3) throw new Error(`Round ${TARGET_ROUND} is not FINALIZED; refusing economic preparation`);
   if (nextPrizeRoundId !== TARGET_ROUND) {
-    throw new Error(`Manager prize pointer is ${nextPrizeRoundId}, expected ${TARGET_ROUND}; refusing economic preparation`);
+    throw new Error(
+      `Manager prize pointer is ${nextPrizeRoundId}, expected ${TARGET_ROUND}; refusing economic preparation`,
+    );
   }
 
   if (!(await investCurrentExcessAndResolve(system))) return;
   await simulateYield(system, caller, addresses);
 
   const finalRoundStatus = await system.prizeVault.roundStatus(TARGET_ROUND);
-  if (Boolean(finalRoundStatus.funded)) {
+  if (finalRoundStatus.funded) {
     throw new Error(`Round ${TARGET_ROUND} became funded unexpectedly during preparation`);
   }
 
-  console.log(`UNVEIL V4 Sepolia economics prep PASSED — Round ${TARGET_ROUND} remains unfunded and is ready for UI funding.`);
+  console.log(
+    `UNVEIL V4 Sepolia economics prep PASSED — Round ${TARGET_ROUND} remains unfunded and is ready for UI funding.`,
+  );
 }
 
 run().catch((error) => {

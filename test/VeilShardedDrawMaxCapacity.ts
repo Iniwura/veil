@@ -2,7 +2,8 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers, fhevm } from "hardhat";
 
-import type { VeilShardedDrawHarness } from "../types";
+import type { VeilDrawBatcher, VeilShardedDrawHarness, VeilSnapshotBatcher } from "../types";
+import { estimateBlindDrawHcu } from "../scripts/draw-hcu-budget";
 
 const DRAW_PERIOD = 60 * 60;
 const SHARD_COUNT = 24;
@@ -51,6 +52,12 @@ describe("VeilShardedDraw max-capacity runtime", function () {
   it("executes a 24-shard by 24-member draw with all 576 seats occupied", async function () {
     this.timeout(120_000);
     const draw = await deployDraw();
+    const batcher = (await (
+      await ethers.getContractFactory("VeilDrawBatcher")
+    ).deploy(await draw.getAddress())) as VeilDrawBatcher;
+    const snapshotBatcher = (await (
+      await ethers.getContractFactory("VeilSnapshotBatcher")
+    ).deploy(await draw.getAddress())) as VeilSnapshotBatcher;
 
     for (let batch = 0; batch < SHARD_SIZE; batch++) {
       const accounts = Array.from({ length: SHARD_COUNT }, (_, shard) => testAddress(batch * SHARD_COUNT + shard));
@@ -67,12 +74,15 @@ describe("VeilShardedDraw max-capacity runtime", function () {
     await advanceToRoundClose(draw, 2n);
 
     await (await draw.beginSnapshot(2)).wait();
-    for (let shard = 0; shard < SHARD_COUNT; shard++) {
-      await (await draw.snapshotShard(2, shard)).wait();
-      const shardSnapshot = await draw.getSnapshotShard(2, shard);
-      expect(shardSnapshot.participantCount).to.equal(SHARD_SIZE);
+    for (let shard = 0; shard < SHARD_COUNT; shard += 2) {
+      if (shard === SHARD_COUNT - 2) {
+        await (await snapshotBatcher.snapshotShardsAndComplete(2, [shard, shard + 1])).wait();
+      } else {
+        await (await snapshotBatcher.snapshotShards(2, [shard, shard + 1])).wait();
+      }
+      expect((await draw.getSnapshotShard(2, shard)).participantCount).to.equal(SHARD_SIZE);
+      expect((await draw.getSnapshotShard(2, shard + 1)).participantCount).to.equal(SHARD_SIZE);
     }
-    await (await draw.finalizeSnapshot(2)).wait();
 
     const round = await draw.getShardedSnapshotRound(2);
     expect(round.participantCount).to.equal(CAPACITY);
@@ -83,9 +93,13 @@ describe("VeilShardedDraw max-capacity runtime", function () {
     const shardResult = await decryptPrizeShard(draw, 2n, 0);
     expect(shardResult.shard).to.be.lessThan(SHARD_COUNT);
     expect((await draw.getSnapshotShard(2, shardResult.shard)).participantCount).to.equal(SHARD_SIZE);
-    await (await draw.finalizePrizeShard(2, 0, shardResult.shard, shardResult.proof)).wait();
-
-    await (await draw.drawPrizeMember(2, 0)).wait();
+    const combinedTx = await batcher.finalizePrizeShardAndDrawMember(2, 0, shardResult.shard, shardResult.proof);
+    const combinedReceipt = await combinedTx.wait();
+    if (!combinedReceipt) throw new Error("Combined draw receipt unavailable");
+    const measured = fhevm.computeTransactionHCU(combinedReceipt);
+    const estimate = estimateBlindDrawHcu(SHARD_SIZE);
+    expect(measured.globalHCU).to.be.lessThanOrEqual(estimate.transactionHcu);
+    expect(measured.maxHCUDepth).to.be.lessThanOrEqual(estimate.depthHcu);
     const memberResult = await decryptPrizeMember(draw, 2n, 0);
     expect(memberResult.winner).to.not.equal(ethers.ZeroAddress);
     expect(await draw.seatShard(memberResult.winner)).to.equal(shardResult.shard);

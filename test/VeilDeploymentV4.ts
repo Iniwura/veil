@@ -34,6 +34,8 @@ describe("UNVEIL V4 deployment", function () {
     const depositBatcher = addressOf("depositBatcher");
     const withdrawalBatcher = addressOf("withdrawalBatcher");
     const pool = addressOf("pool");
+    const snapshotBatcher = addressOf("snapshotBatcher");
+    const drawBatcher = addressOf("drawBatcher");
     const prizeVault = addressOf("prizeVault");
     const manager = addressOf("manager");
 
@@ -45,6 +47,8 @@ describe("UNVEIL V4 deployment", function () {
     const vaultContract = await ethers.getContractAt("MockYieldVault4626", vault);
     const depositsContract = await ethers.getContractAt("VeilDepositBatcher", depositBatcher);
     const withdrawalsContract = await ethers.getContractAt("VeilWithdrawalBatcher", withdrawalBatcher);
+    const snapshotBatcherContract = await ethers.getContractAt("VeilSnapshotBatcher", snapshotBatcher);
+    const drawBatcherContract = await ethers.getContractAt("VeilDrawBatcher", drawBatcher);
 
     expect(await poolContract.strategyManager()).to.equal(manager);
     expect(await poolContract.strategyManagerConfigured()).to.equal(true);
@@ -71,6 +75,8 @@ describe("UNVEIL V4 deployment", function () {
     expect(await depositsContract.toToken()).to.equal(shares);
     expect(await withdrawalsContract.fromToken()).to.equal(shares);
     expect(await withdrawalsContract.toToken()).to.equal(principal);
+    expect(await snapshotBatcherContract.pool()).to.equal(pool);
+    expect(await drawBatcherContract.pool()).to.equal(pool);
   });
 
   it("uses explicit V4 parameters and Sepolia defaults", async function () {

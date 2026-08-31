@@ -76,7 +76,8 @@ export function estimateBlindDrawHcu(participants: number): BlindDrawHcuEstimate
       costs.notEbool +
       costs.andEboolNonScalar +
       costs.selectEaddress +
-      costs.orEboolNonScalar;
+      costs.orEboolNonScalar +
+      costs.trivialEncrypt;
   }
 
   const depthHcu = Math.max(targetDepth, cumulativeDepth, winnerDepth, selectedDepth);

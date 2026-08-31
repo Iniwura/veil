@@ -45,11 +45,27 @@ contract VeilShardedSnapshotHarness is VeilShardedSnapshot {
         _beginShardedSnapshot(roundId);
     }
 
+    function beginSnapshotRound() external returns (uint256 roundId) {
+        roundId = nextRoundId;
+        _beginShardedSnapshot(roundId);
+        unchecked {
+            ++nextRoundId;
+        }
+    }
+
     function snapshotShard(uint256 roundId, uint8 shard) external {
         _snapshotOneShard(roundId, shard);
     }
 
+    function snapshotRoundShard(uint256 roundId, uint8 shard) external {
+        _snapshotOneShard(roundId, shard);
+    }
+
     function finalizeSnapshot(uint256 roundId) external {
+        _finalizeShardedSnapshot(roundId);
+    }
+
+    function completeSnapshotRound(uint256 roundId) external {
         _finalizeShardedSnapshot(roundId);
     }
 

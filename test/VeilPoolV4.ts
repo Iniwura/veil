@@ -9,8 +9,10 @@ import {
   MockYieldVault4626,
   MockYieldVaultShareConfidentialWrapper,
   VeilDepositBatcher,
+  VeilDrawBatcher,
   VeilPoolV4,
   VeilPrizeVaultV3,
+  VeilSnapshotBatcher,
   VeilStrategyManagerV2TestHarness,
   VeilWithdrawalBatcher,
 } from "../types";
@@ -30,6 +32,8 @@ type System = {
   deposits: VeilDepositBatcher;
   withdrawals: VeilWithdrawalBatcher;
   pool: VeilPoolV4;
+  snapshotBatcher: VeilSnapshotBatcher;
+  drawBatcher: VeilDrawBatcher;
   prizeVault: VeilPrizeVaultV3;
   manager: VeilStrategyManagerV2TestHarness;
 };
@@ -71,6 +75,12 @@ async function deploySystem(): Promise<System> {
   const pool = (await (
     await ethers.getContractFactory("VeilPoolV4")
   ).deploy(await source.getAddress(), DRAW_PERIOD)) as VeilPoolV4;
+  const snapshotBatcher = (await (
+    await ethers.getContractFactory("VeilSnapshotBatcher")
+  ).deploy(await pool.getAddress())) as VeilSnapshotBatcher;
+  const drawBatcher = (await (
+    await ethers.getContractFactory("VeilDrawBatcher")
+  ).deploy(await pool.getAddress())) as VeilDrawBatcher;
   const prizeVault = (await (
     await ethers.getContractFactory("VeilPrizeVaultV3")
   ).deploy(await pool.getAddress(), await shares.getAddress())) as VeilPrizeVaultV3;
@@ -89,7 +99,19 @@ async function deploySystem(): Promise<System> {
   )) as VeilStrategyManagerV2TestHarness;
 
   await (await pool.configureStrategyManager(await manager.getAddress())).wait();
-  return { asset, source, vault, shares, deposits, withdrawals, pool, prizeVault, manager };
+  return {
+    asset,
+    source,
+    vault,
+    shares,
+    deposits,
+    withdrawals,
+    pool,
+    snapshotBatcher,
+    drawBatcher,
+    prizeVault,
+    manager,
+  };
 }
 
 async function fundAndApprove(system: System, signer: HardhatEthersSigner, amount = 10_000n) {
@@ -117,13 +139,18 @@ async function advanceToClose(pool: VeilPoolV4) {
   }
 }
 
-async function snapshotCurrentRound(pool: VeilPoolV4) {
-  const roundId = await pool.nextRoundId();
-  await (await pool.beginSnapshotRound()).wait();
+async function snapshotCurrentRound(system: System) {
+  const roundId = await system.pool.nextRoundId();
+  await (await system.pool.beginSnapshotRound()).wait();
+  const unprocessedShards: number[] = [];
   for (let shard = 0; shard < SHARD_COUNT; shard++) {
-    await (await pool.snapshotRoundShard(roundId, shard)).wait();
+    if (!(await system.pool.getSnapshotShard(roundId, shard)).processed) unprocessedShards.push(shard);
   }
-  await (await pool.completeSnapshotRound(roundId)).wait();
+  if (unprocessedShards.length > 0) {
+    await (await system.snapshotBatcher.snapshotShardsAndComplete(roundId, unprocessedShards)).wait();
+    return roundId;
+  }
+  await (await system.pool.completeSnapshotRound(roundId)).wait();
   return roundId;
 }
 
@@ -139,12 +166,8 @@ async function runPrize(system: System, roundId: bigint, prizeIndex: number) {
   const shardKey = Object.keys(shardProof.clearValues)[0] as keyof typeof shardProof.clearValues;
   const shard = Number(shardProof.clearValues[shardKey]);
   await (
-    await system.pool
-      .connect(signers.outsider)
-      .finalizePrizeShard(roundId, prizeIndex, shard, shardProof.decryptionProof)
+    await system.drawBatcher.finalizePrizeShardAndDrawMember(roundId, prizeIndex, shard, shardProof.decryptionProof)
   ).wait();
-
-  await (await system.pool.connect(signers.outsider).drawPrizeMember(roundId, prizeIndex)).wait();
   const winnerHandle = await system.pool.getEncryptedPrizeWinner(roundId, prizeIndex);
   const winnerProof = await fhevm.publicDecrypt([winnerHandle]);
   const winnerKey = Object.keys(winnerProof.clearValues)[0] as keyof typeof winnerProof.clearValues;
@@ -181,11 +204,11 @@ describe("VeilPoolV4", function () {
     expect(await system.pool.seatEligibleFromRoundId(signers.bob.address)).to.equal(2);
 
     await advanceToClose(system.pool);
-    expect(await snapshotCurrentRound(system.pool)).to.equal(1);
+    expect(await snapshotCurrentRound(system)).to.equal(1);
     expect(await system.pool.getDrawState(1)).to.equal(5);
 
     await advanceToClose(system.pool);
-    expect(await snapshotCurrentRound(system.pool)).to.equal(2);
+    expect(await snapshotCurrentRound(system)).to.equal(2);
     expect(await system.pool.getDrawState(2)).to.equal(1);
 
     const info = await system.pool.getDrawInfo(2);
@@ -202,9 +225,9 @@ describe("VeilPoolV4", function () {
     await deposit(system, signers.bob, 100);
 
     await advanceToClose(system.pool);
-    await snapshotCurrentRound(system.pool);
+    await snapshotCurrentRound(system);
     await advanceToClose(system.pool);
-    await snapshotCurrentRound(system.pool);
+    await snapshotCurrentRound(system);
 
     const eligible = new Set([signers.alice.address.toLowerCase(), signers.bob.address.toLowerCase()]);
     for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {

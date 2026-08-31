@@ -41,6 +41,7 @@ async function snapshotRoundTwo(draw: VeilShardedDrawHarness) {
   await advanceToRoundClose(draw, 2n);
   await (await draw.beginSnapshot(2)).wait();
   for (let shard = 0; shard < SHARD_COUNT; shard++) {
+    if ((await draw.getSnapshotShard(2, shard)).processed) continue;
     await (await draw.snapshotShard(2, shard)).wait();
   }
   await (await draw.finalizeSnapshot(2)).wait();
