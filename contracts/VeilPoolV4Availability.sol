@@ -87,6 +87,14 @@ contract VeilPoolV4Helper is ZamaEthereumConfig {
         pool.requestSeatAttestation(account);
     }
 
+    /// @notice Invalidates a pending predicate when a saver explicitly releases their seat.
+    /// @dev Prevents an attestation requested before the release from reactivating the seat later.
+    function cancelSeatAttestation(address account) external {
+        if (msg.sender != address(pool)) revert OnlyPool();
+        pendingBalancePositive[account] = ebool.wrap(0);
+        delete pendingSeatAttestationRequestId[account];
+    }
+
     function encryptedSeatAttestationOf(address account) external view returns (ebool) {
         if (pendingSeatAttestationRequestId[account] == 0) revert NoPendingAttestation();
         return pendingBalancePositive[account];

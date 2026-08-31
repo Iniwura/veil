@@ -139,11 +139,13 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
     ? "WRONG NETWORK"
     : !unveil.connected
       ? "CONNECT WALLET"
-      : unveil.dashboard?.seated
-        ? "ACTIVE"
-        : unveil.dashboard?.joined
-          ? "EXPIRED"
-          : "NOT JOINED";
+      : unveil.dashboard?.pendingSeatAttestation
+        ? "ATTESTATION PENDING"
+        : unveil.dashboard?.seated
+          ? "ACTIVE"
+          : unveil.dashboard?.joined
+            ? "NOT ACTIVE"
+            : "NOT JOINED";
   const latestWithdrawal = unveil.dashboard?.latestWithdrawal;
   const walletLabel = unveil.wrongNetwork
     ? "CONNECTED"
@@ -331,6 +333,12 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
               <dt>DRAW SEAT</dt>
               <dd>{seatStatus}</dd>
             </div>
+            {unveil.dashboard?.pendingSeatAttestation && (
+              <div>
+                <dt>KMS ATTESTATION</dt>
+                <dd>KEEPER QUEUED · NO WALLET ACTION</dd>
+              </div>
+            )}
             <div>
               <dt>NETWORK</dt>
               <dd>{unveil.wrongNetwork ? "SWITCH TO SEPOLIA" : "SEPOLIA"}</dd>

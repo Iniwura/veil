@@ -10,7 +10,6 @@ import {
   parseWalletChainId,
   readInjectedWalletState,
   readWithdrawalRequest,
-  renewDrawSeat,
   resetWalletRelayer,
   revealMyRoundWeight,
   revealMyVault,
@@ -469,26 +468,6 @@ export function useUnveilV4() {
     }
   }
 
-  async function renewSeat() {
-    const wallet = privateWallet();
-    if (!wallet) return;
-    try {
-      setScopedError("draw", "");
-      setBusy("renew-seat");
-      setScopedNotice("draw", "Waiting for wallet confirmation to renew the V4 draw seat…");
-      await renewDrawSeat(wallet.signer);
-      if (walletEpoch.current !== wallet.epoch) return;
-      await refresh(wallet.signer, "draw");
-      if (walletEpoch.current === wallet.epoch) {
-        setScopedNotice("draw", "Draw seat renewed without exposing or changing private principal.");
-      }
-    } catch (cause) {
-      if (walletEpoch.current === wallet.epoch) setScopedError("draw", productError(cause));
-    } finally {
-      if (walletEpoch.current === wallet.epoch) setBusy("");
-    }
-  }
-
   async function advanceDraw(expectedAction: DrawAction) {
     const wallet = privateWallet();
     if (!wallet) return;
@@ -556,7 +535,7 @@ export function useUnveilV4() {
     revealVaultStats,
     revealRound,
     revealPrizeForRound,
-    renewSeat,
+    seatAttestationPending: Boolean(dashboard?.pendingSeatAttestation),
     advanceDraw,
     hideVault: () => setVault(undefined),
     hideRoundWeight: () => setRoundWeight(undefined),

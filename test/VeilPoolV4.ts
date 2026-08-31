@@ -251,6 +251,14 @@ describe("VeilPoolV4", function () {
     await finalizeSeatAttestation(system, signers.alice);
     expect(await system.pool.seated(signers.alice.address)).to.equal(true);
     expect(await system.pool.seatExpiresAt(signers.alice.address)).to.be.gte(expiresAt);
+
+    // An explicit release cancels any in-flight proof so an old positive attestation cannot
+    // silently reactivate a seat the saver chose to relinquish.
+    await (await system.pool.connect(signers.alice).renewDrawSeat()).wait();
+    expect(await system.seatKeeper.pendingSeatAttestationRequestId(signers.alice.address)).to.not.equal(0n);
+    await (await system.pool.connect(signers.alice).leaveDrawSeat()).wait();
+    expect(await system.seatKeeper.pendingSeatAttestationRequestId(signers.alice.address)).to.equal(0n);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(false);
   });
 
   it("releases a seat after a KMS-proven zero balance following withdrawal", async function () {
@@ -288,6 +296,43 @@ describe("VeilPoolV4", function () {
     expect(info.participantCount).to.equal(2);
     expect(await decryptSnapshotWeight(system, signers.alice, 2n)).to.equal(100n);
     expect(await decryptSnapshotWeight(system, signers.bob, 2n)).to.equal(100n);
+  });
+
+  it("preserves a mature seat boundary across a positive partial withdrawal while keeping closed history immutable", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice);
+    await fundAndApprove(system, signers.bob);
+    await deposit(system, signers.alice, 100);
+    await deposit(system, signers.bob, 100);
+
+    // Round 1 is intentionally skipped because the seats mature from round 2. Round 2 then
+    // records the mature positive balances in an immutable encrypted snapshot.
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+
+    const priorEligibility = await system.pool.seatEligibleFromRoundId(signers.alice.address);
+    const priorShard = await system.pool.seatShard(signers.alice.address);
+    expect(priorEligibility).to.equal(2n);
+    expect(await decryptSnapshotWeight(system, signers.alice, 2n)).to.equal(100n);
+
+    await withdraw(system, signers.alice, 40);
+    expect(await decryptBalance(system, signers.alice)).to.equal(60n);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(true);
+    expect(await system.pool.playerCount()).to.equal(2);
+    expect(await system.pool.seatEligibleFromRoundId(signers.alice.address)).to.equal(priorEligibility);
+    expect(await system.pool.seatShard(signers.alice.address)).to.equal(priorShard);
+
+    // Re-acquisition returns to the original shard and does not reset the maturity boundary.
+
+    // The already-closed round remains at its original weight after withdrawal and re-attestation.
+    expect(await decryptSnapshotWeight(system, signers.alice, 2n)).to.equal(100n);
+
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 3n)).to.equal(60n);
+    expect((await system.pool.getDrawInfo(3)).participantCount).to.equal(2);
   });
 
   it("reports open, insufficient, and snapshot-required availability without claiming positive weight", async function () {

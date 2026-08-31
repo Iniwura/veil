@@ -86,7 +86,17 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
             shard = seatShard[account];
             _sealShardCurrentStateForClosedRounds(shard);
         } else {
-            shard = _findAvailableShard();
+            bool preservingMaturity = seatEligibleFromRoundId[account] != 0;
+            if (preservingMaturity) {
+                // A positive post-withdrawal attestation must return to the same shard. Moving
+                // shards would make the previous-close term in min(previous, current) resolve to
+                // zero and silently erase an otherwise mature participant. If that shard is full,
+                // defer activation until a slot is available rather than weakening fairness.
+                shard = seatShard[account];
+                _requireShard(shard);
+            } else {
+                shard = _findAvailableShard();
+            }
             _sealShardCurrentStateForClosedRounds(shard);
             if (shardPlayerCount[shard] == SHARD_SIZE) _pruneExpiredSeatsInShard(shard);
             require(shardPlayerCount[shard] < SHARD_SIZE, "Draw roster full");
@@ -96,7 +106,13 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
             _seatIndexInShard[account] = index;
             seated[account] = true;
             seatShard[account] = shard;
-            seatEligibleFromRoundId[account] = _rosterNextRoundId() + 1;
+            // A withdrawal releases the live roster slot while its encrypted post-withdrawal
+            // balance is attested. Preserve that account's prior eligibility boundary when the
+            // KMS proves the balance is still positive; fresh joins still mature from the next
+            // round after acquisition.
+            if (seatEligibleFromRoundId[account] == 0) {
+                seatEligibleFromRoundId[account] = _rosterNextRoundId() + 1;
+            }
             unchecked {
                 shardPlayerCount[shard] = index + 1;
                 playerCount++;
@@ -115,10 +131,25 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
     }
 
     function _releaseShardedSeat(address account) internal {
+        _releaseShardedSeat(account, false);
+    }
+
+    /// @dev Releases the live slot while retaining the maturity boundary for a pending
+    ///      post-withdrawal KMS attestation. The account is not seated and consumes no capacity.
+    function _releaseShardedSeatPreservingMaturity(address account) internal {
+        _releaseShardedSeat(account, true);
+    }
+
+    function _releaseShardedSeat(address account, bool preserveEligibility) private {
         require(seated[account], "Not seated");
         uint8 shard = seatShard[account];
         _sealShardCurrentStateForClosedRounds(shard);
-        _removeSeatFromShard(account, shard);
+        _removeSeatFromShard(account, shard, preserveEligibility);
+    }
+
+    function _clearShardedSeatEligibility(address account) internal {
+        seatEligibleFromRoundId[account] = 0;
+        delete seatShard[account];
     }
 
     function _pruneExpiredShardedSeats(uint8 shard) internal {
@@ -250,7 +281,7 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
         uint8 i = 0;
         while (i < shardPlayerCount[shard]) {
             address account = _shardPlayers[shard][i];
-            if (seatExpiresAt[account] < block.timestamp) _removeSeatFromShard(account, shard);
+            if (seatExpiresAt[account] < block.timestamp) _removeSeatFromShard(account, shard, false);
             else {
                 unchecked {
                     i++;
@@ -259,7 +290,7 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
         }
     }
 
-    function _removeSeatFromShard(address account, uint8 shard) private {
+    function _removeSeatFromShard(address account, uint8 shard, bool preserveEligibility) private {
         uint8 index = _seatIndexInShard[account];
         uint8 lastIndex = shardPlayerCount[shard] - 1;
         if (index != lastIndex) {
@@ -271,9 +302,9 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
         _shardPlayers[shard][lastIndex] = address(0);
         delete _seatIndexInShard[account];
         seated[account] = false;
-        delete seatShard[account];
+        if (!preserveEligibility) delete seatShard[account];
         seatExpiresAt[account] = 0;
-        seatEligibleFromRoundId[account] = 0;
+        if (!preserveEligibility) seatEligibleFromRoundId[account] = 0;
         unchecked {
             shardPlayerCount[shard]--;
             playerCount--;

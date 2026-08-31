@@ -191,6 +191,7 @@ contract VeilPoolV4 is VeilShardedDraw {
 
     function leaveDrawSeat() external {
         if (!seated[msg.sender]) revert NotSeated();
+        seatKeeper.cancelSeatAttestation(msg.sender);
         _releaseShardedSeat(msg.sender);
     }
 
@@ -203,7 +204,9 @@ contract VeilPoolV4 is VeilShardedDraw {
         if (!joined[msg.sender]) revert NotJoined();
 
         _sealShardedAccountState(msg.sender);
-        if (seated[msg.sender]) _releaseShardedSeat(msg.sender);
+        // Free the live roster slot immediately, but retain the prior maturity boundary until
+        // the encrypted post-withdrawal balance is attested. A zero result clears it below.
+        if (seated[msg.sender]) _releaseShardedSeatPreservingMaturity(msg.sender);
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
         euint64 permitted = FHE.select(FHE.le(requested, positions[msg.sender].balance), requested, FHE.asEuint64(0));
@@ -287,6 +290,10 @@ contract VeilPoolV4 is VeilShardedDraw {
             _acquireOrRenewShardedSeat(account);
         } else if (seated[account]) {
             _releaseShardedSeat(account);
+        } else {
+            // A pending withdrawal may have retained only the prior eligibility boundary. Never
+            // let a zero-balance account carry that boundary into a future seat acquisition.
+            _clearShardedSeatEligibility(account);
         }
     }
 

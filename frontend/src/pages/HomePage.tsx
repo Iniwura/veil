@@ -15,19 +15,23 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
     ? "WRONG NETWORK"
     : !unveil.connected
       ? walletActionLabel(unveil)
-      : data?.seated
-        ? "ACTIVE"
-        : data?.joined
-          ? "EXPIRED"
-          : "NOT JOINED";
+      : data?.pendingSeatAttestation
+        ? "ATTESTATION PENDING"
+        : data?.seated
+          ? "ACTIVE"
+          : data?.joined
+            ? "NOT ACTIVE"
+            : "NOT JOINED";
 
   const action = !unveil.connected
-    ? { kind: "button" as const, label: walletActionLabel(unveil) }
-    : data?.joined && !data.seated
-      ? { kind: "button" as const, label: "RENEW SEAT" }
-      : data?.seated
-        ? { kind: "link" as const, label: "VIEW DRAW" }
-        : { kind: "link" as const, label: "SAVE PRIVATELY" };
+    ? { kind: "button" as const, label: walletActionLabel(unveil), disabled: false }
+    : data?.pendingSeatAttestation
+      ? { kind: "button" as const, label: "AWAITING KMS ATTESTATION", disabled: true }
+      : data?.joined && !data.seated
+        ? { kind: "link" as const, label: "SAVE PRIVATELY", disabled: false }
+        : data?.seated
+          ? { kind: "link" as const, label: "VIEW DRAW", disabled: false }
+          : { kind: "link" as const, label: "SAVE PRIVATELY", disabled: false };
 
   return (
     <div className="page-stack route-enter">
@@ -53,10 +57,10 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
               className="button-secondary home-wallet-action"
               type="button"
               data-cursor="enter"
-              onClick={unveil.wrongNetwork ? unveil.switchToSepolia : data?.joined ? unveil.renewSeat : unveil.connect}
-              disabled={Boolean(unveil.busy)}
+              onClick={unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect}
+              disabled={Boolean(unveil.busy) || action.disabled}
             >
-              {unveil.busy === "renew-seat" ? "RENEWING…" : action.label}
+              {action.label}
             </button>
           )}
         </div>
@@ -68,7 +72,11 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
               <span className="eyebrow">
                 NEXT STEP{drawAction ? ` · ROUND ${drawAction.roundId.toString().padStart(2, "0")}` : ""}
               </span>
-              {drawAction ? <strong>{drawAction.title}</strong> : <span className="home-command-resolving">RESOLVING</span>}
+              {drawAction ? (
+                <strong>{drawAction.title}</strong>
+              ) : (
+                <span className="home-command-resolving">RESOLVING</span>
+              )}
             </div>
           </div>
           <div className="home-command-metrics">

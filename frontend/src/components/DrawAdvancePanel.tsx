@@ -72,7 +72,7 @@ export function DrawAdvancePanel({
         <p className="draw-advance-warning">PUBLIC STATE NEEDS REVIEW · NO RECOVERY TRANSACTION</p>
       )}
       <p className="draw-advance-note">
-        Permissionless · any Sepolia wallet can execute · each V4 FHE scan stays bounded to one 24-seat shard.
+        Permissionless · any Sepolia wallet can execute · V4 snapshot batches stay HCU-bounded to two 24-seat shards.
       </p>
     </section>
   );

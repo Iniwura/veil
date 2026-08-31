@@ -4,6 +4,7 @@ import {
   JsonRpcProvider,
   ZeroAddress,
   ZeroHash,
+  isAddress,
   type Eip1193Provider,
   type JsonRpcSigner,
 } from "ethers";
@@ -27,23 +28,51 @@ const POOL_V4_ABI = [
   "function nextRoundId() view returns (uint256)",
   "function nextDrawOpensAt() view returns (uint64)",
   "function nextDrawClosesAt() view returns (uint64)",
-  "function getDrawSchedule() view returns (uint256 currentRoundId,uint256 unsettledRounds,uint64 opensAt,uint64 closesAt,bool timeReady,bool ready,bool canAdvance,bool insufficientParticipants,bool overdue)",
+  "function seatKeeper() view returns (address)",
   "function getDrawState(uint256 roundId) view returns (uint8)",
   "function getDrawInfo(uint256 roundId) view returns (uint64 snapshotBlock,uint16 participantCount,uint8 drawnPrizeCount,uint8 finalizedPrizeCount,uint8 winningPrizeCount,uint8 state)",
   "function getShardedSnapshotRound(uint256 roundId) view returns (uint64 startedBlock,uint64 finalizedBlock,uint16 participantCount,uint8 processedShardCount,bool begun,bool finalized)",
   "function getSnapshotShard(uint256 roundId,uint8 shard) view returns (uint8 participantCount,bool processed)",
   "function beginSnapshotRound() returns (uint256 roundId)",
-  "function snapshotRoundShard(uint256 roundId,uint8 shard)",
   "function completeSnapshotRound(uint256 roundId)",
   "function getShardedPrizeStatus(uint256 roundId,uint8 prizeIndex) view returns (bool shardDrawn,bool shardFinalized,uint8 shard,bool winnerDrawn,bool winnerFinalized,address winner)",
   "function drawPrizeShard(uint256 roundId,uint8 prizeIndex)",
   "function getEncryptedPrizeShard(uint256 roundId,uint8 prizeIndex) view returns (bytes32)",
-  "function finalizePrizeShard(uint256 roundId,uint8 prizeIndex,uint8 shard,bytes decryptionProof)",
-  "function drawPrizeMember(uint256 roundId,uint8 prizeIndex)",
   "function getEncryptedPrizeWinner(uint256 roundId,uint8 prizeIndex) view returns (bytes32)",
   "function finalizePrizeMember(uint256 roundId,uint8 prizeIndex,bytes abiEncodedClearWinner,bytes decryptionProof)",
   "function getPrizeWinner(uint256 roundId,uint8 prizeIndex) view returns (address)",
 ] as const;
+
+const SEAT_KEEPER_V4_ABI = [
+  "function getDrawAvailability() view returns (uint8)",
+  "function getDrawSchedule() view returns (uint256 currentRoundId,uint256 unsettledRounds,uint64 opensAt,uint64 closesAt,bool timeReady,bool snapshotRequired,bool canAdvance,bool insufficientParticipants,bool overdue)",
+  "function pendingSeatAttestationRequestId(address) view returns (uint256)",
+  "function encryptedSeatAttestationOf(address) view returns (bytes32)",
+  "function refreshSeatAttestation(address)",
+  "function finalizeSeatAttestation(address,uint256,bool,bytes decryptionProof)",
+] as const;
+
+const SNAPSHOT_BATCHER_V4_ABI = [
+  "function snapshotShards(uint256 roundId,uint8[] shards)",
+  "function snapshotShardsAndComplete(uint256 roundId,uint8[] shards)",
+] as const;
+
+const DRAW_BATCHER_V4_ABI = [
+  "function finalizePrizeShardAndDrawMember(uint256 roundId,uint8 prizeIndex,uint8 shard,bytes decryptionProof)",
+] as const;
+
+const SNAPSHOT_BATCHER_ADDRESS = String(import.meta.env.VITE_UNVEIL_V4_SNAPSHOT_BATCHER ?? "").trim();
+const DRAW_BATCHER_ADDRESS = String(import.meta.env.VITE_UNVEIL_V4_DRAW_BATCHER ?? "").trim();
+const MAX_FRONTEND_SNAPSHOT_SHARDS = 2;
+
+function requireConfiguredBatcher<T extends Contract>(batcher: T | undefined, label: string): T {
+  if (!batcher) {
+    throw new Error(
+      `UNVEIL_V4_${label.toUpperCase()}_BATCHER_UNCONFIGURED: Configure VITE_UNVEIL_V4_${label.toUpperCase()}_BATCHER for permissionless batching.`,
+    );
+  }
+  return batcher;
+}
 
 const PRIZE_V3_ABI = [
   "function roundStatus(uint256 roundId) view returns (bool funded,uint8 deliveredCount,bool delivered)",
@@ -78,6 +107,7 @@ export type V4DrawSchedule = {
   canAdvance: boolean;
   insufficientParticipants: boolean;
   overdue: boolean;
+  availability: number;
 };
 
 export type V4PrizeResult = {
@@ -255,43 +285,61 @@ async function userDecryptOne(signer: JsonRpcSigner, handle: string, contractAdd
   return BigInt(result[handle as `0x${string}`] as bigint | string);
 }
 
-function readContractsV4() {
+function optionalContract(address: string, abi: readonly string[], runner: JsonRpcProvider | JsonRpcSigner) {
+  return isAddress(address) ? new Contract(address, abi, runner) : undefined;
+}
+
+async function readContractsV4() {
+  const pool = new Contract(UNVEIL_CONTRACTS.pool, POOL_V4_ABI, readProvider);
+  const seatKeeperAddress = String(await pool.seatKeeper());
   return {
-    pool: new Contract(UNVEIL_CONTRACTS.pool, POOL_V4_ABI, readProvider),
+    pool,
+    seatKeeper: new Contract(seatKeeperAddress, SEAT_KEEPER_V4_ABI, readProvider),
+    snapshotBatcher: optionalContract(SNAPSHOT_BATCHER_ADDRESS, SNAPSHOT_BATCHER_V4_ABI, readProvider),
+    drawBatcher: optionalContract(DRAW_BATCHER_ADDRESS, DRAW_BATCHER_V4_ABI, readProvider),
     prizeVault: new Contract(UNVEIL_CONTRACTS.prizeVault, PRIZE_V3_ABI, readProvider),
     manager: new Contract(UNVEIL_CONTRACTS.manager, MANAGER_V3_ABI, readProvider),
   };
 }
 
-function writeContractsV4(signer: JsonRpcSigner) {
+async function writeContractsV4(signer: JsonRpcSigner) {
+  const pool = new Contract(UNVEIL_CONTRACTS.pool, POOL_V4_ABI, signer);
+  const seatKeeperAddress = String(await pool.seatKeeper());
   return {
-    pool: new Contract(UNVEIL_CONTRACTS.pool, POOL_V4_ABI, signer),
+    pool,
+    seatKeeper: new Contract(seatKeeperAddress, SEAT_KEEPER_V4_ABI, signer),
+    snapshotBatcher: optionalContract(SNAPSHOT_BATCHER_ADDRESS, SNAPSHOT_BATCHER_V4_ABI, signer),
+    drawBatcher: optionalContract(DRAW_BATCHER_ADDRESS, DRAW_BATCHER_V4_ABI, signer),
     prizeVault: new Contract(UNVEIL_CONTRACTS.prizeVault, PRIZE_V3_ABI, signer),
     manager: new Contract(UNVEIL_CONTRACTS.manager, MANAGER_V3_ABI, signer),
   };
 }
 
-function normalizeSchedule(schedule: {
-  currentRoundId: bigint | string | number;
-  unsettledRounds: bigint | string | number;
-  opensAt: bigint | string | number;
-  closesAt: bigint | string | number;
-  timeReady: boolean;
-  ready: boolean;
-  canAdvance: boolean;
-  insufficientParticipants: boolean;
-  overdue: boolean;
-}): V4DrawSchedule {
+function normalizeSchedule(
+  schedule: {
+    currentRoundId: bigint | string | number;
+    unsettledRounds: bigint | string | number;
+    opensAt: bigint | string | number;
+    closesAt: bigint | string | number;
+    timeReady: boolean;
+    snapshotRequired: boolean;
+    canAdvance: boolean;
+    insufficientParticipants: boolean;
+    overdue: boolean;
+  },
+  availability: number,
+): V4DrawSchedule {
   return {
     currentRoundId: BigInt(schedule.currentRoundId),
     unsettledRounds: BigInt(schedule.unsettledRounds),
     opensAt: BigInt(schedule.opensAt),
     closesAt: BigInt(schedule.closesAt),
     timeReady: Boolean(schedule.timeReady),
-    ready: Boolean(schedule.ready),
+    ready: Boolean(schedule.snapshotRequired),
     canAdvance: Boolean(schedule.canAdvance),
     insufficientParticipants: Boolean(schedule.insufficientParticipants),
     overdue: Boolean(schedule.overdue),
+    availability,
   };
 }
 
@@ -360,7 +408,7 @@ async function nextSnapshotAction(pool: Contract, roundId: bigint) {
         "SNAPSHOT_SHARD",
         roundId,
         `SNAPSHOT SHARD ${shardIndex + 1}/24`,
-        "Checkpoint one HCU-bounded 24-seat shard for this closed round.",
+        "Checkpoint the next HCU-bounded batch of up to two 24-seat shards for this closed round.",
         true,
         "SNAPSHOT",
         { shardIndex },
@@ -436,11 +484,16 @@ async function nextSnapshotAction(pool: Contract, roundId: bigint) {
 
 async function readDrawAdvancementFromContracts(
   pool: Contract,
+  seatKeeper: Contract,
   manager: Contract,
   prizeVault: Contract,
 ): Promise<V4DrawAdvancement> {
-  const [rawSchedule, rawNextPrizeRoundId] = await Promise.all([pool.getDrawSchedule(), manager.nextPrizeRoundId()]);
-  const schedule = normalizeSchedule(rawSchedule);
+  const [rawSchedule, rawAvailability, rawNextPrizeRoundId] = await Promise.all([
+    seatKeeper.getDrawSchedule(),
+    seatKeeper.getDrawAvailability(),
+    manager.nextPrizeRoundId(),
+  ]);
+  const schedule = normalizeSchedule(rawSchedule, Number(rawAvailability));
   const nextPrizeRoundId = BigInt(rawNextPrizeRoundId);
 
   const pendingDelivery = await pendingFundedPrizeAction(prizeVault, nextPrizeRoundId);
@@ -569,13 +622,13 @@ async function readDrawAdvancementFromContracts(
 }
 
 export async function readDrawAdvancementV4() {
-  const { pool, manager, prizeVault } = readContractsV4();
-  return readDrawAdvancementFromContracts(pool, manager, prizeVault);
+  const { pool, seatKeeper, manager, prizeVault } = await readContractsV4();
+  return readDrawAdvancementFromContracts(pool, seatKeeper, manager, prizeVault);
 }
 
 async function readVerifiedRounds(latestRound: bigint): Promise<VerifiedRoundV4[]> {
   if (latestRound === 0n) return [];
-  const { pool, prizeVault } = readContractsV4();
+  const { pool, prizeVault } = await readContractsV4();
   const first = latestRound > HISTORY_LIMIT ? latestRound - HISTORY_LIMIT + 1n : 1n;
   const ids: bigint[] = [];
   for (let id = latestRound; id >= first; id--) ids.push(id);
@@ -641,7 +694,7 @@ async function readVerifiedRounds(latestRound: bigint): Promise<VerifiedRoundV4[
 
 async function readLatestWithdrawal(address: string, nextRequestId: bigint) {
   const lowerBound = nextRequestId > WITHDRAWAL_LOOKBACK ? nextRequestId - WITHDRAWAL_LOOKBACK : 1n;
-  const { manager } = readContractsV4();
+  const { manager } = await readContractsV4();
   const ids: bigint[] = [];
   for (let id = nextRequestId - 1n; id >= lowerBound && id > 0n; id--) ids.push(id);
   const candidates = await Promise.all(
@@ -660,13 +713,22 @@ async function readLatestWithdrawal(address: string, nextRequestId: bigint) {
 
 export async function readDashboardV4(signer: JsonRpcSigner) {
   const address = await signer.getAddress();
-  const { pool, manager, prizeVault } = readContractsV4();
-  const [joined, seated, seatExpiresAt, playerCount, advancement, nextWithdrawalRequestId] = await Promise.all([
+  const { pool, seatKeeper, manager, prizeVault } = await readContractsV4();
+  const [
+    joined,
+    seated,
+    seatExpiresAt,
+    playerCount,
+    pendingSeatAttestationRequestId,
+    advancement,
+    nextWithdrawalRequestId,
+  ] = await Promise.all([
     pool.joined(address),
     pool.seated(address),
     pool.seatExpiresAt(address),
     pool.playerCount(),
-    readDrawAdvancementFromContracts(pool, manager, prizeVault),
+    seatKeeper.pendingSeatAttestationRequestId(address),
+    readDrawAdvancementFromContracts(pool, seatKeeper, manager, prizeVault),
     manager.nextWithdrawalRequestId(),
   ]);
   const latestRound = advancement.schedule.currentRoundId > 1n ? advancement.schedule.currentRoundId - 1n : 0n;
@@ -677,6 +739,8 @@ export async function readDashboardV4(signer: JsonRpcSigner) {
   return {
     joined: Boolean(joined),
     seated: Boolean(seated),
+    pendingSeatAttestationRequestId: BigInt(pendingSeatAttestationRequestId),
+    pendingSeatAttestation: BigInt(pendingSeatAttestationRequestId) !== 0n,
     seatExpiresAt: BigInt(seatExpiresAt),
     playerCount: Number(playerCount),
     nextRoundId: advancement.schedule.currentRoundId,
@@ -692,9 +756,9 @@ export async function readDashboardV4(signer: JsonRpcSigner) {
 }
 
 export async function readPublicProtocolV4() {
-  const { pool, manager, prizeVault } = readContractsV4();
+  const { pool, seatKeeper, manager, prizeVault } = await readContractsV4();
   const [advancement, playerCount] = await Promise.all([
-    readDrawAdvancementFromContracts(pool, manager, prizeVault),
+    readDrawAdvancementFromContracts(pool, seatKeeper, manager, prizeVault),
     pool.playerCount(),
   ]);
   const latestRound = advancement.schedule.currentRoundId > 1n ? advancement.schedule.currentRoundId - 1n : 0n;
@@ -744,13 +808,31 @@ export function deliveredPrizeSlotForRoundV4(history: VerifiedRoundV4[], address
 export async function revealPrizeV4(signer: JsonRpcSigner, roundId: bigint, prizeIndex: number) {
   if (prizeIndex < 0 || prizeIndex >= PRIZE_SLOTS) throw new Error("Invalid V4 prize index.");
   try {
-    const prizeVault = writeContractsV4(signer).prizeVault;
+    const prizeVault = (await writeContractsV4(signer)).prizeVault;
     const handle = String(await prizeVault.encryptedPrizeOf(roundId, prizeIndex));
     return await userDecryptOne(signer, handle, UNVEIL_CONTRACTS.prizeVault);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     throw new Error(`UNVEIL_PRIZE_WINNER_ONLY:${message ? ` ${message}` : ""}`);
   }
+}
+
+/** Permissionless keeper maintenance. This never decrypts or accepts a balance amount. */
+export async function refreshSeatAttestationV4(signer: JsonRpcSigner, account: string) {
+  const { seatKeeper } = await writeContractsV4(signer);
+  return seatKeeper.refreshSeatAttestation(account);
+}
+
+/** Permissionless KMS callback used by a keeper after public boolean attestation. */
+export async function finalizeSeatAttestationV4(
+  signer: JsonRpcSigner,
+  account: string,
+  requestId: bigint,
+  balancePositive: boolean,
+  decryptionProof: string,
+) {
+  const { seatKeeper } = await writeContractsV4(signer);
+  return seatKeeper.finalizeSeatAttestation(account, requestId, balancePositive, decryptionProof);
 }
 
 export async function advanceDrawV4(
@@ -767,7 +849,7 @@ export async function advanceDrawV4(
     throw new Error("UNVEIL_DRAW_NOT_ACTIONABLE: This V4 protocol step is not available yet.");
   if (isCurrent && !isCurrent()) throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
 
-  const { pool, manager, prizeVault } = writeContractsV4(signer);
+  const { pool, snapshotBatcher, drawBatcher, manager, prizeVault } = await writeContractsV4(signer);
   const waitForTx = async (txPromise: Promise<{ wait: () => Promise<unknown> }>, pendingMessage: string) => {
     const tx = await withTimeout(txPromise, 30_000, "Wallet did not respond to the V4 draw action.");
     return withTimeout(tx.wait(), 120_000, pendingMessage);
@@ -779,10 +861,24 @@ export async function advanceDrawV4(
   }
   if (live.action.kind === "SNAPSHOT_SHARD") {
     if (live.action.shardIndex === undefined) throw new Error("V4 shard index is unavailable.");
-    onStep?.(`SNAPSHOTTING SHARD ${live.action.shardIndex + 1}/24…`);
+    const batcher = requireConfiguredBatcher(snapshotBatcher, "snapshot");
+    const shardStates = await Promise.all(
+      Array.from({ length: SHARD_COUNT }, (_, shard) => pool.getSnapshotShard(live.action.roundId, shard)),
+    );
+    const pendingShards = shardStates
+      .map((status, shard) => (Boolean(status.processed) ? -1 : shard))
+      .filter((shard): shard is number => shard >= 0);
+    if (pendingShards.length === 0) throw new Error("UNVEIL_DRAW_STATE_CHANGED: No pending V4 snapshot shards remain.");
+    const batch = pendingShards.slice(0, MAX_FRONTEND_SNAPSHOT_SHARDS);
+    const isFinalBatch = batch.length === pendingShards.length;
+    onStep?.(
+      `SNAPSHOTTING ${batch.length} SHARD${batch.length === 1 ? "" : "S"} (${batch[0] + 1}–${batch[batch.length - 1] + 1})/24…`,
+    );
     return waitForTx(
-      pool.snapshotRoundShard(live.action.roundId, live.action.shardIndex),
-      "V4 shard snapshot is still pending on Sepolia.",
+      isFinalBatch
+        ? batcher.snapshotShardsAndComplete(live.action.roundId, batch)
+        : batcher.snapshotShards(live.action.roundId, batch),
+      "V4 shard snapshot batch is still pending on Sepolia.",
     );
   }
   if (live.action.kind === "COMPLETE_SNAPSHOT") {
@@ -809,19 +905,20 @@ export async function advanceDrawV4(
     const shard = Number(result.clearValues[key]);
     if (isCurrent && !isCurrent())
       throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
+    const batcher = requireConfiguredBatcher(drawBatcher, "draw");
     onStep?.("VERIFYING SHARD ONCHAIN…");
     return waitForTx(
-      pool.finalizePrizeShard(live.action.roundId, live.action.prizeIndex, shard, result.decryptionProof),
-      "V4 shard verification is still pending on Sepolia.",
+      batcher.finalizePrizeShardAndDrawMember(
+        live.action.roundId,
+        live.action.prizeIndex,
+        shard,
+        result.decryptionProof,
+      ),
+      "V4 shard verification and member draw are still pending on Sepolia.",
     );
   }
   if (live.action.kind === "DRAW_MEMBER") {
-    if (live.action.prizeIndex === undefined) throw new Error("V4 prize index is unavailable.");
-    onStep?.(`DRAWING ENCRYPTED MEMBER FOR PRIZE ${live.action.prizeIndex + 1}/3…`);
-    return waitForTx(
-      pool.drawPrizeMember(live.action.roundId, live.action.prizeIndex),
-      "V4 encrypted member draw is still pending on Sepolia.",
-    );
+    throw new Error("UNVEIL_DRAW_STATE_CHANGED: V4 member draw is fused into shard verification.");
   }
   if (live.action.kind === "FINALIZE_MEMBER") {
     if (live.action.prizeIndex === undefined) throw new Error("V4 prize index is unavailable.");
