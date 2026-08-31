@@ -12,6 +12,7 @@ import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984
 import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMath.sol";
 
 import {VeilShardedDraw} from "./draw/VeilShardedDraw.sol";
+import {VeilPoolV4Helper, IVeilPoolV4HelperTarget} from "./VeilPoolV4Availability.sol";
 
 interface IVeilStrategyManagerV4 {
     function pool() external view returns (address);
@@ -63,6 +64,7 @@ contract VeilPoolV4 is VeilShardedDraw {
     error RoundNotFinalizing();
     error UnknownRound();
     error InvalidRound();
+    error OnlySeatKeeper();
 
     enum DrawState {
         NONE,
@@ -73,15 +75,8 @@ contract VeilPoolV4 is VeilShardedDraw {
         SKIPPED
     }
 
-    enum DrawAvailability {
-        OPEN,
-        READY,
-        INSUFFICIENT_PARTICIPANTS
-    }
-
     struct Position {
         euint64 balance;
-        bool active;
     }
 
     struct DrawRecord {
@@ -95,6 +90,7 @@ contract VeilPoolV4 is VeilShardedDraw {
     uint64 public immutable drawPeriod;
     uint64 public immutable firstDrawOpensAt;
 
+    VeilPoolV4Helper public immutable seatKeeper;
     address public strategyManager;
     bool public strategyManagerConfigured;
 
@@ -134,6 +130,7 @@ contract VeilPoolV4 is VeilShardedDraw {
         asset = asset_;
         drawPeriod = drawPeriod_;
         firstDrawOpensAt = uint64(block.timestamp);
+        seatKeeper = new VeilPoolV4Helper(IVeilPoolV4HelperTarget(address(this)));
 
         encryptedTotalWeight = FHE.asEuint64(0);
         FHE.allowThis(encryptedTotalWeight);
@@ -157,20 +154,23 @@ contract VeilPoolV4 is VeilShardedDraw {
         if (!asset.isOperator(msg.sender, address(this))) revert PoolNotOperator();
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
-        FHE.allowTransient(requested, address(asset));
-        euint64 transferred = asset.confidentialTransferFrom(msg.sender, strategyManager, requested);
-        FHE.allowTransient(transferred, strategyManager);
-        IVeilStrategyManagerV4(strategyManager).recordPrincipalDeposit(msg.sender, transferred);
-
         if (!joined[msg.sender]) {
             positions[msg.sender].balance = FHE.asEuint64(0);
             reservedWithdrawals[msg.sender] = FHE.asEuint64(0);
-            positions[msg.sender].active = true;
             joined[msg.sender] = true;
             emit PlayerJoined(msg.sender);
         }
 
-        _acquireOrRenewShardedSeat(msg.sender);
+        // Explicit overflow policy: bound the encrypted request against both capacities before
+        // custody moves, so the subsequent additions cannot wrap or diverge from custody.
+        FHE.allowTransient(requested, address(seatKeeper));
+        FHE.allowTransient(positions[msg.sender].balance, address(seatKeeper));
+        FHE.allowTransient(encryptedTotalWeight, address(seatKeeper));
+        euint64 permitted = seatKeeper.boundDeposit(requested, positions[msg.sender].balance, encryptedTotalWeight);
+        FHE.allowTransient(permitted, address(asset));
+        euint64 transferred = asset.confidentialTransferFrom(msg.sender, strategyManager, permitted);
+        FHE.allowTransient(transferred, strategyManager);
+        IVeilStrategyManagerV4(strategyManager).recordPrincipalDeposit(msg.sender, transferred);
 
         positions[msg.sender].balance = FHE.add(positions[msg.sender].balance, transferred);
         encryptedTotalWeight = FHE.add(encryptedTotalWeight, transferred);
@@ -180,12 +180,13 @@ contract VeilPoolV4 is VeilShardedDraw {
         FHE.allowThis(encryptedTotalWeight);
         FHE.allow(positions[msg.sender].balance, msg.sender);
         FHE.allow(reservedWithdrawals[msg.sender], msg.sender);
+        if (!seated[msg.sender]) _requestSeatAttestation(msg.sender, positions[msg.sender].balance);
         emit DepositRecorded(msg.sender);
     }
 
     function renewDrawSeat() external {
         if (!joined[msg.sender]) revert NotJoined();
-        _acquireOrRenewShardedSeat(msg.sender);
+        _requestSeatAttestation(msg.sender, positions[msg.sender].balance);
     }
 
     function leaveDrawSeat() external {
@@ -202,6 +203,7 @@ contract VeilPoolV4 is VeilShardedDraw {
         if (!joined[msg.sender]) revert NotJoined();
 
         _sealShardedAccountState(msg.sender);
+        if (seated[msg.sender]) _releaseShardedSeat(msg.sender);
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
         euint64 permitted = FHE.select(FHE.le(requested, positions[msg.sender].balance), requested, FHE.asEuint64(0));
@@ -224,6 +226,7 @@ contract VeilPoolV4 is VeilShardedDraw {
         FHE.allowThis(withdrawalRequestReserved[requestId]);
         FHE.allow(positions[msg.sender].balance, msg.sender);
         FHE.allow(reservedWithdrawals[msg.sender], msg.sender);
+        _requestSeatAttestation(msg.sender, positions[msg.sender].balance);
         emit WithdrawalRecorded(msg.sender, requestId);
     }
 
@@ -261,8 +264,9 @@ contract VeilPoolV4 is VeilShardedDraw {
         euint64 restored = FHE.select(FHE.le(amount, requestRemaining), amount, FHE.asEuint64(0));
         withdrawalRequestReserved[requestId] = FHESafeMath.saturatingSub(requestRemaining, restored);
         reservedWithdrawals[account] = FHESafeMath.saturatingSub(reservedWithdrawals[account], restored);
+        // Cancellation uses the same saturation policy to prevent encrypted restoration wraparound.
         positions[account].balance = FHESafeMath.saturatingAdd(positions[account].balance, restored);
-        encryptedTotalWeight = FHE.add(encryptedTotalWeight, restored);
+        encryptedTotalWeight = FHESafeMath.saturatingAdd(encryptedTotalWeight, restored);
         withdrawalRequestCanceled[requestId] = true;
 
         FHE.allowThis(withdrawalRequestReserved[requestId]);
@@ -271,6 +275,34 @@ contract VeilPoolV4 is VeilShardedDraw {
         FHE.allowThis(encryptedTotalWeight);
         FHE.allow(reservedWithdrawals[account], account);
         FHE.allow(positions[account].balance, account);
+        _requestSeatAttestation(account, positions[account].balance);
+    }
+
+    /// @notice Applies the latest KMS-proven balance predicate to the public draw roster.
+    /// @dev Called only by the immutable helper, so keepers never receive pool mutation authority.
+    function onSeatAttestationFinalized(address account, bool balancePositive) external {
+        if (msg.sender != address(seatKeeper)) revert OnlySeatKeeper();
+        if (!joined[account]) revert NotJoined();
+        if (balancePositive) {
+            _acquireOrRenewShardedSeat(account);
+        } else if (seated[account]) {
+            _releaseShardedSeat(account);
+        }
+    }
+
+    /// @notice Starts a new encrypted seat predicate on behalf of a permissionless keeper.
+    /// @dev Only the immutable helper can invoke this, so the encrypted balance never leaves the
+    /// pool and the keeper receives only the later KMS-attested boolean.
+    function requestSeatAttestation(address account) external {
+        if (msg.sender != address(seatKeeper)) revert OnlySeatKeeper();
+        if (!joined[account]) revert NotJoined();
+        if (!seated[account]) revert NotSeated();
+        _requestSeatAttestation(account, positions[account].balance);
+    }
+
+    function _requestSeatAttestation(address account, euint64 balance) private {
+        FHE.allowTransient(balance, address(seatKeeper));
+        seatKeeper.requestSeatAttestation(account, balance);
     }
 
     function encryptedBalanceOf() external view returns (euint64) {
@@ -421,58 +453,6 @@ contract VeilPoolV4 is VeilShardedDraw {
         uint8 prizeIndex
     ) external view returns (bool drawn, bool finalized, address winner) {
         (, , , drawn, finalized, winner) = getShardedPrizeStatus(roundId, prizeIndex);
-    }
-
-    function isDrawReady() public view returns (bool) {
-        return block.timestamp >= nextDrawClosesAt;
-    }
-
-    function isDrawTimeReady() public view returns (bool) {
-        return isDrawReady();
-    }
-
-    function canAdvanceDraw() public view returns (bool) {
-        return isDrawReady();
-    }
-
-    function getDrawAvailability() public view returns (DrawAvailability) {
-        return isDrawReady() ? DrawAvailability.READY : DrawAvailability.OPEN;
-    }
-
-    function hasUnsettledRounds() public view returns (bool) {
-        return unsettledRoundCount != 0;
-    }
-
-    function isDrawOverdue() public view returns (bool) {
-        return hasUnsettledRounds() && isDrawTimeReady();
-    }
-
-    function getDrawSchedule()
-        external
-        view
-        returns (
-            uint256 currentRoundId,
-            uint256 unsettledRounds,
-            uint64 opensAt,
-            uint64 closesAt,
-            bool timeReady,
-            bool ready,
-            bool canAdvance,
-            bool insufficientParticipants,
-            bool overdue
-        )
-    {
-        return (
-            nextRoundId,
-            unsettledRoundCount,
-            nextDrawOpensAt,
-            nextDrawClosesAt,
-            isDrawTimeReady(),
-            isDrawReady(),
-            canAdvanceDraw(),
-            false,
-            isDrawOverdue()
-        );
     }
 
     function _syncDrawnState(uint256 roundId) private {

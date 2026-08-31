@@ -11,6 +11,7 @@ import {
   VeilDepositBatcher,
   VeilDrawBatcher,
   VeilPoolV4,
+  VeilPoolV4Helper,
   VeilPrizeVaultV3,
   VeilSnapshotBatcher,
   VeilStrategyManagerV2TestHarness,
@@ -32,6 +33,7 @@ type System = {
   deposits: VeilDepositBatcher;
   withdrawals: VeilWithdrawalBatcher;
   pool: VeilPoolV4;
+  seatKeeper: VeilPoolV4Helper;
   snapshotBatcher: VeilSnapshotBatcher;
   drawBatcher: VeilDrawBatcher;
   prizeVault: VeilPrizeVaultV3;
@@ -75,6 +77,7 @@ async function deploySystem(): Promise<System> {
   const pool = (await (
     await ethers.getContractFactory("VeilPoolV4")
   ).deploy(await source.getAddress(), DRAW_PERIOD)) as VeilPoolV4;
+  const seatKeeper = (await ethers.getContractAt("VeilPoolV4Helper", await pool.seatKeeper())) as VeilPoolV4Helper;
   const snapshotBatcher = (await (
     await ethers.getContractFactory("VeilSnapshotBatcher")
   ).deploy(await pool.getAddress())) as VeilSnapshotBatcher;
@@ -107,6 +110,7 @@ async function deploySystem(): Promise<System> {
     deposits,
     withdrawals,
     pool,
+    seatKeeper,
     snapshotBatcher,
     drawBatcher,
     prizeVault,
@@ -121,12 +125,41 @@ async function fundAndApprove(system: System, signer: HardhatEthersSigner, amoun
   await (await system.source.connect(signer).setOperator(await system.pool.getAddress(), MAX_OPERATOR_UNTIL)).wait();
 }
 
-async function deposit(system: System, signer: HardhatEthersSigner, amount: bigint | number) {
+async function finalizeSeatAttestation(system: System, signer: HardhatEthersSigner) {
+  const requestId = await system.seatKeeper.pendingSeatAttestationRequestId(signer.address);
+  if (requestId === 0n) return;
+  const handle = await system.seatKeeper.encryptedSeatAttestationOf(signer.address);
+  const proof = await fhevm.publicDecrypt([handle]);
+  const key = Object.keys(proof.clearValues)[0] as keyof typeof proof.clearValues;
+  const balancePositive = Boolean(proof.clearValues[key]);
+  await (
+    await system.seatKeeper
+      .connect(signers.outsider)
+      .finalizeSeatAttestation(signer.address, requestId, balancePositive, proof.decryptionProof)
+  ).wait();
+}
+
+async function deposit(system: System, signer: HardhatEthersSigner, amount: bigint | number, finalize = true) {
   const input = await fhevm
     .createEncryptedInput(await system.pool.getAddress(), signer.address)
     .add64(amount)
     .encrypt();
   await (await system.pool.connect(signer).deposit(input.handles[0], input.inputProof)).wait();
+  if (finalize) await finalizeSeatAttestation(system, signer);
+}
+
+async function withdraw(system: System, signer: HardhatEthersSigner, amount: bigint | number) {
+  const input = await fhevm
+    .createEncryptedInput(await system.pool.getAddress(), signer.address)
+    .add64(amount)
+    .encrypt();
+  await (await system.pool.connect(signer).withdraw(input.handles[0], input.inputProof)).wait();
+  await finalizeSeatAttestation(system, signer);
+}
+
+async function decryptBalance(system: System, signer: HardhatEthersSigner) {
+  const handle = await system.pool.connect(signer).encryptedBalanceOf();
+  return fhevm.userDecryptEuint(FhevmType.euint64, handle, await system.pool.getAddress(), signer);
 }
 
 async function advanceToClose(pool: VeilPoolV4) {
@@ -192,6 +225,46 @@ describe("VeilPoolV4", function () {
     if (!fhevm.isMock) this.skip();
   });
 
+  it("requires a permissionless KMS attestation before activating a seat and never renews from a deposit alone", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice);
+
+    await deposit(system, signers.alice, 0);
+    expect(await system.pool.joined(signers.alice.address)).to.equal(true);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(false);
+    expect(await system.pool.playerCount()).to.equal(0);
+
+    await deposit(system, signers.alice, 100, false);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(false);
+    expect(await system.pool.playerCount()).to.equal(0);
+    expect(await system.seatKeeper.pendingSeatAttestationRequestId(signers.alice.address)).to.equal(2n);
+
+    await finalizeSeatAttestation(system, signers.alice);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(true);
+    expect(await system.pool.playerCount()).to.equal(1);
+
+    const expiresAt = await system.pool.seatExpiresAt(signers.alice.address);
+    await deposit(system, signers.alice, 0);
+    expect(await system.pool.seatExpiresAt(signers.alice.address)).to.equal(expiresAt);
+
+    await (await system.seatKeeper.connect(signers.outsider).refreshSeatAttestation(signers.alice.address)).wait();
+    await finalizeSeatAttestation(system, signers.alice);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(true);
+    expect(await system.pool.seatExpiresAt(signers.alice.address)).to.be.gte(expiresAt);
+  });
+
+  it("releases a seat after a KMS-proven zero balance following withdrawal", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice);
+    await deposit(system, signers.alice, 100);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(true);
+
+    await withdraw(system, signers.alice, 100);
+    expect(await decryptBalance(system, signers.alice)).to.equal(0n);
+    expect(await system.pool.seated(signers.alice.address)).to.equal(false);
+    expect(await system.pool.playerCount()).to.equal(0);
+  });
+
   it("preserves confidential custody and full-round maturity across the 24-shard snapshot", async function () {
     const system = await deploySystem();
     await fundAndApprove(system, signers.alice);
@@ -215,6 +288,29 @@ describe("VeilPoolV4", function () {
     expect(info.participantCount).to.equal(2);
     expect(await decryptSnapshotWeight(system, signers.alice, 2n)).to.equal(100n);
     expect(await decryptSnapshotWeight(system, signers.bob, 2n)).to.equal(100n);
+  });
+
+  it("reports open, insufficient, and snapshot-required availability without claiming positive weight", async function () {
+    const empty = await deploySystem();
+    expect(await empty.seatKeeper.getDrawAvailability()).to.equal(0);
+    await advanceToClose(empty.pool);
+    expect(await empty.seatKeeper.getDrawAvailability()).to.equal(2);
+    expect((await empty.seatKeeper.getDrawSchedule()).insufficientParticipants).to.equal(true);
+
+    const funded = await deploySystem();
+    await fundAndApprove(funded, signers.alice);
+    await fundAndApprove(funded, signers.bob);
+    await deposit(funded, signers.alice, 100);
+    await deposit(funded, signers.bob, 100);
+
+    await advanceToClose(funded.pool);
+    expect(await funded.seatKeeper.getDrawAvailability()).to.equal(2);
+    await (await funded.pool.beginSnapshotRound()).wait();
+    expect(await funded.seatKeeper.getDrawAvailability()).to.equal(0);
+
+    await advanceToClose(funded.pool);
+    expect(await funded.seatKeeper.getDrawAvailability()).to.equal(1);
+    expect((await funded.seatKeeper.getDrawSchedule()).insufficientParticipants).to.equal(false);
   });
 
   it("finalizes three sharded prizes and remains compatible with V3 prize funding", async function () {
