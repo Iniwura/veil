@@ -14,6 +14,8 @@ let fheCliInitialized = false;
 
 const POOL_ABI = [
   "function seatKeeper() view returns (address)",
+  "function seated(address) view returns (bool)",
+  "function seatExpiresAt(address) view returns (uint64)",
   "function nextRoundId() view returns (uint256)",
   "function nextDrawClosesAt() view returns (uint64)",
   "function getDrawState(uint256) view returns (uint8)",
@@ -33,6 +35,7 @@ const POOL_ABI = [
 ] as const;
 
 const SEAT_KEEPER_ABI = [
+  "function getDrawSchedule() view returns (uint256 currentRoundId,uint256 unsettledRounds,uint64 opensAt,uint64 closesAt,bool timeReady,bool snapshotRequired,bool canAdvance,bool insufficientParticipants,bool overdue)",
   "function pendingSeatAttestationRequestId(address) view returns (uint256)",
   "function encryptedSeatAttestationOf(address) view returns (bytes32)",
   "function refreshSeatAttestation(address)",
