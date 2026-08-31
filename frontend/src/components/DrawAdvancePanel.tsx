@@ -7,7 +7,7 @@ export function DrawAdvancePanel({
   connected,
   wrongNetwork,
   busy,
-  onAdvance,
+  onAdvance: _onAdvance,
   onConnect,
   onSwitchNetwork,
   terminalState,
@@ -22,15 +22,9 @@ export function DrawAdvancePanel({
   terminalState?: DrawLifecycleTerminalState;
 }) {
   const actionable = Boolean(action?.actionable);
-  const showButton = actionable && Boolean(action);
-  const busyAdvancing = busy === "advance-draw";
-  const buttonLabel = !connected
-    ? wrongNetwork
-      ? "SWITCH TO SEPOLIA"
-      : "CONNECT TO ADVANCE"
-    : busyAdvancing
-      ? "ADVANCING…"
-      : `ADVANCE: ${action?.title ?? "DRAW"}`;
+  const showConnectionButton = actionable && Boolean(action) && !connected;
+  const keeperSettling = actionable && Boolean(action) && connected;
+  const buttonLabel = wrongNetwork ? "SWITCH TO SEPOLIA" : "CONNECT TO VIEW";
   const stepLabel = action?.kind === "WAIT" ? "NEXT STEP" : "NEXT PERMISSIONLESS STEP";
   const stepRound = action ? ` · ROUND ${action.roundId.toString().padStart(2, "0")}` : "";
 
@@ -51,7 +45,7 @@ export function DrawAdvancePanel({
       <p className="draw-advance-description">
         {action?.description ?? "Reading the public sharded lifecycle from the live V4 contracts."}
       </p>
-      {showButton && (
+      {showConnectionButton && (
         <button
           className="button-primary draw-advance-button"
           data-cursor="enter"
@@ -61,18 +55,23 @@ export function DrawAdvancePanel({
             if (!action) return;
             if (wrongNetwork) onSwitchNetwork();
             else if (!connected) onConnect();
-            else onAdvance(action);
+            else onConnect();
           }}
           aria-label={buttonLabel}
         >
           {buttonLabel}
         </button>
       )}
+      {keeperSettling && (
+        <p className="draw-advance-keeper-state" role="status">
+          KEEPER SETTLING · DRAW SETTLING · NO SAVER WALLET ACTION
+        </p>
+      )}
       {action?.kind === "BLOCKED" && (
         <p className="draw-advance-warning">PUBLIC STATE NEEDS REVIEW · NO RECOVERY TRANSACTION</p>
       )}
       <p className="draw-advance-note">
-        Permissionless · any Sepolia wallet can execute · V4 snapshot batches stay HCU-bounded to two 24-seat shards.
+        Permissionless keeper flow · snapshot batches are greedily sized below both published HCU limits.
       </p>
     </section>
   );

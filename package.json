@@ -93,6 +93,8 @@
     "deploy:v4:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V4",
     "smoke:v2:sepolia": "hardhat run scripts/sepolia-v2-smoke.ts --network sepolia",
     "smoke:v4:sepolia": "hardhat run scripts/sepolia-v4-smoke.ts --network sepolia",
+    "keeper:v4:sepolia": "hardhat run scripts/v4-keeper.ts --network sepolia",
+    "keeper:v4:watch": "cross-env UNVEIL_V4_KEEPER_WATCH=true hardhat run scripts/v4-keeper.ts --network sepolia",
     "verify:sepolia": "hardhat verify --network sepolia"
   },
   "overrides": {

@@ -19,7 +19,6 @@ import {
   type MyVault,
 } from "../veilClient";
 import {
-  advanceDrawV4,
   deliveredPrizeSlotForRoundV4,
   deliveredPrizesForAddressV4,
   isConnectedWinnerV4,
@@ -124,9 +123,13 @@ export function useUnveilV4() {
 
   useEffect(() => {
     void refreshPublic();
-    const timer = window.setInterval(() => void refreshPublic(), 30_000);
+    const timer = window.setInterval(() => {
+      const activeSigner = signerRef.current;
+      if (activeSigner) void refresh(activeSigner, "draw");
+      else void refreshPublic();
+    }, 30_000);
     return () => window.clearInterval(timer);
-  }, [refreshPublic]);
+  }, [refresh, refreshPublic]);
 
   useEffect(() => {
     let active = true;
@@ -469,33 +472,13 @@ export function useUnveilV4() {
   }
 
   async function advanceDraw(expectedAction: DrawAction) {
-    const wallet = privateWallet();
-    if (!wallet) return;
+    setScopedError("draw", "");
+    setScopedNotice("draw", `KEEPER SETTLING · ${expectedAction.description}`);
+    setBusy("advance-draw");
     try {
-      setScopedError("draw", "");
-      setBusy("advance-draw");
-      const kmsStep = expectedAction.kind === "FINALIZE_SHARD" || expectedAction.kind === "FINALIZE_MEMBER";
-      setScopedNotice("draw", kmsStep ? "REQUESTING ZAMA KMS PROOF…" : expectedAction.description);
-      await advanceDrawV4(
-        wallet.signer,
-        expectedAction,
-        (nextNotice) => {
-          if (walletEpoch.current === wallet.epoch) setScopedNotice("draw", nextNotice);
-        },
-        () => walletEpoch.current === wallet.epoch,
-      );
-      if (walletEpoch.current !== wallet.epoch) return;
-      await refresh(wallet.signer, "draw");
-      if (walletEpoch.current === wallet.epoch) {
-        setScopedNotice(
-          "draw",
-          `Round ${expectedAction.roundId} advanced. The next V4 permissionless step is now loaded.`,
-        );
-      }
-    } catch (cause) {
-      if (walletEpoch.current === wallet.epoch) setScopedError("draw", productError(cause));
+      await refresh(signerRef.current, "draw");
     } finally {
-      if (walletEpoch.current === wallet.epoch) setBusy("");
+      setBusy("");
     }
   }
 
