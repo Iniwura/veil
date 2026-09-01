@@ -2,24 +2,33 @@ import { FhevmType } from "@fhevm/hardhat-plugin";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { deployments, ethers, fhevm, network } from "hardhat";
 
+import { V4_DEPLOYMENT_NAMES } from "../deploy/deploy-v4";
+import { runKeeperCycle, type KeeperCycleResult } from "./v4-keeper";
 import {
   MockUSDC,
   MockUSDCConfidentialWrapper,
   MockYieldVault4626,
   MockYieldVaultShareConfidentialWrapper,
   VeilDepositBatcher,
+  VeilDrawBatcher,
   VeilPoolV4,
+  VeilPoolV4Helper,
   VeilPrizeVaultV3,
+  VeilSnapshotBatcher,
   VeilStrategyManagerV3,
   VeilWithdrawalBatcher,
 } from "../types";
-import { V4_DEPLOYMENT_NAMES } from "../deploy/deploy-v4";
 
+const EIP_170_RUNTIME_CODE_LIMIT = 24_576;
 const MAX_OPERATOR_UNTIL = 2n ** 48n - 1n;
 const DEMO_DEPOSIT = 100n;
 const SHARD_COUNT = 24;
+const SHARD_SIZE = 24;
+const MAX_ACTIVE_SAVERS = 576;
 const PRIZE_SLOTS = 3;
-const MAX_ROUNDS_TO_MATURITY = 4;
+const MAX_KEEPER_CYCLES = 256;
+const KEEPER_RETRY_LIMIT = 3;
+const KEEPER_RETRY_DELAY_MS = 5_000;
 
 const V4_ADDRESS_ENV = {
   asset: "UNVEIL_V4_MOCK_USDC_ADDRESS",
@@ -29,6 +38,8 @@ const V4_ADDRESS_ENV = {
   depositBatcher: "UNVEIL_V4_DEPOSIT_BATCHER_ADDRESS",
   withdrawalBatcher: "UNVEIL_V4_WITHDRAWAL_BATCHER_ADDRESS",
   pool: "UNVEIL_V4_POOL_ADDRESS",
+  snapshotBatcher: "UNVEIL_V4_SNAPSHOT_BATCHER_ADDRESS",
+  drawBatcher: "UNVEIL_V4_DRAW_BATCHER_ADDRESS",
   prizeVault: "UNVEIL_V4_PRIZE_VAULT_ADDRESS",
   manager: "UNVEIL_V4_MANAGER_ADDRESS",
 } as const;
@@ -44,6 +55,9 @@ type System = {
   deposits: VeilDepositBatcher;
   withdrawals: VeilWithdrawalBatcher;
   pool: VeilPoolV4;
+  seatKeeper: VeilPoolV4Helper;
+  snapshotBatcher: VeilSnapshotBatcher;
+  drawBatcher: VeilDrawBatcher;
   prizeVault: VeilPrizeVaultV3;
   manager: VeilStrategyManagerV3;
 };
@@ -82,7 +96,7 @@ async function resolveAddress(key: AddressKey): Promise<string> {
 
 async function latestTimestamp(): Promise<number> {
   const block = await ethers.provider.getBlock("latest");
-  if (!block) throw new Error("Latest block unavailable");
+  if (!block) throw new Error("Latest Sepolia block unavailable");
   return block.timestamp;
 }
 
@@ -140,30 +154,37 @@ async function ensureOperator(
 async function ensureDeposit(system: System, account: HardhatEthersSigner): Promise<void> {
   const poolAddress = await system.pool.getAddress();
   const principalAddress = await system.principal.getAddress();
-
   await ensureOperator(system.principal, account, poolAddress);
 
-  if (!(await system.pool.joined(account.address))) {
-    const currentPrincipal = await decrypt64(
-      principalAddress,
-      await system.principal.confidentialBalanceOf(account.address),
-      account,
-    );
-    if (currentPrincipal > DEMO_DEPOSIT) {
-      throw new Error(`${account.address} has more than the expected V4 demo principal`);
-    }
+  const joined = await system.pool.joined(account.address);
+  let currentBalance = 0n;
+  if (joined) {
+    currentBalance = await decrypt64(poolAddress, await system.pool.connect(account).encryptedBalanceOf(), account);
+  }
+  const currentPrincipal = await decrypt64(
+    principalAddress,
+    await system.principal.confidentialBalanceOf(account.address),
+    account,
+  );
+  if (currentBalance > DEMO_DEPOSIT) {
+    throw new Error(`${account.address} has more than the expected V4 demo principal`);
+  }
+  if (!joined && currentPrincipal > DEMO_DEPOSIT) {
+    throw new Error(`${account.address} has excess confidential principal before joining V4`);
+  }
 
-    const needed = DEMO_DEPOSIT - currentPrincipal;
-    if (needed > 0n) {
+  const needed = DEMO_DEPOSIT - currentBalance;
+  if (needed > 0n) {
+    if (currentPrincipal < needed) {
+      const additional = needed - currentPrincipal;
       const underlyingBalance = await system.asset.balanceOf(account.address);
-      if (underlyingBalance < needed) {
-        await (await system.asset.mint(account.address, needed - underlyingBalance)).wait();
+      if (underlyingBalance < additional) {
+        await (await system.asset.mint(account.address, additional - underlyingBalance)).wait();
       }
-      await (await system.asset.connect(account).approve(principalAddress, needed)).wait();
-      await (await system.principal.connect(account).wrap(account.address, needed)).wait();
+      await (await system.asset.connect(account).approve(principalAddress, additional)).wait();
+      await (await system.principal.connect(account).wrap(account.address, additional)).wait();
     }
-
-    const input = await encryptedInput(poolAddress, account, DEMO_DEPOSIT);
+    const input = await encryptedInput(poolAddress, account, needed);
     await (await system.pool.connect(account).deposit(input.handles[0], input.inputProof)).wait();
   }
 
@@ -178,97 +199,8 @@ async function ensureDeposit(system: System, account: HardhatEthersSigner): Prom
   }
 }
 
-async function snapshotRound(pool: VeilPoolV4, roundId: bigint, caller: HardhatEthersSigner): Promise<boolean> {
-  let state = Number(await pool.getDrawState(roundId));
-
-  if (state === 0) {
-    const currentRoundId = await pool.nextRoundId();
-    if (currentRoundId !== roundId) {
-      throw new Error(`Round ${roundId} is NONE but pool.nextRoundId is ${currentRoundId}`);
-    }
-    const closesAt = Number(await pool.nextDrawClosesAt());
-    if (!(await waitForRealTime(`draw ${roundId}`, closesAt))) return false;
-    await (await pool.connect(caller).beginSnapshotRound()).wait();
-    state = Number(await pool.getDrawState(roundId));
-  }
-
-  if (state !== 1) return true;
-
-  let snapshot = await pool.getShardedSnapshotRound(roundId);
-  if (!snapshot[5]) {
-    for (let shard = 0; shard < SHARD_COUNT; shard++) {
-      const shardStatus = await pool.getSnapshotShard(roundId, shard);
-      if (!shardStatus[1]) {
-        console.log(`  round ${roundId}: snapshot shard ${shard + 1}/${SHARD_COUNT}`);
-        await (await pool.connect(caller).snapshotRoundShard(roundId, shard)).wait();
-      }
-    }
-
-    snapshot = await pool.getShardedSnapshotRound(roundId);
-    if (snapshot[3] !== BigInt(SHARD_COUNT)) {
-      throw new Error(`Round ${roundId} did not process all ${SHARD_COUNT} shards`);
-    }
-    if (!snapshot[5]) await (await pool.connect(caller).completeSnapshotRound(roundId)).wait();
-  }
-
-  return true;
-}
-
-async function finalizePrize(
-  pool: VeilPoolV4,
-  roundId: bigint,
-  prizeIndex: number,
-  caller: HardhatEthersSigner,
-): Promise<PrizeResult> {
-  let status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
-
-  if (!status[0]) {
-    await (await pool.connect(caller).drawPrizeShard(roundId, prizeIndex)).wait();
-    status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
-  }
-
-  if (!status[1]) {
-    const shardHandle = await pool.getEncryptedPrizeShard(roundId, prizeIndex);
-    const shardProof = await fhevm.publicDecrypt([shardHandle]);
-    const shardKey = Object.keys(shardProof.clearValues)[0] as keyof typeof shardProof.clearValues;
-    const shard = Number(shardProof.clearValues[shardKey]);
-    await (
-      await pool.connect(caller).finalizePrizeShard(roundId, prizeIndex, shard, shardProof.decryptionProof)
-    ).wait();
-    status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
-  }
-
-  if (!status[3]) {
-    await (await pool.connect(caller).drawPrizeMember(roundId, prizeIndex)).wait();
-    status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
-  }
-
-  if (!status[4]) {
-    const winnerHandle = await pool.getEncryptedPrizeWinner(roundId, prizeIndex);
-    const winnerProof = await fhevm.publicDecrypt([winnerHandle]);
-    const winnerKey = Object.keys(winnerProof.clearValues)[0] as keyof typeof winnerProof.clearValues;
-    const winner = String(winnerProof.clearValues[winnerKey]);
-    const encodedWinner = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [winner]);
-    await (
-      await pool.connect(caller).finalizePrizeMember(roundId, prizeIndex, encodedWinner, winnerProof.decryptionProof)
-    ).wait();
-    status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
-  }
-
-  return { shard: Number(status[2]), winner: status[5] };
-}
-
-async function readFinalizedPrizes(pool: VeilPoolV4, roundId: bigint): Promise<PrizeResult[]> {
-  const results: PrizeResult[] = [];
-  for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
-    const status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
-    if (!status[4]) throw new Error(`Round ${roundId} prize ${prizeIndex} is not finalized`);
-    results.push({ shard: Number(status[2]), winner: status[5] });
-  }
-  return results;
-}
-
 async function loadSystem(addresses: V4Addresses): Promise<System> {
+  const pool = (await ethers.getContractAt("VeilPoolV4", addresses.pool)) as VeilPoolV4;
   return {
     asset: (await ethers.getContractAt("MockUSDC", addresses.asset)) as MockUSDC,
     principal: (await ethers.getContractAt(
@@ -285,7 +217,13 @@ async function loadSystem(addresses: V4Addresses): Promise<System> {
       "VeilWithdrawalBatcher",
       addresses.withdrawalBatcher,
     )) as VeilWithdrawalBatcher,
-    pool: (await ethers.getContractAt("VeilPoolV4", addresses.pool)) as VeilPoolV4,
+    pool,
+    seatKeeper: (await ethers.getContractAt("VeilPoolV4Helper", await pool.seatKeeper())) as VeilPoolV4Helper,
+    snapshotBatcher: (await ethers.getContractAt(
+      "VeilSnapshotBatcher",
+      addresses.snapshotBatcher,
+    )) as VeilSnapshotBatcher,
+    drawBatcher: (await ethers.getContractAt("VeilDrawBatcher", addresses.drawBatcher)) as VeilDrawBatcher,
     prizeVault: (await ethers.getContractAt("VeilPrizeVaultV3", addresses.prizeVault)) as VeilPrizeVaultV3,
     manager: (await ethers.getContractAt("VeilStrategyManagerV3", addresses.manager)) as VeilStrategyManagerV3,
   };
@@ -294,6 +232,19 @@ async function loadSystem(addresses: V4Addresses): Promise<System> {
 async function validateWiring(system: System, addresses: V4Addresses): Promise<void> {
   for (const [label, address] of Object.entries(addresses)) {
     if ((await ethers.provider.getCode(address)) === "0x") throw new Error(`${label} has no bytecode at ${address}`);
+  }
+
+  const poolCode = await ethers.provider.getCode(addresses.pool);
+  const poolRuntimeBytes = (poolCode.length - 2) / 2;
+  if (poolRuntimeBytes > EIP_170_RUNTIME_CODE_LIMIT) {
+    throw new Error(`VeilPoolV4 runtime bytecode is ${poolRuntimeBytes} bytes, above EIP-170`);
+  }
+
+  const seatKeeperAddress = await system.pool.seatKeeper();
+  requireAddress("pool.seatKeeper", seatKeeperAddress, await system.seatKeeper.getAddress());
+  requireAddress("seatKeeper.pool", await system.seatKeeper.pool(), addresses.pool);
+  if ((await ethers.provider.getCode(seatKeeperAddress)) === "0x") {
+    throw new Error(`pool.seatKeeper has no bytecode at ${seatKeeperAddress}`);
   }
 
   requireAddress("pool.asset", await system.pool.asset(), addresses.principal);
@@ -312,20 +263,185 @@ async function validateWiring(system: System, addresses: V4Addresses): Promise<v
   requireAddress("vault.asset", await system.vault.asset(), addresses.asset);
   requireAddress("depositBatcher.fromToken", await system.deposits.fromToken(), addresses.principal);
   requireAddress("depositBatcher.toToken", await system.deposits.toToken(), addresses.shares);
+  requireAddress("depositBatcher.vault", await system.deposits.vault(), addresses.vault);
   requireAddress("withdrawalBatcher.fromToken", await system.withdrawals.fromToken(), addresses.shares);
   requireAddress("withdrawalBatcher.toToken", await system.withdrawals.toToken(), addresses.principal);
+  requireAddress("withdrawalBatcher.vault", await system.withdrawals.vault(), addresses.vault);
+  requireAddress("snapshotBatcher.pool", await system.snapshotBatcher.pool(), addresses.pool);
+  requireAddress("drawBatcher.pool", await system.drawBatcher.pool(), addresses.pool);
 
-  if ((await system.pool.SHARD_COUNT()) !== 24n) throw new Error("V4 SHARD_COUNT is not 24");
-  if ((await system.pool.SHARD_SIZE()) !== 24n) throw new Error("V4 SHARD_SIZE is not 24");
-  if ((await system.pool.MAX_ACTIVE_SAVERS()) !== 576n) throw new Error("V4 MAX_ACTIVE_SAVERS is not 576");
-  if ((await system.pool.PRIZE_SLOTS()) !== 3n) throw new Error("V4 PRIZE_SLOTS is not 3");
+  if ((await system.pool.SHARD_COUNT()) !== BigInt(SHARD_COUNT)) throw new Error("V4 SHARD_COUNT is not 24");
+  if ((await system.pool.SHARD_SIZE()) !== BigInt(SHARD_SIZE)) throw new Error("V4 SHARD_SIZE is not 24");
+  if ((await system.pool.MAX_ACTIVE_SAVERS()) !== BigInt(MAX_ACTIVE_SAVERS)) {
+    throw new Error("V4 MAX_ACTIVE_SAVERS is not 576");
+  }
+  if ((await system.pool.PRIZE_SLOTS()) !== BigInt(PRIZE_SLOTS)) throw new Error("V4 PRIZE_SLOTS is not 3");
+  if ((await system.prizeVault.PRIZE_SLOTS()) !== BigInt(PRIZE_SLOTS)) {
+    throw new Error("V4 prize vault PRIZE_SLOTS is not 3");
+  }
+  console.log(`  VeilPoolV4 runtime bytecode: ${poolRuntimeBytes} bytes`);
 }
 
-async function run() {
-  if (network.name !== "sepolia") {
-    throw new Error("Run this script on Sepolia: npm run smoke:v4:sepolia");
+async function runKeeperPass(): Promise<KeeperCycleResult> {
+  const waitMode = process.env.UNVEIL_V4_SMOKE_WAIT === "true";
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= (waitMode ? KEEPER_RETRY_LIMIT : 1); attempt++) {
+    try {
+      const result = await runKeeperCycle();
+      if (result.actions.length === 0) console.log("  keeper: idle");
+      else for (const action of result.actions) console.log(`  keeper: ${action}`);
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (!waitMode || attempt === KEEPER_RETRY_LIMIT) throw error;
+      console.warn(`  keeper attempt ${attempt}/${KEEPER_RETRY_LIMIT} failed; retrying in wait mode`, error);
+      await new Promise((resolve) => setTimeout(resolve, KEEPER_RETRY_DELAY_MS));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+async function readMatureWeights(
+  system: System,
+  roundId: bigint,
+  alice: HardhatEthersSigner,
+  bob: HardhatEthersSigner,
+): Promise<{ alice: bigint; bob: bigint }> {
+  const aliceWeight = await decrypt64(
+    await system.pool.getAddress(),
+    await system.pool.connect(alice).encryptedSnapshotWeightOf(roundId),
+    alice,
+  );
+  const bobWeight = await decrypt64(
+    await system.pool.getAddress(),
+    await system.pool.connect(bob).encryptedSnapshotWeightOf(roundId),
+    bob,
+  );
+  return { alice: aliceWeight, bob: bobWeight };
+}
+
+async function readFinalizedPrizes(pool: VeilPoolV4, roundId: bigint): Promise<PrizeResult[]> {
+  const results: PrizeResult[] = [];
+  for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
+    const status = await pool.getShardedPrizeStatus(roundId, prizeIndex);
+    if (!status[4]) throw new Error(`Round ${roundId} prize ${prizeIndex} is not finalized`);
+    results.push({ shard: Number(status[2]), winner: status[5] });
+  }
+  return results;
+}
+
+async function verifyMatureRound(
+  system: System,
+  roundId: bigint,
+  alice: HardhatEthersSigner,
+  bob: HardhatEthersSigner,
+): Promise<void> {
+  const info = await system.pool.getDrawInfo(roundId);
+  if (Number(info[1]) < 2) throw new Error(`Round ${roundId} has fewer than two mature snapshot participants`);
+  const weights = await readMatureWeights(system, roundId, alice, bob);
+  console.log(`  round ${roundId} private snapshot weights: Alice=${weights.alice}, Bob=${weights.bob}`);
+  if (weights.alice !== DEMO_DEPOSIT || weights.bob !== DEMO_DEPOSIT) {
+    throw new Error(`Round ${roundId} did not snapshot Alice/Bob at 100 / 100`);
   }
 
+  const positive = new Set([alice.address.toLowerCase(), bob.address.toLowerCase()]);
+  const results = await readFinalizedPrizes(system.pool, roundId);
+  for (const result of results) {
+    if (!positive.has(result.winner.toLowerCase())) {
+      throw new Error(`Round ${roundId} selected an unexpected winner ${result.winner}`);
+    }
+  }
+  if (Number(await system.pool.getDrawState(roundId)) !== 3) {
+    throw new Error(`Mature V4 round ${roundId} is not FINALIZED`);
+  }
+  const finalInfo = await system.pool.getDrawInfo(roundId);
+  if (Number(finalInfo[2]) !== PRIZE_SLOTS || Number(finalInfo[3]) !== PRIZE_SLOTS) {
+    throw new Error(`Mature V4 round ${roundId} did not finalize all three prize slots`);
+  }
+}
+
+async function verifyFirstRoundSkip(system: System, roundId: bigint): Promise<boolean> {
+  const state = Number(await system.pool.getDrawState(roundId));
+  if (state !== 4 && state !== 5) return false;
+  const info = await system.pool.getDrawInfo(roundId);
+  if (Number(info[1]) >= 2) throw new Error(`Pre-maturity round ${roundId} has mature participants`);
+  console.log(`  round ${roundId}: ${namedDrawState(state)} with fewer than two mature participants`);
+  return true;
+}
+
+async function verifyEconomicProgress(
+  system: System,
+  roundId: bigint,
+): Promise<"complete" | "pending" | "unavailable"> {
+  const managerRound = await system.manager.nextPrizeRoundId();
+  const vaultStatus = await system.prizeVault.roundStatus(roundId);
+  const strategyShares = await system.vault.totalSupply();
+  const strategyAssets = await system.vault.totalAssets();
+  if (managerRound === roundId && (strategyShares === 0n || strategyAssets === 0n)) {
+    console.log(
+      "  TEST/DEMO asset has no strategy shares; manager funding and prize delivery are not economically enabled",
+    );
+    return "unavailable";
+  }
+  if (managerRound <= roundId) return "pending";
+  if (vaultStatus[0] && !vaultStatus[2]) return "pending";
+  if (vaultStatus[0]) console.log(`  round ${roundId}: manager-funded prize vault fully delivered`);
+  else console.log(`  round ${roundId}: no prize vault funding was required`);
+  return "complete";
+}
+
+async function progressWithKeeper(
+  system: System,
+  firstMaturityRound: bigint,
+  alice: HardhatEthersSigner,
+  bob: HardhatEthersSigner,
+): Promise<boolean> {
+  const preMaturityRound = firstMaturityRound - 1n;
+  let skipVerified = preMaturityRound === 0n;
+
+  for (let cycle = 0; cycle < MAX_KEEPER_CYCLES; cycle++) {
+    const schedule = await system.seatKeeper.getDrawSchedule();
+    const currentRoundId = BigInt(schedule[0]);
+    const currentClosesAt = Number(schedule[3]);
+    const timeReady = Boolean(schedule[4]);
+    const managerRound = await system.manager.nextPrizeRoundId();
+
+    if (!skipVerified && currentRoundId > preMaturityRound) {
+      skipVerified = await verifyFirstRoundSkip(system, preMaturityRound);
+    }
+
+    const targetState = Number(await system.pool.getDrawState(firstMaturityRound));
+    if (targetState === 4 || targetState === 5) {
+      throw new Error(`Expected mature round ${firstMaturityRound} to draw, found ${namedDrawState(targetState)}`);
+    }
+    if (targetState === 3) {
+      await verifyMatureRound(system, firstMaturityRound, alice, bob);
+      const economics = await verifyEconomicProgress(system, firstMaturityRound);
+      if (economics === "complete" || economics === "unavailable") {
+        if (!skipVerified) throw new Error(`Pre-maturity round ${preMaturityRound} was not safely skipped`);
+        return true;
+      }
+    }
+
+    const keeperHasUnsettledWork = managerRound < currentRoundId;
+    if (!timeReady && !keeperHasUnsettledWork) {
+      if (!(await waitForRealTime(`draw ${currentRoundId}`, currentClosesAt))) return false;
+      continue;
+    }
+
+    const result = await runKeeperPass();
+    if (result.idle && targetState !== 3) {
+      throw new Error(`Keeper made no progress at cycle ${cycle + 1} while round ${firstMaturityRound} is incomplete`);
+    }
+  }
+  throw new Error(`V4 smoke exceeded ${MAX_KEEPER_CYCLES} keeper cycles before completing the mature round`);
+}
+
+async function run(): Promise<void> {
+  if (network.name !== "sepolia") throw new Error("Run this script on Sepolia: npm run smoke:v4:sepolia");
+
+  // TEST/DEMO asset warning: this stack uses MockUSDC and MockYieldVault4626, not production economics.
+  console.log("UNVEIL V4 Sepolia sharded-draw smoke — TEST/DEMO asset (MockUSDC + MockYieldVault4626)");
   await fhevm.initializeCLIApi();
   const [deployer, alice, bob] = (await ethers.getSigners()) as HardhatEthersSigner[];
   if (!deployer || !alice || !bob) throw new Error("Expected deployer, Alice, and Bob Sepolia signers");
@@ -334,12 +450,11 @@ async function run() {
   for (const key of Object.keys(V4_ADDRESS_ENV) as AddressKey[]) addresses[key] = await resolveAddress(key);
   const system = await loadSystem(addresses);
 
-  console.log("UNVEIL V4 Sepolia sharded-draw smoke — TEST/DEMO asset");
   console.log(`  deployer: ${deployer.address}`);
   console.log(`  Alice:    ${alice.address}`);
   console.log(`  Bob:      ${bob.address}`);
   console.log(`  pool:     ${addresses.pool}`);
-
+  console.log(`  helper:   ${await system.seatKeeper.getAddress()}`);
   await validateWiring(system, addresses);
   console.log("  deployment bytecode and V4 wiring: verified");
 
@@ -347,17 +462,50 @@ async function run() {
   await ensureGas(deployer, bob);
   console.log("  signer ETH balances: sufficient");
 
-  console.log("A. CONFIDENTIAL DEPOSITS");
+  console.log("A. CONFIDENTIAL DEPOSITS / PRIVATE REVEALS");
   await ensureDeposit(system, alice);
   await ensureDeposit(system, bob);
-  if ((await system.pool.playerCount()) !== 2n) {
-    throw new Error("Fresh V4 smoke stack does not contain exactly the two expected active saver seats");
+  const aliceBalance = await decrypt64(addresses.pool, await system.pool.connect(alice).encryptedBalanceOf(), alice);
+  const bobBalance = await decrypt64(addresses.pool, await system.pool.connect(bob).encryptedBalanceOf(), bob);
+  if (aliceBalance !== DEMO_DEPOSIT || bobBalance !== DEMO_DEPOSIT) {
+    throw new Error(`Private live balances are not Alice=100 / Bob=100 (${aliceBalance} / ${bobBalance})`);
   }
   if ((await system.principal.confidentialBalanceOf(addresses.pool)) !== ethers.ZeroHash) {
     throw new Error("Pool principal wrapper custody is nonzero");
   }
-  if ((await system.principal.confidentialBalanceOf(addresses.manager)) === ethers.ZeroHash) {
-    throw new Error("Manager principal wrapper custody handle is empty after deposits");
+  const managerPrincipal = await system.principal.confidentialBalanceOf(addresses.manager);
+  const pendingPrincipal = await system.principal.confidentialBalanceOf(addresses.depositBatcher);
+  const managerShares = await system.shares.confidentialBalanceOf(addresses.manager);
+  if (
+    managerPrincipal === ethers.ZeroHash &&
+    pendingPrincipal === ethers.ZeroHash &&
+    managerShares === ethers.ZeroHash &&
+    (await system.vault.totalSupply()) === 0n
+  ) {
+    throw new Error("V4 manager custody is empty after deposits");
+  }
+
+  const pendingAlice = await system.seatKeeper.pendingSeatAttestationRequestId(alice.address);
+  const pendingBob = await system.seatKeeper.pendingSeatAttestationRequestId(bob.address);
+  console.log(`  private balances: Alice=${aliceBalance}, Bob=${bobBalance}`);
+  console.log(`  pending seat attestations: Alice=${pendingAlice}, Bob=${pendingBob}`);
+  if ((pendingAlice !== 0n || pendingBob !== 0n) && (await system.pool.playerCount()) === 2n) {
+    throw new Error("Draw seats became active before their KMS attestations were finalized");
+  }
+
+  console.log("B. KMS SEAT ATTESTATION THROUGH THE KEEPER");
+  await runKeeperPass();
+  for (const account of [alice, bob]) {
+    if ((await system.seatKeeper.pendingSeatAttestationRequestId(account.address)) !== 0n) {
+      throw new Error(`Seat attestation remains pending for ${account.address}`);
+    }
+    if (!(await system.pool.seated(account.address))) throw new Error(`Seat was not activated for ${account.address}`);
+    if ((await system.pool.seatExpiresAt(account.address)) === 0n) {
+      throw new Error(`Seat expiry was not recorded for ${account.address}`);
+    }
+  }
+  if ((await system.pool.playerCount()) !== 2n) {
+    throw new Error("V4 playerCount did not become exactly two after successful KMS attestations");
   }
 
   const aliceEligible = await system.pool.seatEligibleFromRoundId(alice.address);
@@ -365,83 +513,11 @@ async function run() {
   if (aliceEligible !== bobEligible || aliceEligible < 2n) {
     throw new Error(`Unexpected seat maturity boundary: Alice=${aliceEligible}, Bob=${bobEligible}`);
   }
-  const firstRound = aliceEligible - 1n;
-  console.log(`  both savers deposited 100 encrypted units; first maturity boundary round: ${aliceEligible}`);
+  console.log(`  playerCount=2 after attestation; first mature snapshot round: ${aliceEligible}`);
 
-  console.log("B. SHARDED SNAPSHOT / MATURITY RESUME");
-  for (let offset = 0; offset < MAX_ROUNDS_TO_MATURITY; offset++) {
-    const roundId = firstRound + BigInt(offset);
-    if (!(await snapshotRound(system.pool, roundId, deployer))) return;
-
-    let state = Number(await system.pool.getDrawState(roundId));
-    console.log(`  round ${roundId}: ${namedDrawState(state)}`);
-    if (state === 5) continue;
-    if (state !== 1 && state !== 2 && state !== 3 && state !== 4) {
-      throw new Error(`Round ${roundId} entered unexpected state ${namedDrawState(state)}`);
-    }
-
-    const aliceWeight = await decrypt64(
-      addresses.pool,
-      await system.pool.connect(alice).encryptedSnapshotWeightOf(roundId),
-      alice,
-    );
-    const bobWeight = await decrypt64(
-      addresses.pool,
-      await system.pool.connect(bob).encryptedSnapshotWeightOf(roundId),
-      bob,
-    );
-    console.log(`  round ${roundId} private maturity: Alice=${aliceWeight}, Bob=${bobWeight}`);
-
-    const positive = new Set<string>();
-    if (aliceWeight > 0n) positive.add(alice.address.toLowerCase());
-    if (bobWeight > 0n) positive.add(bob.address.toLowerCase());
-
-    let results: PrizeResult[];
-    if (state === 1 || state === 2) {
-      console.log("C. TWO-STAGE ENCRYPTED PRIZE DRAW");
-      results = [];
-      for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
-        const result = await finalizePrize(system.pool, roundId, prizeIndex, deployer);
-        results.push(result);
-        console.log(`  prize ${prizeIndex}: shard=${result.shard} winner=${result.winner}`);
-      }
-      state = Number(await system.pool.getDrawState(roundId));
-    } else {
-      results = await readFinalizedPrizes(system.pool, roundId);
-      console.log(`  round ${roundId}: reusing its already-finalized prize results`);
-    }
-
-    if (positive.size === 0) {
-      if (state !== 4) throw new Error(`All-zero round ${roundId} did not end CANCELLED`);
-      if (results.some((result) => result.winner !== ethers.ZeroAddress)) {
-        throw new Error(`All-zero round ${roundId} produced a nonzero winner`);
-      }
-      console.log(`  round ${roundId}: all-zero maturity correctly CANCELLED; advancing to next boundary`);
-      continue;
-    }
-
-    for (const result of results) {
-      if (!positive.has(result.winner.toLowerCase())) {
-        throw new Error(`Round ${roundId} selected zero-weight or unexpected winner ${result.winner}`);
-      }
-    }
-
-    if (aliceWeight === DEMO_DEPOSIT && bobWeight === DEMO_DEPOSIT) {
-      if (state !== 3) throw new Error(`Mature V4 round ${roundId} is not FINALIZED`);
-      const info = await system.pool.getDrawInfo(roundId);
-      if (info[2] !== 3n || info[3] !== 3n || info[4] !== 3n) {
-        throw new Error(`Mature V4 round ${roundId} did not finalize all three winning prize slots`);
-      }
-      console.log(`  mature round ${roundId}: all three two-stage prizes finalized to eligible savers`);
-      console.log("\nUNVEIL V4 Sepolia sharded-draw smoke PASSED");
-      return;
-    }
-
-    if (state !== 3) throw new Error(`Transitional positive-weight round ${roundId} is not FINALIZED`);
-    console.log(`  round ${roundId}: transitional maturity settled safely; advancing to the next boundary`);
-  }
-
-  throw new Error(`V4 smoke did not reach two fully mature 100-unit savers within ${MAX_ROUNDS_TO_MATURITY} rounds`);
+  console.log("C. KEEPER-ONLY SNAPSHOT, DRAW, MANAGER, AND DELIVERY PROGRESSION");
+  if (!(await progressWithKeeper(system, aliceEligible, alice, bob))) return;
+  console.log("\nUNVEIL V4 Sepolia sharded-draw smoke PASSED");
 }
 
 run().catch((error: unknown) => {
