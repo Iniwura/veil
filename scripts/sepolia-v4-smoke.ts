@@ -70,6 +70,18 @@ function namedDrawState(state: number): string {
   return drawStateNames[state] ?? `UNKNOWN(${state})`;
 }
 
+/**
+ * Pick the first unstarted round that can be mature for the currently seated pair.
+ * On a restarted smoke run, nextRoundId may already be beyond the original
+ * eligibility boundary because the keeper settled earlier rounds.
+ */
+export function selectMatureTargetRound(nextRoundId: bigint, aliceEligibility: bigint, bobEligibility: bigint): bigint {
+  if (aliceEligibility !== bobEligibility || aliceEligibility < 2n) {
+    throw new Error(`Unexpected seat maturity boundary: Alice=${aliceEligibility}, Bob=${bobEligibility}`);
+  }
+  return nextRoundId > aliceEligibility ? nextRoundId : aliceEligibility;
+}
+
 function requireAddress(label: string, actual: string, expected: string): void {
   if (actual.toLowerCase() !== expected.toLowerCase()) {
     throw new Error(`UNVEIL_V4 wiring mismatch: ${label} is ${actual}, expected ${expected}`);
@@ -395,9 +407,10 @@ async function progressWithKeeper(
   firstMaturityRound: bigint,
   alice: HardhatEthersSigner,
   bob: HardhatEthersSigner,
+  verifyPreMaturitySkip: boolean,
 ): Promise<boolean> {
   const preMaturityRound = firstMaturityRound - 1n;
-  let skipVerified = preMaturityRound === 0n;
+  let skipVerified = !verifyPreMaturitySkip || preMaturityRound === 0n;
 
   for (let cycle = 0; cycle < MAX_KEEPER_CYCLES; cycle++) {
     const schedule = await system.seatKeeper.getDrawSchedule();
@@ -510,17 +523,24 @@ async function run(): Promise<void> {
 
   const aliceEligible = await system.pool.seatEligibleFromRoundId(alice.address);
   const bobEligible = await system.pool.seatEligibleFromRoundId(bob.address);
-  if (aliceEligible !== bobEligible || aliceEligible < 2n) {
-    throw new Error(`Unexpected seat maturity boundary: Alice=${aliceEligible}, Bob=${bobEligible}`);
-  }
-  console.log(`  playerCount=2 after attestation; first mature snapshot round: ${aliceEligible}`);
+  const nextRoundId = await system.pool.nextRoundId();
+  const firstMaturityRound = selectMatureTargetRound(nextRoundId, aliceEligible, bobEligible);
+  const verifyPreMaturitySkip = firstMaturityRound === aliceEligible;
+  console.log(
+    `  playerCount=2 after attestation; first mature snapshot round: ${firstMaturityRound}` +
+      (firstMaturityRound === aliceEligible
+        ? ""
+        : ` (resumed at next unstarted round; chain nextRoundId=${nextRoundId})`),
+  );
 
   console.log("C. KEEPER-ONLY SNAPSHOT, DRAW, MANAGER, AND DELIVERY PROGRESSION");
-  if (!(await progressWithKeeper(system, aliceEligible, alice, bob))) return;
+  if (!(await progressWithKeeper(system, firstMaturityRound, alice, bob, verifyPreMaturitySkip))) return;
   console.log("\nUNVEIL V4 Sepolia sharded-draw smoke PASSED");
 }
 
-run().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  run().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

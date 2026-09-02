@@ -106,12 +106,11 @@ abstract contract VeilShardedRoster is ZamaEthereumConfig {
             _seatIndexInShard[account] = index;
             seated[account] = true;
             seatShard[account] = shard;
-            // A withdrawal releases the live roster slot while its encrypted post-withdrawal
-            // balance is attested. Preserve that account's prior eligibility boundary when the
-            // KMS proves the balance is still positive; fresh joins still mature from the next
-            // round after acquisition.
             if (seatEligibleFromRoundId[account] == 0) {
-                seatEligibleFromRoundId[account] = _rosterNextRoundId() + 1;
+                uint256 nextRoundEligibility = _rosterNextRoundId() + 1;
+                uint256 closedRoundEligibility = _rosterLatestClosedRoundId() + 2;
+                seatEligibleFromRoundId[account] =
+                    nextRoundEligibility > closedRoundEligibility ? nextRoundEligibility : closedRoundEligibility;
             }
             unchecked {
                 shardPlayerCount[shard] = index + 1;

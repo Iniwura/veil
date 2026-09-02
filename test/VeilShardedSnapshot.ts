@@ -120,7 +120,7 @@ describe("VeilShardedSnapshot", function () {
     await (await snapshot.acquire(signers.late.address)).wait();
     await (await snapshot.setWeight(signers.late.address, 1_000)).wait();
     expect(await snapshot.seatShard(signers.late.address)).to.equal(2);
-    expect(await snapshot.seatEligibleFromRoundId(signers.late.address)).to.equal(3);
+    expect(await snapshot.seatEligibleFromRoundId(signers.late.address)).to.equal(4);
 
     await (await snapshot.beginSnapshot(2)).wait();
     expect((await snapshot.getSnapshotShard(2, 2)).processed).to.equal(true);

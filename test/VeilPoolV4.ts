@@ -47,7 +47,7 @@ const SHARD_COUNT = 24;
 
 let signers: Signers;
 
-async function deploySystem(): Promise<System> {
+async function deploySystem(drawPeriod = DRAW_PERIOD): Promise<System> {
   const asset = (await (await ethers.getContractFactory("MockUSDC")).deploy()) as MockUSDC;
   const vault = (await (
     await ethers.getContractFactory("MockYieldVault4626")
@@ -76,7 +76,7 @@ async function deploySystem(): Promise<System> {
   )) as VeilWithdrawalBatcher;
   const pool = (await (
     await ethers.getContractFactory("VeilPoolV4")
-  ).deploy(await source.getAddress(), DRAW_PERIOD)) as VeilPoolV4;
+  ).deploy(await source.getAddress(), drawPeriod)) as VeilPoolV4;
   const seatKeeper = (await ethers.getContractAt("VeilPoolV4Helper", await pool.seatKeeper())) as VeilPoolV4Helper;
   const snapshotBatcher = (await (
     await ethers.getContractFactory("VeilSnapshotBatcher")
@@ -333,6 +333,48 @@ describe("VeilPoolV4", function () {
     await snapshotCurrentRound(system);
     expect(await decryptSnapshotWeight(system, signers.alice, 3n)).to.equal(60n);
     expect((await system.pool.getDrawInfo(3)).participantCount).to.equal(2);
+  });
+
+  it("delays fresh-seat maturity beyond a deep settlement backlog", async function () {
+    const backlogPeriod = 60;
+    const system = await deploySystem(backlogPeriod);
+    await fundAndApprove(system, signers.alice);
+    await fundAndApprove(system, signers.bob);
+
+    const firstOpen = Number(await system.pool.firstDrawOpensAt());
+    await ethers.provider.send("evm_setNextBlockTimestamp", [firstOpen + 16 * backlogPeriod]);
+    await ethers.provider.send("evm_mine", []);
+
+    // Both seats are acquired after round 16 has closed while the scheduled pointer is still 1.
+    await deposit(system, signers.alice, 100);
+    await deposit(system, signers.bob, 100);
+    expect(await system.pool.nextRoundId()).to.equal(1n);
+    expect(await system.pool.shardLastSealedRoundId(0)).to.equal(16n);
+    expect(await system.pool.shardLastSealedRoundId(1)).to.equal(16n);
+    expect(await system.pool.seatEligibleFromRoundId(signers.alice.address)).to.equal(18n);
+    expect(await system.pool.seatEligibleFromRoundId(signers.bob.address)).to.equal(18n);
+
+    // Rounds 1-17 use the sealed empty epoch and therefore skip.
+    for (let round = 1; round <= 17; round++) {
+      await advanceToClose(system.pool);
+      expect(await snapshotCurrentRound(system)).to.equal(BigInt(round));
+      expect(await system.pool.getDrawState(round)).to.equal(5n);
+    }
+
+    // Round 18 is the first round with a positive previous-close term.
+    await advanceToClose(system.pool);
+    expect(await system.seatKeeper.getDrawAvailability()).to.equal(1);
+    expect((await system.seatKeeper.getDrawSchedule()).insufficientParticipants).to.equal(false);
+    expect(await snapshotCurrentRound(system)).to.equal(18n);
+    expect((await system.pool.getDrawInfo(18)).participantCount).to.equal(2n);
+    expect(await decryptSnapshotWeight(system, signers.alice, 18n)).to.equal(100n);
+    expect(await decryptSnapshotWeight(system, signers.bob, 18n)).to.equal(100n);
+
+    for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
+      const result = await runPrize(system, 18n, prizeIndex);
+      expect([signers.alice.address, signers.bob.address]).to.include(result.winner);
+    }
+    expect(await system.pool.getDrawState(18)).to.equal(3n);
   });
 
   it("reports open, insufficient, and snapshot-required availability without claiming positive weight", async function () {
