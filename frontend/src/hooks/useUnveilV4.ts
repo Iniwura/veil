@@ -326,7 +326,9 @@ export function useUnveilV4() {
       setScopedError("save", "");
       setBusy("withdraw");
       setScopedNotice("save", "Encrypting your withdrawal request for the V4 pool…");
-      const result = await withdrawPrivate(wallet.signer, amount);
+      const result = await withdrawPrivate(wallet.signer, amount, (nextNotice) => {
+        if (walletEpoch.current === wallet.epoch) setScopedNotice("save", nextNotice);
+      });
       if (walletEpoch.current !== wallet.epoch) return;
       setVault(undefined);
       await refresh(wallet.signer, "save");

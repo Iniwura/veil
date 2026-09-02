@@ -12,6 +12,7 @@ import {
 import { UNVEIL_CONTRACTS, UNVEIL_NETWORK } from "./contracts";
 import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/bundle";
 import { deriveNextDrawAction, sameDrawAction, type DrawAction } from "./lib/drawAdvance";
+import { waitForSubmittedTransaction } from "../../shared/transactionSafety";
 import {
   deriveWithdrawalLifecycle,
   sameWithdrawalAction,
@@ -488,30 +489,18 @@ export async function fundDemoWallet(signer: JsonRpcSigner, targetAmount = 100n)
     const publicBalance = BigInt(await underlying.balanceOf(address));
     const mintAmount = publicBalance >= needed ? 0n : needed - publicBalance;
     if (mintAmount > 0n) {
-      const mintTx = await withTimeout(
-        underlying.mint(address, mintAmount),
-        30_000,
-        "Wallet did not respond to TEST mint.",
-      );
-      await withTimeout(mintTx.wait(), 120_000, "TEST mint is still pending on Sepolia.");
+      const mintTx = await underlying.mint(address, mintAmount);
+      await waitForSubmittedTransaction(mintTx);
     }
 
     const allowance = BigInt(await underlying.allowance(address, UNVEIL_CONTRACTS.principal));
     if (allowance < needed) {
-      const approveTx = await withTimeout(
-        underlying.approve(UNVEIL_CONTRACTS.principal, needed),
-        30_000,
-        "Wallet did not respond to TEST token approval.",
-      );
-      await withTimeout(approveTx.wait(), 120_000, "TEST token approval is still pending on Sepolia.");
+      const approveTx = await underlying.approve(UNVEIL_CONTRACTS.principal, needed);
+      await waitForSubmittedTransaction(approveTx);
     }
 
-    const wrapTx = await withTimeout(
-      principal.wrap(address, needed),
-      30_000,
-      "Wallet did not respond to TEST wrapping.",
-    );
-    await withTimeout(wrapTx.wait(), 120_000, "TEST principal wrapping is still pending on Sepolia.");
+    const wrapTx = await principal.wrap(address, needed);
+    await waitForSubmittedTransaction(wrapTx);
     return { minted: mintAmount, wrapped: needed, alreadyFunded: false };
   } catch (error) {
     actionError("UNVEIL_TEST_FUNDING_FAILED:", error);
@@ -529,12 +518,8 @@ export async function ensurePoolOperator(signer: JsonRpcSigner) {
   if (alreadyOperator) return false;
   const until = BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7);
   try {
-    const tx = await withTimeout(
-      contracts(signer).principal.setOperator(UNVEIL_CONTRACTS.pool, until),
-      30_000,
-      "Wallet did not respond to pool authorization.",
-    );
-    await withTimeout(tx.wait(), 120_000, "Pool authorization is still pending on Sepolia.");
+    const tx = await contracts(signer).principal.setOperator(UNVEIL_CONTRACTS.pool, until);
+    await waitForSubmittedTransaction(tx);
   } catch (error) {
     actionError("UNVEIL_OPERATOR_AUTH_FAILED:", error);
   }
@@ -567,13 +552,13 @@ export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?
   }
   try {
     onStep?.("Encrypted request ready. Waiting for wallet confirmation…");
-    const tx = await withTimeout(
-      contracts(signer).pool.deposit(encrypted.handles[0], encrypted.inputProof),
-      30_000,
-      "Wallet did not respond to encrypted deposit.",
-    );
+    const tx = await contracts(signer).pool.deposit(encrypted.handles[0], encrypted.inputProof);
     onStep?.("Deposit submitted. Waiting for Sepolia confirmation…");
-    return await withTimeout(tx.wait(), 120_000, "Encrypted deposit is still pending on Sepolia.");
+    return (
+      await waitForSubmittedTransaction(tx, (hash) => {
+        onStep?.(`SUBMITTED/PENDING · Deposit ${hash}`);
+      })
+    ).receipt;
   } catch (error) {
     actionError("UNVEIL_DEPOSIT_FAILED:", error);
   }
@@ -751,7 +736,7 @@ function requestIdFromReceipt(receipt: TransactionReceipt, player: string) {
   throw new Error("UNVEIL_MANAGER_REQUEST_UNAVAILABLE: WithdrawalRecorded event was not found.");
 }
 
-export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
+export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint, onStep?: (message: string) => void) {
   if (amount <= 0n || amount > MAX_UINT64) throw new Error("Enter a valid whole-number amount.");
   let encrypted;
   try {
@@ -760,16 +745,13 @@ export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint) {
     actionError("UNVEIL_ENCRYPTION_FAILED:", error);
   }
   try {
-    const tx = await withTimeout(
-      contracts(signer).pool.withdraw(encrypted.handles[0], encrypted.inputProof),
-      30_000,
-      "Wallet did not respond to withdrawal request.",
-    );
-    const receipt = (await withTimeout(
-      tx.wait(),
-      120_000,
-      "Withdrawal request is still pending on Sepolia.",
-    )) as TransactionReceipt | null;
+    const tx = await contracts(signer).pool.withdraw(encrypted.handles[0], encrypted.inputProof);
+    onStep?.("Withdrawal request submitted. Waiting for Sepolia confirmation…");
+    const receipt = (
+      await waitForSubmittedTransaction(tx, (hash) => {
+        onStep?.(`SUBMITTED/PENDING · Withdrawal ${hash}`);
+      })
+    ).receipt as TransactionReceipt | null;
     if (!receipt) throw new Error("Withdrawal receipt is unavailable.");
     const requestId = requestIdFromReceipt(receipt, await signer.getAddress());
     return { receipt, requestId, request: await readWithdrawalRequest(requestId) };
@@ -834,37 +816,37 @@ export async function advanceWithdrawal(
       const completed = Boolean(completion.value);
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.classifyWithdrawal(expectedAction.requestId, completed, completion.proof),
-        30_000,
-        "Wallet did not respond to withdrawal verification.",
-      );
+      const tx = await manager.classifyWithdrawal(expectedAction.requestId, completed, completion.proof);
       onStep?.("REQUEST VERIFICATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Withdrawal verification is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Withdrawal verification ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "FUND_LIQUIDITY") {
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.fundWithdrawalLiquidity(),
-        30_000,
-        "Wallet did not respond to withdrawal liquidity funding.",
-      );
+      const tx = await manager.fundWithdrawalLiquidity();
       onStep?.("LIQUIDITY FUNDING SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Withdrawal liquidity funding is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Liquidity funding ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "DISPATCH_BATCH") {
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        withdrawals.dispatchBatch(),
-        30_000,
-        "Wallet did not respond to withdrawal batch dispatch.",
-      );
+      const tx = await withdrawals.dispatchBatch();
       onStep?.("BATCH DISPATCH SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Withdrawal batch dispatch is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Batch dispatch ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "PROVE_BATCH") {
@@ -881,37 +863,37 @@ export async function advanceWithdrawal(
       }
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        withdrawals.dispatchBatchCallback(expectedAction.batchId, clearAmount, result.proof),
-        30_000,
-        "Wallet did not respond to strategy-route verification.",
-      );
+      const tx = await withdrawals.dispatchBatchCallback(expectedAction.batchId, clearAmount, result.proof);
       onStep?.("STRATEGY ROUTE VERIFICATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Strategy-route verification is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Strategy-route verification ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "RESOLVE_BATCH") {
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.resolveWithdrawalBatch(expectedAction.batchId),
-        30_000,
-        "Wallet did not respond to withdrawal liquidity resolution.",
-      );
+      const tx = await manager.resolveWithdrawalBatch(expectedAction.batchId);
       onStep?.("LIQUIDITY RESOLUTION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Withdrawal liquidity resolution is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Liquidity resolution ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "SETTLE") {
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.settleWithdrawal(expectedAction.requestId),
-        30_000,
-        "Wallet did not respond to withdrawal settlement.",
-      );
+      const tx = await manager.settleWithdrawal(expectedAction.requestId);
       onStep?.("SETTLEMENT SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Withdrawal settlement is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Withdrawal settlement ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "FINALIZE") {
@@ -925,25 +907,25 @@ export async function advanceWithdrawal(
       }
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.finalizeWithdrawal(expectedAction.requestId, true, completion.proof),
-        30_000,
-        "Wallet did not respond to settlement finalization.",
-      );
+      const tx = await manager.finalizeWithdrawal(expectedAction.requestId, true, completion.proof);
       onStep?.("SETTLEMENT FINALIZATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Settlement finalization is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Settlement finalization ${hash}`);
+        })
+      ).receipt;
     }
 
     if (expectedAction.kind === "ADVANCE_CANCELED_HEAD") {
       await assertLive();
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.advanceWithdrawalQueue(),
-        30_000,
-        "Wallet did not respond to canceled queue advancement.",
-      );
+      const tx = await manager.advanceWithdrawalQueue();
       onStep?.("QUEUE ADVANCEMENT SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Canceled queue advancement is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Queue advancement ${hash}`);
+        })
+      ).receipt;
     }
 
     throw new Error("UNVEIL_WITHDRAWAL_NOT_ACTIONABLE: This withdrawal step is not available yet.");
@@ -963,12 +945,12 @@ export async function cancelWithdrawal(signer: JsonRpcSigner, requestId: bigint,
   try {
     if (isCurrent && !isCurrent())
       throw new Error("UNVEIL_WITHDRAWAL_STATE_CHANGED: Wallet session is no longer current.");
-    const tx = await withTimeout(
-      contracts(signer).pool.cancelWithdrawal(requestId),
-      30_000,
-      "Wallet did not respond to withdrawal cancellation.",
-    );
-    return await withTimeout(tx.wait(), 120_000, "Withdrawal cancellation is still pending on Sepolia.");
+    const tx = await contracts(signer).pool.cancelWithdrawal(requestId);
+    return (
+      await waitForSubmittedTransaction(tx, (hash) => {
+        console.info(`[UNVEIL] Withdrawal cancellation SUBMITTED/PENDING · ${hash}`);
+      })
+    ).receipt;
   } catch (error) {
     actionError("UNVEIL_WITHDRAW_CANCEL_FAILED:", error);
   }
@@ -976,12 +958,12 @@ export async function cancelWithdrawal(signer: JsonRpcSigner, requestId: bigint,
 
 export async function renewDrawSeat(signer: JsonRpcSigner) {
   try {
-    const tx = await withTimeout(
-      contracts(signer).pool.renewDrawSeat(),
-      30_000,
-      "Wallet did not respond to seat renewal.",
-    );
-    return await withTimeout(tx.wait(), 120_000, "Draw-seat renewal is still pending on Sepolia.");
+    const tx = await contracts(signer).pool.renewDrawSeat();
+    return (
+      await waitForSubmittedTransaction(tx, (hash) => {
+        console.info(`[UNVEIL] Draw-seat renewal SUBMITTED/PENDING · ${hash}`);
+      })
+    ).receipt;
   } catch (error) {
     actionError("UNVEIL_SEAT_RENEWAL_FAILED:", error);
   }
@@ -989,12 +971,12 @@ export async function renewDrawSeat(signer: JsonRpcSigner) {
 
 export async function leaveDrawSeat(signer: JsonRpcSigner) {
   try {
-    const tx = await withTimeout(
-      contracts(signer).pool.leaveDrawSeat(),
-      30_000,
-      "Wallet did not respond to seat release.",
-    );
-    return await withTimeout(tx.wait(), 120_000, "Draw-seat release is still pending on Sepolia.");
+    const tx = await contracts(signer).pool.leaveDrawSeat();
+    return (
+      await waitForSubmittedTransaction(tx, (hash) => {
+        console.info(`[UNVEIL] Draw-seat release SUBMITTED/PENDING · ${hash}`);
+      })
+    ).receipt;
   } catch (error) {
     actionError("UNVEIL_SEAT_RELEASE_FAILED:", error);
   }
@@ -1017,27 +999,35 @@ export async function advanceDraw(
   try {
     if (live.action.kind === "SNAPSHOT") {
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(pool.snapshotRound(), 30_000, "Wallet did not respond to round snapshot.");
+      const tx = await pool.snapshotRound();
       onStep?.("SNAPSHOT SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Round snapshot is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Snapshot ${hash}`);
+        })
+      ).receipt;
     }
 
     if (live.action.kind === "SKIP") {
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(pool.cancelInsufficientRound(), 30_000, "Wallet did not respond to round advance.");
+      const tx = await pool.cancelInsufficientRound();
       onStep?.("ROUND ADVANCE SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Round advance is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Round advance ${hash}`);
+        })
+      ).receipt;
     }
 
     if (live.action.kind === "BLIND_DRAW") {
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        pool.blindDraw(live.action.roundId),
-        30_000,
-        "Wallet did not respond to the blind draw.",
-      );
+      const tx = await pool.blindDraw(live.action.roundId);
       onStep?.("BLIND DRAW SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Blind draw is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Blind draw ${hash}`);
+        })
+      ).receipt;
     }
 
     if (live.action.kind === "FINALIZE_WINNER") {
@@ -1051,24 +1041,24 @@ export async function advanceDraw(
       if (isCurrent && !isCurrent())
         throw new Error("Wallet account changed before draw submission. Reconnect to retry.");
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        pool.finalizeWinner(live.action.roundId, result.abiEncodedClearValues, result.decryptionProof),
-        30_000,
-        "Wallet did not respond to winner verification.",
-      );
+      const tx = await pool.finalizeWinner(live.action.roundId, result.abiEncodedClearValues, result.decryptionProof);
       onStep?.("WINNER VERIFICATION SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Winner verification is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Winner verification ${hash}`);
+        })
+      ).receipt;
     }
 
     if (live.action.kind === "PROCESS_PRIZE") {
       onStep?.("WAITING FOR WALLET CONFIRMATION…");
-      const tx = await withTimeout(
-        manager.processNextPrizeRound(),
-        30_000,
-        "Wallet did not respond to prize delivery.",
-      );
+      const tx = await manager.processNextPrizeRound();
       onStep?.("PRIZE STEP SUBMITTED. WAITING FOR SEPOLIA CONFIRMATION…");
-      return await withTimeout(tx.wait(), 120_000, "Prize processing is still pending on Sepolia.");
+      return (
+        await waitForSubmittedTransaction(tx, (hash) => {
+          onStep?.(`SUBMITTED/PENDING · Prize processing ${hash}`);
+        })
+      ).receipt;
     }
 
     throw new Error("UNVEIL_DRAW_NOT_ACTIONABLE: This protocol step is not available yet.");
