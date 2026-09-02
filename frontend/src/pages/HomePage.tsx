@@ -97,21 +97,29 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
         <article className="private-panel" data-tour="private-position" data-cursor="sealed">
           <div className="home-section-head">
             <div>
-              <span className="eyebrow">MY PRIVATE POSITION</span>
+              <span className="eyebrow">MY PRIVATE BALANCES</span>
               <h2>{privateState}</h2>
             </div>
             <RouteLink className="text-link" to="/app/save" dataCursor="enter">
               OPEN SAVE →
             </RouteLink>
           </div>
-          <div className="private-stat-grid">
+          <div className="private-stat-grid private-stat-grid--four">
             <VeilReveal
               compact
-              label="Active principal"
+              label="Available to save"
+              value={unveil.vault?.availablePrincipal}
+              revealed={Boolean(unveil.vault)}
+              busy={unveil.busy === "reveal-vault"}
+              unit=" TEST UNITS"
+            />
+            <VeilReveal
+              compact
+              label="Saved in UNVEIL"
               value={unveil.vault?.activePrincipal}
               revealed={Boolean(unveil.vault)}
               busy={unveil.busy === "reveal-vault"}
-              unit=" cUSDC"
+              unit=" TEST UNITS"
             />
             <VeilReveal
               compact
@@ -119,15 +127,15 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
               value={unveil.vault?.reservedPrincipal}
               revealed={Boolean(unveil.vault)}
               busy={unveil.busy === "reveal-vault"}
-              unit=" cUSDC"
+              unit=" TEST UNITS"
             />
             <VeilReveal
               compact
-              label="Strategy shares"
+              label="Prize balance"
               value={unveil.vault?.strategySharePrizeBalance}
               revealed={Boolean(unveil.vault)}
               busy={unveil.busy === "reveal-vault"}
-              unit=" SHARE UNITS"
+              unit=" TEST SHARE UNITS"
             />
           </div>
           <button
@@ -138,11 +146,7 @@ export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
             disabled={Boolean(unveil.busy)}
             onClick={unveil.vault ? unveil.hideVault : unveil.revealVaultStats}
           >
-            {unveil.busy === "reveal-vault"
-              ? "UNVEILING…"
-              : unveil.vault
-                ? "VEIL PRIVATE POSITION"
-                : "UNVEIL PRIVATE POSITION"}
+            {unveil.busy === "reveal-vault" ? "UNVEILING…" : unveil.vault ? "VEIL MY BALANCES" : "UNVEIL MY BALANCES"}
           </button>
         </article>
         <section className="home-result-card">

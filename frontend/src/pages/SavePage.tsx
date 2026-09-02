@@ -147,6 +147,18 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
             ? "NOT ACTIVE"
             : "NOT JOINED";
   const latestWithdrawal = unveil.dashboard?.latestWithdrawal;
+  const latestWithdrawalSummary = latestWithdrawal
+    ? `#${latestWithdrawal.requestId.toString()} · ${latestWithdrawal.status}`
+    : "NONE";
+  const maturityStatus = !unveil.connected
+    ? "CONNECT WALLET"
+    : unveil.dashboard?.pendingSeatAttestation
+      ? "KMS ATTESTATION PENDING"
+      : unveil.dashboard?.seated
+        ? "ONE COMPLETE DRAW PERIOD · SNAPSHOT AUTHORITATIVE"
+        : unveil.dashboard?.joined
+          ? "SEAT ACTIVATION REQUIRED"
+          : "DEPOSIT TO BEGIN MATURITY";
   const walletLabel = unveil.wrongNetwork
     ? "CONNECTED"
     : unveil.connected
@@ -376,57 +388,73 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
       >
         <div className="save-section-heading">
           <div>
-            <span className="eyebrow">MY PRIVATE POSITION</span>
-            <h2>{revealed ? "UNVEILED TO YOU" : unveil.busy === "reveal-vault" ? "UNVEILING" : "SEALED"}</h2>
+            <span className="eyebrow">PRIVATE ACCOUNT DASHBOARD</span>
+            <h2>{revealed ? "BALANCES UNVEILED LOCALLY" : unveil.busy === "reveal-vault" ? "UNVEILING" : "SEALED"}</h2>
           </div>
           <span className={`vault-seal ${revealed ? "open" : ""}`}>{revealed ? "UNVEILED LOCALLY" : "FHE SEALED"}</span>
         </div>
         {unveil.busy === "reveal-vault" && (
-          <div className="vault-reveal-progress" role="status" aria-label="Private position reveal in progress">
+          <div className="vault-reveal-progress" role="status" aria-label="Private balance reveal in progress">
             <i className="active">01 · WALLET AUTHORIZATION</i>
             <i>02 · DECRYPTING AUTHORIZED CIPHERTEXTS</i>
             <i>03 · LOCAL REVEAL</i>
           </div>
         )}
-        <div className="private-instrument-body">
+        <div className="private-balance-dashboard">
           <i className="private-instrument-material" aria-hidden="true" />
-          <div className="private-instrument-primary">
+          <div className="private-balance-grid">
             <VeilReveal
-              className="veil-reveal--primary"
-              label="Active principal"
+              label="AVAILABLE TO SAVE"
+              value={unveil.vault?.availablePrincipal}
+              revealed={revealed}
+              busy={unveil.busy === "reveal-vault"}
+              detail="Confidential principal held in this wallet"
+              unit=" TEST UNITS"
+              stagger={0}
+            />
+            <VeilReveal
+              label="SAVED IN UNVEIL"
               value={unveil.vault?.activePrincipal}
               revealed={revealed}
               busy={unveil.busy === "reveal-vault"}
               detail="TEST confidential principal"
               unit=" TEST UNITS"
-              stagger={0}
+              stagger={1}
             />
-          </div>
-          <div className="private-instrument-support">
             <VeilReveal
-              label="Reserved withdrawal"
+              label="PENDING WITHDRAWAL"
               value={unveil.vault?.reservedPrincipal}
               revealed={revealed}
               busy={unveil.busy === "reveal-vault"}
               detail="Accepted principal awaiting settlement"
               unit=" TEST UNITS"
-              stagger={1}
+              stagger={2}
             />
             <VeilReveal
-              label="Private strategy shares"
+              label="PRIZE BALANCE"
               value={unveil.vault?.strategySharePrizeBalance}
               revealed={revealed}
               busy={unveil.busy === "reveal-vault"}
-              detail="TEST/DEMO confidential shares"
+              detail="Confidential strategy shares held by this wallet"
               unit=" TEST SHARE UNITS"
-              stagger={2}
+              stagger={3}
             />
           </div>
-        </div>
-        <div className="private-stat private-stat--odds">
-          <span>Your odds</span>
-          <strong>NOT AVAILABLE</strong>
-          <small>Aggregate round and shard totals are not wallet-decryptable in V4.</small>
+          <div className="private-balance-context" aria-label="Private account status">
+            <div>
+              <span>DRAW SEAT</span>
+              <strong>{seatStatus}</strong>
+            </div>
+            <div>
+              <span>ELIGIBILITY / MATURITY</span>
+              <strong>{maturityStatus}</strong>
+            </div>
+            <div>
+              <span>LATEST WITHDRAWAL</span>
+              <strong>{latestWithdrawalSummary}</strong>
+            </div>
+            <p>Exact mature weight and odds remain private snapshot outputs, never aggregate dashboard values.</p>
+          </div>
         </div>
         <div className="vault-actions">
           <button
@@ -437,7 +465,7 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
             disabled={Boolean(unveil.busy)}
             onClick={revealed ? unveil.hideVault : unveil.revealVaultStats}
           >
-            {unveil.busy === "reveal-vault" ? "UNVEILING…" : revealed ? "VEIL POSITION" : "UNVEIL MY POSITION"}
+            {unveil.busy === "reveal-vault" ? "UNVEILING…" : revealed ? "VEIL MY BALANCES" : "UNVEIL MY BALANCES"}
           </button>
           <p>
             Your private values are decrypted only after your wallet authorizes the request and remain local to this

@@ -13,6 +13,7 @@ import { UNVEIL_CONTRACTS, UNVEIL_NETWORK } from "./contracts";
 import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/bundle";
 import { deriveNextDrawAction, sameDrawAction, type DrawAction } from "./lib/drawAdvance";
 import { waitForSubmittedTransaction } from "../../shared/transactionSafety";
+import { mapPrivateBalanceValues, type PrivateBalanceHandles } from "../../shared/privateBalances";
 import {
   deriveWithdrawalLifecycle,
   sameWithdrawalAction,
@@ -217,6 +218,7 @@ export type WithdrawalView = {
 };
 
 export type MyVault = {
+  availablePrincipal: bigint;
   activePrincipal: bigint;
   reservedPrincipal: bigint;
   strategySharePrizeBalance: bigint;
@@ -1069,23 +1071,27 @@ export async function advanceDraw(
 
 export async function revealMyVault(signer: JsonRpcSigner): Promise<MyVault> {
   const address = await signer.getAddress();
-  const { pool, shares } = contracts(signer);
+  const { pool, principal, shares } = contracts(signer);
   const isJoined = Boolean(await pool.joined(address));
-  const [activeHandle, reservedHandle, sharesHandle] = (await Promise.all([
+  const [walletHandle, activeHandle, reservedHandle, sharesHandle] = (await Promise.all([
+    principal.confidentialBalanceOf(address),
     isJoined ? pool.encryptedBalanceOf() : Promise.resolve(ZeroHash),
     isJoined ? pool.encryptedReservedWithdrawalOf() : Promise.resolve(ZeroHash),
     shares.confidentialBalanceOf(address),
-  ])) as [string, string, string];
+  ])) as [string, string, string, string];
+  const handles: PrivateBalanceHandles = {
+    walletPrincipal: walletHandle,
+    poolPrincipal: activeHandle,
+    reservedWithdrawal: reservedHandle,
+    prizeBalance: sharesHandle,
+  };
   const values = await userDecryptHandles(signer, [
+    { handle: walletHandle, contractAddress: UNVEIL_CONTRACTS.principal },
     { handle: activeHandle, contractAddress: UNVEIL_CONTRACTS.pool },
     { handle: reservedHandle, contractAddress: UNVEIL_CONTRACTS.pool },
     { handle: sharesHandle, contractAddress: UNVEIL_CONTRACTS.shares },
   ]);
-  return {
-    activePrincipal: values.get(activeHandle) ?? 0n,
-    reservedPrincipal: values.get(reservedHandle) ?? 0n,
-    strategySharePrizeBalance: values.get(sharesHandle) ?? 0n,
-  };
+  return mapPrivateBalanceValues(handles, values);
 }
 
 export async function revealMyRoundWeight(signer: JsonRpcSigner, roundId: bigint) {
