@@ -3,6 +3,7 @@ import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { deployments, ethers, fhevm, network } from "hardhat";
 
 import { V4_DEPLOYMENT_NAMES } from "../deploy/deploy-v4";
+import { withZamaDecryptRetry } from "./sepolia-v4-decrypt-retry";
 import { runKeeperCycle, type KeeperCycleResult } from "./v4-keeper";
 import {
   MockUSDC,
@@ -146,7 +147,9 @@ async function ensureGas(deployer: HardhatEthersSigner, signer: HardhatEthersSig
 
 async function decrypt64(contractAddress: string, handle: string, signer: HardhatEthersSigner): Promise<bigint> {
   if (handle === ethers.ZeroHash) return 0n;
-  return fhevm.userDecryptEuint(FhevmType.euint64, handle, contractAddress, signer);
+  return withZamaDecryptRetry(() => fhevm.userDecryptEuint(FhevmType.euint64, handle, contractAddress, signer), {
+    log: console.warn,
+  });
 }
 
 async function encryptedInput(contractAddress: string, signer: HardhatEthersSigner, amount: bigint) {
