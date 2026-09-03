@@ -528,14 +528,18 @@ export async function ensurePoolOperator(signer: JsonRpcSigner) {
   return true;
 }
 
-async function encryptedInput(signer: JsonRpcSigner, amount: bigint) {
+export async function createEncryptedInputFor(signer: JsonRpcSigner, contractAddress: string, amount: bigint) {
   const address = await signer.getAddress();
   const fhe = await relayer();
   return withTimeout(
-    fhe.createEncryptedInput(UNVEIL_CONTRACTS.pool, address).add64(amount).encrypt(),
+    fhe.createEncryptedInput(contractAddress, address).add64(amount).encrypt(),
     60_000,
     "FHE encryption timed out. Check network connectivity and retry.",
   );
+}
+
+async function encryptedInput(signer: JsonRpcSigner, amount: bigint) {
+  return createEncryptedInputFor(signer, UNVEIL_CONTRACTS.pool, amount);
 }
 
 export async function sealDeposit(signer: JsonRpcSigner, amount: bigint, onStep?: (message: string) => void) {
@@ -763,7 +767,7 @@ export async function withdrawPrivate(signer: JsonRpcSigner, amount: bigint, onS
   }
 }
 
-async function withdrawalPublicDecrypt(handle: string, message: string) {
+export async function publicDecryptHandle(handle: string, message = "Public decryption is unavailable.") {
   if (handle === ZeroHash) throw new Error(`UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE: ${message}`);
   try {
     const result = await withTimeout(
@@ -777,6 +781,10 @@ async function withdrawalPublicDecrypt(handle: string, message: string) {
     if (error instanceof Error && error.message.startsWith("UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE:")) throw error;
     throw new Error(`UNVEIL_WITHDRAWAL_KMS_UNAVAILABLE: ${message}`);
   }
+}
+
+async function withdrawalPublicDecrypt(handle: string, message: string) {
+  return publicDecryptHandle(handle, message);
 }
 
 export async function advanceWithdrawal(

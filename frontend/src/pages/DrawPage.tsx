@@ -13,6 +13,7 @@ import type { DrawAction } from "../lib/drawAdvance";
 import { productError } from "../lib/errors";
 import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
 import { revealPrizeV4 } from "../v4DrawClient";
+import { clearPrizeValues, prizeRevealKey, revealPrizeValue, veilPrizeValue } from "../../../shared/prizeRevealState";
 
 function chamberPhaseForAction(
   action: DrawAction | undefined,
@@ -58,12 +59,12 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
       : terminalRoundStatus
         ? "COMPLETE"
         : undefined;
-  const [revealedPrize, setRevealedPrize] = useState<{ roundId: bigint; prizeIndex: number; value: bigint }>();
+  const [revealedPrizes, setRevealedPrizes] = useState<Record<string, bigint>>({});
   const [prizeBusy, setPrizeBusy] = useState("");
   const [prizeError, setPrizeError] = useState("");
 
   useEffect(() => {
-    setRevealedPrize(undefined);
+    setRevealedPrizes(clearPrizeValues());
     setPrizeBusy("");
     setPrizeError("");
   }, [unveil.address]);
@@ -79,21 +80,21 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
   );
 
   async function togglePrizeReveal(roundId: bigint, prizeIndex: number) {
-    const alreadyRevealed = revealedPrize?.roundId === roundId && revealedPrize.prizeIndex === prizeIndex;
+    const key = prizeRevealKey(roundId, prizeIndex);
+    const alreadyRevealed = revealedPrizes[key] !== undefined;
     if (alreadyRevealed) {
-      setRevealedPrize(undefined);
+      setRevealedPrizes((current) => veilPrizeValue(current, key) as Record<string, bigint>);
       return;
     }
     if (!unveil.signer) {
       setPrizeError("Connect the winning Sepolia wallet before unveiling this prize slot.");
       return;
     }
-    const key = `${roundId}-${prizeIndex}`;
     try {
       setPrizeError("");
       setPrizeBusy(key);
       const value = await revealPrizeV4(unveil.signer, roundId, prizeIndex);
-      setRevealedPrize({ roundId, prizeIndex, value });
+      setRevealedPrizes((current) => revealPrizeValue(current, key, value) as Record<string, bigint>);
     } catch (cause) {
       setPrizeError(productError(cause));
     } finally {
@@ -270,8 +271,8 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
             ) : (
               <div className="prize-list">
                 {myDeliveredPrizeSlots.map(({ round, prize }) => {
-                  const key = `${round.id}-${prize.index}`;
-                  const revealed = revealedPrize?.roundId === round.id && revealedPrize.prizeIndex === prize.index;
+                  const key = prizeRevealKey(round.id, prize.index);
+                  const revealed = revealedPrizes[key] !== undefined;
                   const revealing = prizeBusy === key;
                   return (
                     <article className={revealed ? "revealed" : ""} key={key}>
@@ -288,7 +289,7 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
                       <VeilReveal
                         compact
                         label="Confidential strategy shares"
-                        value={revealed ? revealedPrize.value : undefined}
+                        value={revealed ? revealedPrizes[key] : undefined}
                         revealed={revealed}
                         busy={revealing}
                         revealedLabel="UNVEILED TO WINNER"

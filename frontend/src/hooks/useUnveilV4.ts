@@ -19,16 +19,27 @@ import {
   type MyVault,
 } from "../veilClient";
 import {
-  deliveredPrizeSlotForRoundV4,
   deliveredPrizesForAddressV4,
   isConnectedWinnerV4,
   readDashboardV4,
   readPublicProtocolV4,
   resetV4Relayer,
-  revealPrizeV4,
 } from "../v4DrawClient";
 import type { DrawAction } from "../lib/drawAdvance";
 import type { WithdrawalLifecycleAction } from "../../../shared/withdrawalLifecycle";
+import {
+  prizeRedemptionActionInvalidatesPrivateBalances,
+  prizeRedemptionSubmissionBlocked,
+} from "../../../shared/prizeRedemptionLifecycle";
+import {
+  advancePrizeRedemption as advancePrizeRedemptionTransaction,
+  discoverPrizeRedemption,
+  isPrizeRedemptionBatchUnknown,
+  readPrizeRedemptionState,
+  startPrizeRedemption,
+  type PrizeRedemptionRecovery,
+  type PrizeRedemptionState,
+} from "../prizeRedemptionClient";
 import { historicalRoundNotIncludedMessage, isHistoricalRoundNotIncluded, productError } from "../lib/errors";
 import { advanceWalletSessionEpoch } from "../lib/walletSession";
 
@@ -52,7 +63,8 @@ export function useUnveilV4() {
   const [publicError, setPublicError] = useState("");
   const [vault, setVault] = useState<MyVault>();
   const [roundWeight, setRoundWeight] = useState<{ roundId: bigint; value: bigint }>();
-  const [prize, setPrize] = useState<{ roundId: bigint; prizeIndex: number; value: bigint }>();
+  const [prizeRedemption, setPrizeRedemption] = useState<PrizeRedemptionState>();
+  const [prizeRedemptionRecovery, setPrizeRedemptionRecovery] = useState<PrizeRedemptionRecovery>();
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [noticeScope, setNoticeScope] = useState<NoticeScope>("global");
@@ -90,7 +102,8 @@ export function useUnveilV4() {
     setDashboard(undefined);
     setVault(undefined);
     setRoundWeight(undefined);
-    setPrize(undefined);
+    setPrizeRedemption(undefined);
+    setPrizeRedemptionRecovery(undefined);
     setBusy("");
     setErrorScope("global");
     setError("");
@@ -113,12 +126,39 @@ export function useUnveilV4() {
       if (!active) return;
       try {
         const next = await readDashboardV4(active);
-        if (walletEpoch.current === epoch) setDashboard(next);
+        if (walletEpoch.current === epoch) {
+          setDashboard(next);
+          if (prizeRedemption) {
+            try {
+              setPrizeRedemption(
+                await readPrizeRedemptionState(
+                  prizeRedemption.batchId,
+                  addressRef.current,
+                  prizeRedemption.depositStatus,
+                ),
+              );
+            } catch {
+              // Keep the last known redemption state while the batcher read is temporarily unavailable.
+            }
+          }
+          if (prizeRedemptionRecovery) {
+            void discoverPrizeRedemption(addressRef.current)
+              .then((recovered) => {
+                if (walletEpoch.current !== epoch || !recovered) return;
+                setPrizeRedemption(recovered);
+                setPrizeRedemptionRecovery(undefined);
+                setScopedNotice("save", `Redemption batch #${recovered.batchId.toString()} located.`);
+              })
+              .catch(() => {
+                // Keep the explicit recovery state while bounded discovery retries on the next refresh.
+              });
+          }
+        }
       } catch (cause) {
         if (walletEpoch.current === epoch) setScopedError(scope, productError(cause));
       }
     },
-    [refreshPublic, setScopedError],
+    [prizeRedemption, prizeRedemptionRecovery, refreshPublic, setScopedError, setScopedNotice],
   );
 
   useEffect(() => {
@@ -342,6 +382,110 @@ export function useUnveilV4() {
     }
   }
 
+  async function redeemPrize(amount: bigint) {
+    const wallet = privateWallet();
+    if (!wallet) return;
+    if (prizeRedemptionSubmissionBlocked(prizeRedemptionRecovery)) {
+      setScopedNotice(
+        "save",
+        prizeRedemptionRecovery?.message ?? "Redemption is still being located. Do not submit another redemption.",
+      );
+      return;
+    }
+    try {
+      setScopedError("save", "");
+      setBusy("prize-redeem");
+      setScopedNotice("save", "Encrypting confidential prize shares for redemption…");
+      const result = await startPrizeRedemption(wallet.signer, amount, (nextNotice) => {
+        if (walletEpoch.current === wallet.epoch) setScopedNotice("save", nextNotice);
+      });
+      if (walletEpoch.current !== wallet.epoch) return;
+      setPrizeRedemption(result.state);
+      setPrizeRedemptionRecovery(undefined);
+      setVault(undefined);
+      await refresh(wallet.signer, "save");
+      if (walletEpoch.current === wallet.epoch) {
+        setScopedNotice("save", `Prize shares joined redemption batch #${result.batchId}.`);
+      }
+    } catch (cause) {
+      if (walletEpoch.current === wallet.epoch) {
+        if (isPrizeRedemptionBatchUnknown(cause)) {
+          // The transfer may already have mined even though its Joined receipt
+          // was unavailable. Never keep displaying the old private share balance.
+          setVault(undefined);
+          const transactionHash = cause.transactionHash ?? "unknown";
+          setPrizeRedemptionRecovery({
+            transactionHash,
+            account: wallet.address,
+            message: "Redemption transaction submitted. Locating its onchain batch. Do not submit another redemption.",
+          });
+          setScopedNotice(
+            "save",
+            "Redemption transaction submitted. Locating its onchain batch. Do not submit another redemption.",
+          );
+        } else {
+          setScopedError("save", productError(cause));
+        }
+      }
+    } finally {
+      if (walletEpoch.current === wallet.epoch) setBusy("");
+    }
+  }
+
+  async function advancePrizeRedemption() {
+    const wallet = privateWallet();
+    const current = prizeRedemption;
+    if (!wallet || !current) return;
+    try {
+      setScopedError("save", "");
+      setBusy("prize-redemption-lifecycle");
+      setScopedNotice("save", current.action.description);
+      const next = await advancePrizeRedemptionTransaction(
+        wallet.signer,
+        current.batchId,
+        (nextNotice) => {
+          if (walletEpoch.current === wallet.epoch) setScopedNotice("save", nextNotice);
+        },
+        () => walletEpoch.current === wallet.epoch,
+        current.depositStatus,
+      );
+      if (walletEpoch.current !== wallet.epoch) return;
+      setPrizeRedemption(next);
+      if (prizeRedemptionActionInvalidatesPrivateBalances(current.action.kind)) setVault(undefined);
+      if (next.status === "COMPLETE") {
+        setScopedNotice("save", "Confidential TEST principal returned to the wallet. Unveil balances to refresh.");
+      }
+      await refresh(wallet.signer, "save");
+    } catch (cause) {
+      if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
+    } finally {
+      if (walletEpoch.current === wallet.epoch) setBusy("");
+    }
+  }
+
+  async function recoverPrizeRedemption() {
+    const wallet = privateWallet();
+    if (!wallet || !prizeRedemptionRecovery) return;
+    try {
+      setBusy("prize-redemption-recovery");
+      setScopedNotice("save", "Locating the submitted redemption batch…");
+      const recovered = await discoverPrizeRedemption(wallet.address);
+      if (walletEpoch.current !== wallet.epoch) return;
+      if (!recovered) {
+        setScopedNotice("save", "Redemption batch is still being indexed. Do not submit another redemption.");
+        return;
+      }
+      setPrizeRedemption(recovered);
+      setPrizeRedemptionRecovery(undefined);
+      setScopedNotice("save", `Redemption batch #${recovered.batchId.toString()} located.`);
+    } catch {
+      if (walletEpoch.current === wallet.epoch)
+        setScopedNotice("save", "Redemption batch discovery is still pending. Do not submit another redemption.");
+    } finally {
+      if (walletEpoch.current === wallet.epoch) setBusy("");
+    }
+  }
+
   async function advanceWithdrawal(expectedAction: WithdrawalLifecycleAction) {
     const wallet = privateWallet();
     if (!wallet) return;
@@ -449,36 +593,6 @@ export function useUnveilV4() {
   );
   const myDeliveredPrizes = useMemo(() => deliveredPrizesForAddressV4(history, address), [address, history]);
 
-  async function revealPrizeForRound(roundId: bigint) {
-    const wallet = privateWallet();
-    if (!wallet) return;
-    const eligible = deliveredPrizeSlotForRoundV4(history, wallet.address, roundId);
-    if (!eligible) {
-      setScopedError("draw", "This round has no delivered V4 prize slot owned by the connected wallet.");
-      return;
-    }
-    try {
-      setScopedError("draw", "");
-      setPrize(undefined);
-      setBusy(`reveal-prize-${roundId}`);
-      setScopedNotice(
-        "draw",
-        `Awaiting the winner wallet signature for Round ${roundId} prize ${eligible.prize.index + 1} decryption…`,
-      );
-      const value = await revealPrizeV4(wallet.signer, roundId, eligible.prize.index);
-      if (walletEpoch.current !== wallet.epoch) return;
-      setPrize({ roundId, prizeIndex: eligible.prize.index, value });
-      setScopedNotice(
-        "draw",
-        `Round ${roundId} prize ${eligible.prize.index + 1} TEST strategy shares are unveiled locally for this wallet.`,
-      );
-    } catch (cause) {
-      if (walletEpoch.current === wallet.epoch) setScopedError("draw", productError(cause));
-    } finally {
-      if (walletEpoch.current === wallet.epoch) setBusy("");
-    }
-  }
-
   async function advanceDraw(expectedAction: DrawAction) {
     setScopedError("draw", "");
     setScopedNotice("draw", `KEEPER SETTLING · ${expectedAction.description}`);
@@ -508,8 +622,9 @@ export function useUnveilV4() {
     connectedWinner,
     myDeliveredPrizes,
     vault,
+    prizeRedemption,
+    prizeRedemptionRecovery,
     roundWeight,
-    prize,
     busy,
     notice,
     noticeScope,
@@ -521,16 +636,17 @@ export function useUnveilV4() {
     fundTestToken,
     deposit,
     withdraw,
+    redeemPrize,
     advanceWithdrawal,
+    advancePrizeRedemption,
+    recoverPrizeRedemption,
     cancelWithdrawal,
     revealVaultStats,
     revealRound,
-    revealPrizeForRound,
     seatAttestationPending: Boolean(dashboard?.pendingSeatAttestation),
     advanceDraw,
     hideVault: () => setVault(undefined),
     hideRoundWeight: () => setRoundWeight(undefined),
-    hidePrize: () => setPrize(undefined),
     clearError: () => setError(""),
     refresh,
   };

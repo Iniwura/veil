@@ -123,6 +123,7 @@ function WithdrawRequestVisual({ active }: { active: boolean }) {
 
 export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
   const [mode, setMode] = useState<SaveMode>("deposit");
+  const [withdrawSource, setWithdrawSource] = useState<"saved" | "prize">("saved");
   const [amount, setAmount] = useState("");
   const [amountFocused, setAmountFocused] = useState(false);
   const roundIds = useMemo(() => unveil.history.map((round) => round.id), [unveil.history]);
@@ -133,6 +134,7 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
   const saveNotice = unveil.noticeScope === "save" ? unveil.notice : "";
   const privateError = unveil.errorScope === "private" ? unveil.error : "";
   const privateNotice = unveil.noticeScope === "private" ? unveil.notice : "";
+  const isPrizeRedemption = mode === "withdraw" && withdrawSource === "prize";
   const showMotionDebug = import.meta.env.DEV && new URLSearchParams(window.location.search).get("motionDebug") === "1";
   const saveStage = deriveSaveStage({ busy: unveil.busy, notice: saveNotice, error: saveError, mode });
   const amountFragmentsActive = saveStage === "LOCAL_ENCRYPTION";
@@ -172,7 +174,9 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
       ? "Wallet connection required."
       : mode === "deposit"
         ? "Quietly ready."
-        : "Request in view.";
+        : isPrizeRedemption
+          ? "Redemption route in view."
+          : "Request in view.";
 
   useEffect(() => {
     if (selectedRoundId !== roundId) setRoundId(selectedRoundId);
@@ -187,6 +191,7 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
     }
     if (value <= 0n) return;
     if (mode === "deposit") await unveil.deposit(value);
+    else if (isPrizeRedemption) await unveil.redeemPrize(value);
     else await unveil.withdraw(value);
     setAmount("");
   }
@@ -221,7 +226,15 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
           className={`action-notice save-notice-rail ${saveError ? "action-notice--error" : ""}`}
           role={saveError ? "alert" : "status"}
         >
-          <span>{saveError ? "SAVE ERROR" : saveStage === "SEALED" ? "POSITION SEALED" : "SAVE UPDATE"}</span>
+          <span>
+            {saveError
+              ? isPrizeRedemption
+                ? "PRIZE REDEMPTION ERROR"
+                : "SAVE ERROR"
+              : saveStage === "SEALED"
+                ? "POSITION SEALED"
+                : "SAVE UPDATE"}
+          </span>
           <p>{saveError || saveNotice}</p>
           {saveError && (
             <button
@@ -243,7 +256,9 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
         >
           <div className="save-command-meta">
             <span>PRIVATE INPUT</span>
-            <span>{mode === "deposit" ? "PRINCIPAL IN" : "PRINCIPAL OUT"}</span>
+            <span>
+              {mode === "deposit" ? "PRINCIPAL IN" : isPrizeRedemption ? "PRIZE SHARES OUT" : "PRINCIPAL OUT"}
+            </span>
           </div>
           <div className="mode-switch" role="tablist" aria-label="Save action">
             <button
@@ -266,16 +281,45 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
             </button>
             <i className="mode-switch-seam" aria-hidden="true" />
           </div>
+          {mode === "withdraw" && (
+            <div className="withdraw-source-switch" role="group" aria-label="Withdraw from">
+              <span>WITHDRAW FROM</span>
+              <button
+                type="button"
+                className={withdrawSource === "saved" ? "active" : ""}
+                aria-pressed={withdrawSource === "saved"}
+                onClick={() => setWithdrawSource("saved")}
+              >
+                SAVED BALANCE
+              </button>
+              <button
+                type="button"
+                className={withdrawSource === "prize" ? "active" : ""}
+                aria-pressed={withdrawSource === "prize"}
+                onClick={() => setWithdrawSource("prize")}
+              >
+                PRIZE BALANCE
+              </button>
+            </div>
+          )}
           <div className="amount-command">
             <div className="transaction-label">
-              <span>{mode === "deposit" ? "Amount to save" : "Amount to request"}</span>
-              <small>WHOLE TEST UNITS</small>
+              <span>
+                {mode === "deposit" ? "Amount to save" : isPrizeRedemption ? "Amount to redeem" : "Amount to request"}
+              </span>
+              <small>{isPrizeRedemption ? "TEST SHARE UNITS" : "WHOLE TEST UNITS"}</small>
             </div>
             <div className="amount-input" data-tour="save-amount">
               <AmountFragments amount={amount} active={amountFragmentsActive} />
               <AmountEcho amount={amount} />
               <input
-                aria-label={mode === "deposit" ? "Deposit amount" : "Withdrawal amount"}
+                aria-label={
+                  mode === "deposit"
+                    ? "Deposit amount"
+                    : isPrizeRedemption
+                      ? "Prize redemption amount"
+                      : "Withdrawal amount"
+                }
                 inputMode="numeric"
                 placeholder="0"
                 value={amount}
@@ -283,12 +327,16 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
                 onBlur={() => setAmountFocused(false)}
                 onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
               />
-              <span>TEST</span>
+              <span>{isPrizeRedemption ? "SHARES" : "TEST"}</span>
             </div>
-            <p className="amount-command-note">{STAGE_DESCRIPTIONS[saveStage]}</p>
+            <p className="amount-command-note">
+              {isPrizeRedemption
+                ? "Redeem confidential strategy shares back into confidential TEST principal."
+                : STAGE_DESCRIPTIONS[saveStage]}
+            </p>
           </div>
           <DepositStageRail stage={mode === "deposit" ? saveStage : "IDLE"} />
-          {mode === "withdraw" && <WithdrawRequestVisual active={withdrawRequestActive} />}
+          {mode === "withdraw" && !isPrizeRedemption && <WithdrawRequestVisual active={withdrawRequestActive} />}
           {!unveil.connected && !unveil.wrongNetwork && (
             <div className="notice save-wallet-note">
               <strong>WALLET DISCONNECTED</strong>
@@ -299,23 +347,29 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
             className={`button-primary button-full save-primary-action save-primary-action--${saveStage.toLowerCase()}`}
             data-cursor="enter"
             data-tour="save-submit"
-            disabled={Boolean(unveil.busy) || !amount}
+            disabled={Boolean(unveil.busy) || !amount || (isPrizeRedemption && Boolean(unveil.prizeRedemptionRecovery))}
             type="submit"
           >
             <span>
               {saveError
                 ? mode === "deposit"
                   ? "RETRY SAVE"
-                  : "RETRY REQUEST"
+                  : isPrizeRedemption
+                    ? "RETRY PRIZE REDEMPTION"
+                    : "RETRY REQUEST"
                 : saveStage === "SEALED" && mode === "deposit"
                   ? "POSITION SEALED ✓"
                   : unveil.busy === mode
                     ? mode === "deposit"
                       ? "ENCRYPTING + SAVING…"
                       : "ENCRYPTING REQUEST…"
-                    : mode === "deposit"
-                      ? "SAVE PRIVATELY"
-                      : "REQUEST WITHDRAWAL"}
+                    : unveil.busy === "prize-redeem"
+                      ? "REDEEMING PRIZE…"
+                      : mode === "deposit"
+                        ? "SAVE PRIVATELY"
+                        : isPrizeRedemption
+                          ? "REDEEM PRIZE"
+                          : "REQUEST WITHDRAWAL"}
             </span>
             <i aria-hidden="true">{saveStage === "SEALED" ? "✓" : "→"}</i>
           </button>
@@ -367,6 +421,61 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
               Deposits become confidential principal immediately. New savings contribute mature prize weight only after
               one complete draw period while the draw seat remains active.
             </p>
+          ) : isPrizeRedemption ? (
+            <div className="prize-redemption-panel" aria-live="polite">
+              <div className="prize-redemption-heading">
+                <span>PRIZE REDEMPTION ROUTE</span>
+                <strong>
+                  {unveil.prizeRedemptionRecovery ? "BATCH DISCOVERY" : (unveil.prizeRedemption?.status ?? "READY")}
+                </strong>
+              </div>
+              {unveil.prizeRedemptionRecovery ? (
+                <>
+                  <p>Redemption transaction submitted. Locating its onchain batch. Do not submit another redemption.</p>
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    disabled={Boolean(unveil.busy)}
+                    onClick={unveil.recoverPrizeRedemption}
+                  >
+                    {unveil.busy === "prize-redemption-recovery" ? "LOCATING BATCH…" : "RECOVER REDEMPTION"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>
+                    {unveil.prizeRedemption?.depositStatus === "REFUNDABLE"
+                      ? "Confidential strategy shares can be returned to your wallet."
+                      : "Redeem confidential strategy shares back into confidential TEST principal. The resulting principal arrives in AVAILABLE TO SAVE."}
+                  </p>
+                  {unveil.prizeRedemption && (
+                    <dl className="prize-redemption-details">
+                      <div>
+                        <dt>BATCH</dt>
+                        <dd>#{unveil.prizeRedemption.batchId.toString()}</dd>
+                      </div>
+                      <div>
+                        <dt>READY AT</dt>
+                        <dd>{new Date(Number(unveil.prizeRedemption.batchMaturesAt) * 1000).toLocaleString()}</dd>
+                      </div>
+                    </dl>
+                  )}
+                  {unveil.prizeRedemption?.action.actionable && (
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={Boolean(unveil.busy)}
+                      onClick={unveil.advancePrizeRedemption}
+                    >
+                      {unveil.busy === "prize-redemption-lifecycle"
+                        ? "ADVANCING REDEMPTION…"
+                        : unveil.prizeRedemption.action.title}
+                    </button>
+                  )}
+                  {!unveil.prizeRedemption && <p>Submit a prize redemption to join the next confidential batch.</p>}
+                </>
+              )}
+            </div>
           ) : (
             <>
               <p>Requests settle instantly when liquid or remain queued until strategy liquidity is available.</p>

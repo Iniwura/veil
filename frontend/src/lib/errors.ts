@@ -18,6 +18,18 @@ export function productError(error: unknown) {
   if (message.startsWith("UNVEIL_WITHDRAW_FAILED:")) return "The pool rejected this withdrawal request.";
   if (message.startsWith("UNVEIL_PRIZE_WINNER_ONLY:"))
     return "Only the finalized winner can unveil this delivered prize.";
+  if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_ROUTE_INVALID:"))
+    return "Prize balance redemption route is unavailable for this V4 deployment.";
+  if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_START_FAILED:"))
+    return "Confidential prize redemption could not start. Check the wallet and try again.";
+  if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_LIFECYCLE_FAILED:"))
+    return "The prize redemption route could not advance. Check the wallet and retry the available step.";
+  if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_STATE_CHANGED:"))
+    return "The prize redemption state changed before submission. Review the latest batch state.";
+  if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_NOT_ACTIONABLE:"))
+    return "That prize redemption step is not available yet.";
+  if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_STATE_UNEXPECTED:"))
+    return "The prize redemption batch state needs review before it can continue.";
   if (message.startsWith("UNVEIL_ROUND_WEIGHT_UNAVAILABLE:"))
     return "Round data unavailable. This wallet was not included in that historical round.";
   if (message.startsWith("UNVEIL_MANAGER_REQUEST_UNAVAILABLE:"))

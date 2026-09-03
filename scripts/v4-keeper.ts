@@ -4,12 +4,12 @@ import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signer
 
 import { V4_DEPLOYMENT_NAMES } from "../deploy/deploy-v4";
 import { planShardedSnapshotBatches, type HistoricalShardWidth } from "./sharded-snapshot-hcu-budget";
+import { DEFAULT_LOG_CHUNK_SIZE, queryLogsInChunks } from "../shared/chunkedLogs";
 
 const SHARD_COUNT = 24;
 const PRIZE_SLOTS = 3;
 const DEFAULT_MAX_STEPS = 32;
 const DEFAULT_REFRESH_WINDOW_SECONDS = 6 * 60 * 60;
-const DEFAULT_LOG_CHUNK_SIZE = 10;
 const HISTORY_LOOKBACK = 64n;
 let fheCliInitialized = false;
 
@@ -95,37 +95,7 @@ function configuredInteger(name: string, fallback: number, minimum: number, maxi
   return parsed;
 }
 
-/**
- * Query an inclusive block range in bounded chunks.  The Sepolia free RPC tier
- * accepts at most ten blocks per eth_getLogs request, so callers must never
- * bypass this helper for keeper log discovery.
- */
-export async function queryFilterInChunks<T>(
-  query: (fromBlock: number, toBlock: number) => Promise<T[]>,
-  fromBlock: number,
-  latestBlock: number,
-  chunkSize = DEFAULT_LOG_CHUNK_SIZE,
-): Promise<T[]> {
-  if (!Number.isSafeInteger(fromBlock) || fromBlock < 0) {
-    throw new Error("fromBlock must be a non-negative safe integer");
-  }
-  if (!Number.isSafeInteger(latestBlock) || latestBlock < 0) {
-    throw new Error("latestBlock must be a non-negative safe integer");
-  }
-  if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > DEFAULT_LOG_CHUNK_SIZE) {
-    throw new Error(`chunkSize must be between 1 and ${DEFAULT_LOG_CHUNK_SIZE}`);
-  }
-  if (fromBlock > latestBlock) return [];
-
-  const events: T[] = [];
-  for (let chunkFrom = fromBlock; chunkFrom <= latestBlock; ) {
-    const chunkTo = Math.min(latestBlock, chunkFrom + chunkSize - 1);
-    events.push(...(await query(chunkFrom, chunkTo)));
-    if (chunkTo === latestBlock) break;
-    chunkFrom = chunkTo + 1;
-  }
-  return events;
-}
+export const queryFilterInChunks = queryLogsInChunks;
 
 async function resolveAddress(key: AddressKey): Promise<string> {
   const envName = ADDRESS_ENV[key];

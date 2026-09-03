@@ -9024,3 +9024,80 @@ body {
     min-height: 78px;
   }
 }
+.withdraw-source-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin: 0.8rem 0 0;
+  color: var(--ink-muted, #8b8d95);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.withdraw-source-switch button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: inherit;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.withdraw-source-switch button.active {
+  border-color: var(--accent, #d7ff4f);
+  color: var(--accent, #d7ff4f);
+}
+
+.prize-redemption-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(215, 255, 79, 0.2);
+  background: rgba(215, 255, 79, 0.035);
+}
+
+.prize-redemption-heading,
+.prize-redemption-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.prize-redemption-heading span,
+.prize-redemption-details dt {
+  color: var(--ink-muted, #8b8d95);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+}
+
+.prize-redemption-heading strong {
+  color: var(--accent, #d7ff4f);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+}
+
+.prize-redemption-panel p {
+  margin: 0;
+  color: var(--ink-muted, #a9aab1);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.prize-redemption-details {
+  justify-content: flex-start;
+  margin: 0;
+}
+
+.prize-redemption-details > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.prize-redemption-details dd {
+  margin: 0;
+  color: var(--ink, #f4f4f1);
+  font-size: 0.82rem;
+}
