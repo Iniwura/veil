@@ -106,7 +106,7 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
       <header className="draw-page-intro">
         <div className="draw-page-intro-heading">
           <span className="eyebrow">PUBLIC SETTLEMENT · V4</span>
-          <strong>{schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</strong>
+          <strong>ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"}</strong>
         </div>
         <p data-native-cursor>
           Timing, shard checkpoints, selected shards, and winners are public. Balances, mature ticket weights, and prize

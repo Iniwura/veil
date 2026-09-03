@@ -1,15 +1,16 @@
-import { Contract, JsonRpcProvider, ZeroAddress, ZeroHash, type Eip1193Provider, type JsonRpcSigner } from "ethers";
+import { Contract, ZeroAddress, ZeroHash, type Eip1193Provider, type JsonRpcSigner } from "ethers";
 import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/bundle";
 import { UNVEIL_CONTRACTS, UNVEIL_NETWORK } from "./contracts";
 import type { DrawAction, DrawLifecycleStage } from "./lib/drawAdvance";
 import { readWithdrawalRequest } from "./veilClient";
+import { SEPOLIA_READ_RPC_URLS, sepoliaReadProvider } from "./lib/sepoliaReadProvider";
 
-const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+const SEPOLIA_RPC_URL = SEPOLIA_READ_RPC_URLS[0];
 const HISTORY_LIMIT = 20n;
 const WITHDRAWAL_LOOKBACK = 32n;
 const SHARD_COUNT = 24;
 const PRIZE_SLOTS = 3;
-const readProvider = new JsonRpcProvider(SEPOLIA_RPC_URL, UNVEIL_NETWORK.chainId, { staticNetwork: true });
+const readProvider = sepoliaReadProvider;
 
 const POOL_V4_ABI = [
   "function joined(address) view returns (bool)",

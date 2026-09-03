@@ -44,3 +44,5 @@ export function productError(error: unknown) {
     return "This action is not available for the connected wallet right now.";
   return "UNVEIL could not complete that action. Try again after checking the wallet and network.";
 }
+
+export { historicalRoundNotIncludedMessage, isHistoricalRoundNotIncluded } from "../../../shared/frontendPresentation";

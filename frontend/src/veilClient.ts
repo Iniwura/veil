@@ -1,7 +1,6 @@
 import {
   BrowserProvider,
   Contract,
-  JsonRpcProvider,
   ZeroAddress,
   ZeroHash,
   type BrowserProvider as EthersBrowserProvider,
@@ -14,6 +13,7 @@ import type { FhevmInstance, FhevmInstanceConfig } from "@zama-fhe/relayer-sdk/b
 import { deriveNextDrawAction, sameDrawAction, type DrawAction } from "./lib/drawAdvance";
 import { waitForSubmittedTransaction } from "../../shared/transactionSafety";
 import { mapPrivateBalanceValues, type PrivateBalanceHandles } from "../../shared/privateBalances";
+import { SEPOLIA_READ_RPC_URLS, sepoliaReadProvider } from "./lib/sepoliaReadProvider";
 import {
   deriveWithdrawalLifecycle,
   sameWithdrawalAction,
@@ -56,11 +56,11 @@ declare global {
   }
 }
 
-const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+const SEPOLIA_RPC_URL = SEPOLIA_READ_RPC_URLS[0];
 const MAX_UINT64 = 18_446_744_073_709_551_615n;
 const HISTORY_LIMIT = 20n;
 const WITHDRAWAL_LOOKBACK = 32n;
-const readProvider = new JsonRpcProvider(SEPOLIA_RPC_URL, UNVEIL_NETWORK.chainId, { staticNetwork: true });
+const readProvider = sepoliaReadProvider;
 
 const POOL_ABI = [
   "function joined(address) view returns (bool)",

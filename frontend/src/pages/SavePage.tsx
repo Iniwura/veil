@@ -131,6 +131,8 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
   const revealed = Boolean(unveil.vault);
   const saveError = unveil.errorScope === "save" ? unveil.error : "";
   const saveNotice = unveil.noticeScope === "save" ? unveil.notice : "";
+  const privateError = unveil.errorScope === "private" ? unveil.error : "";
+  const privateNotice = unveil.noticeScope === "private" ? unveil.notice : "";
   const showMotionDebug = import.meta.env.DEV && new URLSearchParams(window.location.search).get("motionDebug") === "1";
   const saveStage = deriveSaveStage({ busy: unveil.busy, notice: saveNotice, error: saveError, mode });
   const amountFragmentsActive = saveStage === "LOCAL_ENCRYPTION";
@@ -393,6 +395,25 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
           </div>
           <span className={`vault-seal ${revealed ? "open" : ""}`}>{revealed ? "UNVEILED LOCALLY" : "FHE SEALED"}</span>
         </div>
+        {(privateError || privateNotice) && (
+          <div
+            className={`action-notice private-notice ${privateError ? "action-notice--error" : ""}`}
+            role={privateError ? "alert" : "status"}
+          >
+            <span>{privateError ? "PRIVATE REVEAL ERROR" : "PRIVATE UPDATE"}</span>
+            <p>{privateError || privateNotice}</p>
+            {privateError && (
+              <button
+                className="action-notice-dismiss"
+                type="button"
+                onClick={unveil.clearError}
+                aria-label="Dismiss private reveal error"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
         {unveil.busy === "reveal-vault" && (
           <div className="vault-reveal-progress" role="status" aria-label="Private balance reveal in progress">
             <i className="active">01 · WALLET AUTHORIZATION</i>

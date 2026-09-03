@@ -29,13 +29,13 @@ import {
 } from "../v4DrawClient";
 import type { DrawAction } from "../lib/drawAdvance";
 import type { WithdrawalLifecycleAction } from "../../../shared/withdrawalLifecycle";
-import { productError } from "../lib/errors";
+import { historicalRoundNotIncludedMessage, isHistoricalRoundNotIncluded, productError } from "../lib/errors";
 import { advanceWalletSessionEpoch } from "../lib/walletSession";
 
 type Dashboard = Awaited<ReturnType<typeof readDashboardV4>>;
 type PublicProtocol = Awaited<ReturnType<typeof readPublicProtocolV4>>;
 type WalletState = "disconnected" | "connected" | "account-changed" | "wrong-network" | "reconnect-required";
-type NoticeScope = "global" | "save" | "draw";
+type NoticeScope = "global" | "save" | "private" | "draw";
 
 export function useUnveilV4() {
   const walletEpoch = useRef(0);
@@ -399,16 +399,16 @@ export function useUnveilV4() {
     const wallet = privateWallet();
     if (!wallet) return;
     try {
-      setScopedError("save", "");
+      setScopedError("private", "");
       setVault(undefined);
       setBusy("reveal-vault");
-      setScopedNotice("save", "Awaiting your wallet signature for private decryption…");
+      setScopedNotice("private", "Awaiting your wallet signature for private decryption…");
       const nextVault = await revealMyVault(wallet.signer);
       if (walletEpoch.current !== wallet.epoch) return;
       setVault(nextVault);
-      setScopedNotice("save", "Private values are unveiled locally for this browser session only.");
+      setScopedNotice("private", "Private values are unveiled locally for this browser session only.");
     } catch (cause) {
-      if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
+      if (walletEpoch.current === wallet.epoch) setScopedError("private", productError(cause));
     } finally {
       if (walletEpoch.current === wallet.epoch) setBusy("");
     }
@@ -418,16 +418,22 @@ export function useUnveilV4() {
     const wallet = privateWallet();
     if (!wallet) return;
     try {
-      setScopedError("save", "");
+      setScopedError("private", "");
       setRoundWeight(undefined);
       setBusy("reveal-weight");
-      setScopedNotice("save", `Awaiting signature to unveil your Round ${roundId} weight…`);
+      setScopedNotice("private", `Awaiting signature to unveil your Round ${roundId} weight…`);
       const value = await revealMyRoundWeight(wallet.signer, roundId);
       if (walletEpoch.current !== wallet.epoch) return;
       setRoundWeight({ roundId, value });
-      setScopedNotice("save", `Your Round ${roundId} weight is displayed locally. Exact odds remain unavailable.`);
+      setScopedNotice("private", `Your Round ${roundId} weight is displayed locally. Exact odds remain unavailable.`);
     } catch (cause) {
-      if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
+      if (walletEpoch.current === wallet.epoch) {
+        if (isHistoricalRoundNotIncluded(cause)) {
+          setScopedNotice("private", historicalRoundNotIncludedMessage(roundId));
+        } else {
+          setScopedError("private", productError(cause));
+        }
+      }
     } finally {
       if (walletEpoch.current === wallet.epoch) setBusy("");
     }

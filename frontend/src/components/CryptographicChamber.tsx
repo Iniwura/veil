@@ -33,7 +33,9 @@ function phaseForState(state: CryptographicChamberState): CryptographicChamberPh
 }
 
 function phaseLabel(phase: CryptographicChamberPhase) {
-  return phase === "BLIND_DRAW" ? "BLIND DRAW" : phase;
+  if (phase === "BLIND_DRAW") return "BLIND DRAW";
+  if (phase === "BACKLOG") return "KEEPER SETTLING";
+  return phase;
 }
 
 function phaseDescription(phase: CryptographicChamberPhase) {

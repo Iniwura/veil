@@ -1,4 +1,5 @@
 import { UNVEIL_NETWORK } from "../contracts";
+import { drawStateLabel as sharedDrawStateLabel } from "../../../shared/frontendPresentation";
 
 export function shortAddress(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
@@ -24,12 +25,7 @@ export function drawStateLabel(schedule?: {
   timeReady: boolean;
   overdue: boolean;
 }) {
-  if (!schedule) return "LOADING";
-  if (schedule.overdue) return "OVERDUE";
-  if (schedule.insufficientParticipants) return "INSUFFICIENT";
-  if (schedule.ready) return "READY";
-  if (schedule.timeReady) return "CLOSED";
-  return "OPEN";
+  return sharedDrawStateLabel(schedule);
 }
 
 export function drawCountdownLabel({
