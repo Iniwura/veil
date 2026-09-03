@@ -335,6 +335,96 @@ describe("VeilPoolV4", function () {
     expect((await system.pool.getDrawInfo(3)).participantCount).to.equal(2);
   });
 
+  it("seals the post-close seated top-up maturity boundary on the real pool", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice);
+    await fundAndApprove(system, signers.bob);
+    await deposit(system, signers.alice, 6);
+    await deposit(system, signers.bob, 6);
+
+    // Both seats are mature by the close of round 2.
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 2n)).to.equal(6n);
+
+    // Round 3 has closed, but its snapshot has not started yet. The top-up is
+    // after the round-3 boundary and must not become round-3 close weight.
+    await advanceToClose(system.pool);
+    await deposit(system, signers.alice, 94);
+    expect(await decryptBalance(system, signers.alice)).to.equal(100n);
+    expect(await system.pool.shardLastSealedRoundId(await system.pool.seatShard(signers.alice.address))).to.equal(3n);
+
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 3n)).to.equal(6n);
+
+    // The post-close top-up needs a complete close-to-close boundary before it
+    // can increase the mature encrypted weight. The historical round remains immutable.
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 4n)).to.equal(6n);
+    expect(await decryptSnapshotWeight(system, signers.alice, 3n)).to.equal(6n);
+
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 5n)).to.equal(100n);
+  });
+
+  it("applies an open-round seated top-up only after the next close boundary", async function () {
+    const system = await deploySystem();
+    await fundAndApprove(system, signers.alice);
+    await fundAndApprove(system, signers.bob);
+    await deposit(system, signers.alice, 6);
+    await deposit(system, signers.bob, 6);
+
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+
+    // The top-up is made while round 3 is open, so it is present at that
+    // scheduled close but must still be clamped by round 2's close weight.
+    await deposit(system, signers.alice, 94);
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 3n)).to.equal(6n);
+
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 4n)).to.equal(100n);
+  });
+
+  it("seals a seated top-up across a deep real-pool keeper backlog", async function () {
+    const backlogPeriod = 60;
+    const system = await deploySystem(backlogPeriod);
+    await fundAndApprove(system, signers.alice);
+    await deposit(system, signers.alice, 6);
+
+    const firstOpen = Number(await system.pool.firstDrawOpensAt());
+    await ethers.provider.send("evm_setNextBlockTimestamp", [firstOpen + 16 * backlogPeriod]);
+    await ethers.provider.send("evm_mine", []);
+
+    // Round 16 has closed while the keeper is still pointed at round 1. The
+    // top-up must seal the old six-unit close weight through round 16.
+    await deposit(system, signers.alice, 94);
+    const shard = await system.pool.seatShard(signers.alice.address);
+    expect(await system.pool.shardLastSealedRoundId(shard)).to.equal(16n);
+
+    for (let round = 1; round <= 17; round++) {
+      await advanceToClose(system.pool);
+      expect(await snapshotCurrentRound(system)).to.equal(BigInt(round));
+      if (round >= 2) expect(await decryptSnapshotWeight(system, signers.alice, BigInt(round))).to.equal(6n);
+    }
+
+    // One additional complete close-to-close boundary is required before the
+    // post-close top-up can increase mature weight.
+    await advanceToClose(system.pool);
+    await snapshotCurrentRound(system);
+    expect(await decryptSnapshotWeight(system, signers.alice, 18n)).to.equal(100n);
+    expect(await decryptSnapshotWeight(system, signers.alice, 16n)).to.equal(6n);
+  });
+
   it("delays fresh-seat maturity beyond a deep settlement backlog", async function () {
     const backlogPeriod = 60;
     const system = await deploySystem(backlogPeriod);

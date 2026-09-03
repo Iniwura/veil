@@ -154,6 +154,9 @@ contract VeilPoolV4 is VeilShardedDraw {
         if (!asset.isOperator(msg.sender, address(this))) revert PoolNotOperator();
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        // Preserve every already-closed round before mutating a seated account's live weight.
+        // Fresh accounts are unaffected because the roster helper is a no-op when not seated.
+        _sealShardedAccountState(msg.sender);
         if (!joined[msg.sender]) {
             positions[msg.sender].balance = FHE.asEuint64(0);
             reservedWithdrawals[msg.sender] = FHE.asEuint64(0);
