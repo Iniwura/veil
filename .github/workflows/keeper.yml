@@ -40,5 +40,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run one permissionless keeper cycle
-        run: npm run keeper:v4:sepolia
+      - name: Run permissionless keeper cycle with relayer retries
+        shell: bash
+        run: |
+          attempts=3
+          for attempt in $(seq 1 "$attempts"); do
+            echo "Keeper attempt $attempt/$attempts"
+            if npm run keeper:v4:sepolia; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq "$attempts" ]; then
+              echo "Keeper failed after $attempts attempts. A later scheduled run can retry safely."
+              exit 1
+            fi
+
+            echo "Keeper attempt $attempt failed; retrying in 30 seconds..."
+            sleep 30
+          done
