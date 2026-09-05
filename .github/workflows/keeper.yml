@@ -41,14 +41,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run permissionless keeper cycle with relayer retries
+      - name: Run permissionless keeper cycle with bounded retries
         shell: bash
         run: |
           attempts=3
           for attempt in $(seq 1 "$attempts"); do
             echo "Keeper attempt $attempt/$attempts"
-            if npm run keeper:v4:sepolia; then
+            if timeout --signal=TERM 4m npm run keeper:v4:sepolia; then
               exit 0
+            fi
+
+            status=$?
+            if [ "$status" -eq 124 ]; then
+              echo "Keeper attempt $attempt timed out after 4 minutes."
+            else
+              echo "Keeper attempt $attempt exited with status $status."
             fi
 
             if [ "$attempt" -eq "$attempts" ]; then
@@ -56,6 +63,6 @@ jobs:
               exit 1
             fi
 
-            echo "Keeper attempt $attempt failed; retrying in 30 seconds..."
-            sleep 30
+            echo "Retrying in 20 seconds..."
+            sleep 20
           done
