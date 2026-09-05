@@ -19,7 +19,7 @@ export function productError(error: unknown) {
   if (message.startsWith("UNVEIL_PRIZE_WINNER_ONLY:"))
     return "Only the finalized winner can unveil this delivered prize.";
   if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_ROUTE_INVALID:"))
-    return "Prize balance redemption route is unavailable for this V4 deployment.";
+    return "Prize balance redemption route is unavailable for this deployment.";
   if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_START_FAILED:"))
     return "Confidential prize redemption could not start. Check the wallet and try again.";
   if (message.startsWith("UNVEIL_PRIZE_REDEMPTION_LIFECYCLE_FAILED:"))

@@ -1,3 +1,13 @@
+export {
+  deriveSaveActions,
+  isRetryableSaveError,
+  saveSourceSummary,
+  saveSourceUnit,
+  type SaveAction,
+  type SaveActionKind,
+  type SaveSourceKind,
+} from "../../../shared/savePresentation";
+
 export type SaveMode = "deposit" | "withdraw";
 
 export type SaveStage =

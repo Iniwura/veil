@@ -16,13 +16,13 @@ export const PRODUCT_TOUR_STEPS = [
     target: "nav-save",
     route: "/app/save",
     title: "SAVE",
-    copy: "Your money lives here. Deposit confidential TEST principal, request withdrawals, and inspect your private position from one place.",
+    copy: "Your money lives here. Deposit confidential cUSDC principal, request withdrawals, and inspect your private position from one place.",
   },
   {
     target: "save-amount",
     route: "/app/save",
     title: "CHOOSE AN AMOUNT",
-    copy: "Enter the TEST amount you want to save. The value is encrypted locally before the pool receives the confidential request.",
+    copy: "Enter the cUSDC amount you want to save. The value is encrypted locally before the pool receives the confidential request.",
   },
   {
     target: "save-submit",
@@ -87,6 +87,20 @@ export type TourRect = {
 
 export type ProductTourMode = "invite" | "tour" | null;
 
+const TARGET_SELECTORS: Record<string, string> = {
+  wallet: '[data-tour="wallet"], .wallet-button',
+  "nav-save": '[data-tour="nav-save"], .app-nav a[href="/app/save"], .mobile-nav a[href="/app/save"]',
+  "save-amount": '[data-tour="save-amount"], .save-amount-input input, .save-main-actions',
+  "save-submit": '[data-tour="save-submit"], .save-primary-action, .save-main-actions',
+  "private-position": '[data-tour="private-position"], .save-private-position, .home-private-position',
+  "private-reveal": '[data-tour="private-reveal"], .save-reveal-action',
+  "nav-draw": '[data-tour="nav-draw"], .app-nav a[href="/app/draw"], .mobile-nav a[href="/app/draw"]',
+  "draw-current": '[data-tour="draw-current"], .draw-current-composition',
+  "draw-advance": '[data-tour="draw-advance"], .draw-advance-panel',
+  "draw-result": '[data-tour="draw-result"], .draw-latest-result',
+  "draw-prize": '[data-tour="draw-prize"], .draw-machine-reward, .draw-latest-result',
+};
+
 function completed() {
   return window.localStorage.getItem(PRODUCT_TOUR_STORAGE_KEY) === "true";
 }
@@ -106,7 +120,8 @@ function isVisibleTarget(element: HTMLElement) {
 }
 
 export function resolveProductTourTarget(target: string) {
-  const candidates = [...document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`)]
+  const selector = TARGET_SELECTORS[target] ?? `[data-tour="${target}"]`;
+  const candidates = [...document.querySelectorAll<HTMLElement>(selector)]
     .filter(isVisibleTarget)
     .sort((left, right) => {
       const leftRect = left.getBoundingClientRect();

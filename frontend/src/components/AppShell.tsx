@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BrandMark } from "./BrandMark";
-import { DemoBadge } from "./DemoBadge";
 import { RouteLink } from "./RouteLink";
 import type { UnveilV4Controller } from "../hooks/useUnveilV4";
 import type { AppRoute } from "../lib/routes";
@@ -32,11 +31,11 @@ export function AppShell({
   const globalError = unveil.errorScope === "global" ? unveil.error : "";
   const publicState = unveil.publicError
     ? unveil.publicProtocol
-      ? "PUBLIC V4 STATE STALE"
-      : "PUBLIC V4 STATE UNAVAILABLE"
+      ? "PROTOCOL STALE"
+      : "PROTOCOL UNAVAILABLE"
     : unveil.publicProtocol
-      ? "PUBLIC V4 STATE LIVE"
-      : "PUBLIC V4 STATE LOADING";
+      ? "PROTOCOL LIVE"
+      : "PROTOCOL LOADING";
   const sessionLabel = unveil.wrongNetwork
     ? "WRONG NETWORK"
     : unveil.walletState === "account-changed"
@@ -81,7 +80,6 @@ export function AppShell({
                 to={to}
                 className={route === to ? "active" : ""}
                 dataCursor="enter"
-                dataTour={to === "/app/save" ? "nav-save" : to === "/app/draw" ? "nav-draw" : "nav-home"}
                 key={to}
               >
                 <span>{index}</span>
@@ -99,8 +97,7 @@ export function AppShell({
             <span className="network-chip">SEPOLIA</span>
           </div>
           <div className="app-topbar-tools">
-            <DemoBadge compact />
-            <button className="help-button" type="button" onClick={onReplayGuide}>
+            <button className="help-button" type="button" onClick={onReplayGuide} data-cursor="enter">
               HELP
             </button>
           </div>
@@ -170,6 +167,7 @@ export function AppShell({
           </div>
         )}
         <main className="app-content">{children}</main>
+        <p className="app-demo-note">SEPOLIA · DEMO cUSDC · SIMULATED YIELD</p>
       </div>
       <nav className="mobile-nav" aria-label="Mobile application navigation">
         {NAV.map(([to, , label]) => (
@@ -177,7 +175,6 @@ export function AppShell({
             to={to}
             className={route === to ? "active" : ""}
             dataCursor="enter"
-            dataTour={to === "/app/save" ? "nav-save" : to === "/app/draw" ? "nav-draw" : "nav-home"}
             key={to}
           >
             <i aria-hidden="true" />

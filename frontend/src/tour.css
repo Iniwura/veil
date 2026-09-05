@@ -201,3 +201,12 @@ html[data-motion-reduced="true"] .product-tour-spotlight,
 html[data-motion-reduced="true"] .product-tour-coachmark {
   transition: none;
 }
+
+@media (max-width: 780px) {
+  html:has(.product-tour-invite),
+  html:has(.product-tour-layer),
+  body:has(.product-tour-invite),
+  body:has(.product-tour-layer) {
+    overflow-x: hidden;
+  }
+}

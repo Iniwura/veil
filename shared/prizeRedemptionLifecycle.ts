@@ -134,7 +134,7 @@ export function derivePrizeRedemptionState(input: PrizeRedemptionInput): PrizeRe
       nextAction = action(
         "CLAIM",
         "RECEIVE PRINCIPAL",
-        "Claim the resulting confidential TEST principal into this wallet.",
+        "Claim the resulting confidential cUSDC principal into this wallet.",
       );
     }
   } else {

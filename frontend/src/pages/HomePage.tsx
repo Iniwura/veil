@@ -1,215 +1,222 @@
-import { VeilReveal } from "../components/VeilReveal";
-import { RoundHistory } from "../components/RoundHistory";
+import type { CSSProperties } from "react";
+import { DashboardPrivatePosition } from "../components/DashboardPrivatePosition";
 import { RouteLink } from "../components/RouteLink";
 import type { UnveilV4Controller } from "../hooks/useUnveilV4";
+import {
+  deriveHomeNextAction,
+  deriveHomePersonalSignal,
+  HOME_PROTOCOL_CAPACITY_LABEL,
+  isKeeperSettlementAction,
+} from "../../../shared/homePresentation";
 import { drawStateLabel, explorerAddress, formatDate, shortAddress } from "../lib/format";
-import { walletActionLabel } from "../lib/walletPresentation";
+import "./homeDashboard.css";
+
+const SHARD_MARKERS = Array.from({ length: 24 }, (_, index) => index);
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+function HomeHistoryLedger({ rounds }: { rounds: UnveilV4Controller["history"] }) {
+  if (rounds.length === 0) {
+    return (
+      <div className="home-history-empty">
+        <span>NO SETTLED ROUNDS LOADED</span>
+        <p>Verified results will appear after a round is finalized, cancelled, or skipped.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-history-ledger" role="table" aria-label="Recent verified rounds">
+      <div className="home-history-ledger-head" role="row">
+        <span role="columnheader">ROUND</span>
+        <span role="columnheader">STATE</span>
+        <span role="columnheader">PRIZE 1</span>
+        <span role="columnheader">PRIZE 2</span>
+        <span role="columnheader">PRIZE 3</span>
+      </div>
+      {rounds.slice(0, 3).map((round) => (
+        <div className="home-history-ledger-row" role="row" key={round.id.toString()}>
+          <strong role="cell">{round.id.toString().padStart(2, "0")}</strong>
+          <strong role="cell" data-state={round.status}>
+            {round.status}
+          </strong>
+          {[0, 1, 2].map((slot) => {
+            const prize = round.prizes[slot];
+            const winner = prize?.winner;
+            const hasWinner = Boolean(winner && winner.toLowerCase() !== ZERO_ADDRESS);
+            return (
+              <span role="cell" key={slot}>
+                {round.status === "FINALIZED" && prize && hasWinner ? (
+                  <a href={explorerAddress(winner)} target="_blank" rel="noreferrer">
+                    S{prize.shard} · {shortAddress(winner)} ↗
+                  </a>
+                ) : round.status === "FINALIZED" ? (
+                  "ZERO"
+                ) : (
+                  "NO DRAW"
+                )}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function HomePage({ unveil }: { unveil: UnveilV4Controller }) {
   const data = unveil.dashboard;
   const schedule = unveil.schedule;
-  const result = unveil.latestResult;
+  const latestFinalized = unveil.latestFinalized;
   const drawAction = unveil.drawAction;
-  const privateState = unveil.busy === "reveal-vault" ? "UNVEILING" : unveil.vault ? "UNVEILED TO YOU" : "SEALED";
-  const seatState = unveil.wrongNetwork
-    ? "WRONG NETWORK"
-    : !unveil.connected
-      ? walletActionLabel(unveil)
-      : data?.pendingSeatAttestation
-        ? "ATTESTATION PENDING"
-        : data?.seated
-          ? "ACTIVE"
-          : data?.joined
-            ? "NOT ACTIVE"
-            : "NOT JOINED";
+  const activeParticipants = data?.playerCount ?? unveil.publicProtocol?.playerCount;
+  const winnerPrize = latestFinalized?.prizes.find(
+    (prize) => Boolean(unveil.address) && prize.winner.toLowerCase() === unveil.address.toLowerCase(),
+  );
+  const winnerSignal =
+    latestFinalized && winnerPrize ? { roundId: latestFinalized.id, prizeIndex: winnerPrize.index } : undefined;
+  const withdrawalActionable = Boolean(data?.latestWithdrawal?.action?.actionable);
+  const redemptionActionable = Boolean(unveil.prizeRedemption?.action?.actionable);
+  const keeperSettling = isKeeperSettlementAction(drawAction?.kind);
+  const action = deriveHomeNextAction({
+    connected: unveil.connected,
+    wrongNetwork: unveil.wrongNetwork,
+    accountReady: Boolean(data),
+    vaultRevealed: Boolean(unveil.vault),
+    busy: unveil.busy,
+    pendingSeatAttestation: Boolean(data?.pendingSeatAttestation),
+    joined: Boolean(data?.joined),
+    seated: Boolean(data?.seated),
+    connectedWinner: Boolean(winnerSignal),
+    withdrawalActionable,
+    redemptionActionable,
+    keeperSettling,
+  });
+  const signal = deriveHomePersonalSignal({
+    winner: winnerSignal,
+    withdrawalActionable,
+    pendingSeatAttestation: Boolean(data?.pendingSeatAttestation),
+    seated: Boolean(data?.seated),
+  });
+  const roundLabel = schedule?.currentRoundId.toString().padStart(2, "0") ?? "—";
 
-  const action = !unveil.connected
-    ? { kind: "button" as const, label: walletActionLabel(unveil), disabled: false }
-    : data?.pendingSeatAttestation
-      ? { kind: "button" as const, label: "AWAITING KMS ATTESTATION", disabled: true }
-      : data?.joined && !data.seated
-        ? { kind: "link" as const, label: "SAVE PRIVATELY", disabled: false }
-        : data?.seated
-          ? { kind: "link" as const, label: "VIEW DRAW", disabled: false }
-          : { kind: "link" as const, label: "SAVE PRIVATELY", disabled: false };
+  function renderAction() {
+    if (action.passive) {
+      return <strong className="home-action-passive">{action.label}</strong>;
+    }
+    if (action.kind === "CONNECT" || action.kind === "SWITCH_NETWORK") {
+      return (
+        <button
+          className="button-primary home-action-cta"
+          type="button"
+          data-cursor="enter"
+          onClick={action.kind === "SWITCH_NETWORK" ? unveil.switchToSepolia : unveil.connect}
+          disabled={Boolean(unveil.busy)}
+        >
+          {action.label} <span>↗</span>
+        </button>
+      );
+    }
+    return action.href ? (
+      <RouteLink className="button-primary home-action-cta" to={action.href} dataCursor="enter">
+        {action.label} <span>↗</span>
+      </RouteLink>
+    ) : null;
+  }
 
   return (
-    <div className="page-stack route-enter">
-      <section className="home-command-row">
-        <div>
-          <span className="eyebrow">HOME · CURRENT DRAW</span>
-          <h1>
-            ROUND {schedule?.currentRoundId.toString().padStart(2, "0") ?? "—"} · {drawStateLabel(schedule)}
-          </h1>
-          <p>Public timing and eligibility first. Your private position stays sealed until you choose to unveil it.</p>
+    <div className="home-dashboard-page route-enter">
+      <section className="home-ledger-spine" aria-labelledby="home-round-heading">
+        <div className="home-shard-architecture" aria-hidden="true">
+          <div className="home-shard-architecture-ring home-shard-architecture-ring--outer" />
+          <div className="home-shard-architecture-ring home-shard-architecture-ring--inner" />
+          {SHARD_MARKERS.map((index) => (
+            <i key={index} style={{ "--shard-index": index } as CSSProperties} />
+          ))}
         </div>
-        <div className="home-command-actions">
-          {action.kind === "link" ? (
-            <RouteLink
-              className="button-primary"
-              to={action.label === "VIEW DRAW" ? "/app/draw" : "/app/save"}
-              dataCursor="enter"
-            >
-              {action.label} <span>↗</span>
-            </RouteLink>
-          ) : (
-            <button
-              className="button-secondary home-wallet-action"
-              type="button"
-              data-cursor="enter"
-              onClick={unveil.wrongNetwork ? unveil.switchToSepolia : unveil.connect}
-              disabled={Boolean(unveil.busy) || action.disabled}
-            >
-              {action.label}
-            </button>
-          )}
+        <div className="home-spine-copy">
+          <span className="eyebrow">CURRENT DRAW</span>
+          <div className="home-round-display" id="home-round-heading">
+            <span>ROUND</span>
+            <strong>{roundLabel}</strong>
+          </div>
+          <p>
+            PUBLIC STATE · <strong>{drawStateLabel(schedule)}</strong>
+          </p>
         </div>
-        <div className="home-command-state" aria-label="Current draw state">
-          <div className="home-command-status">
-            <span className="eyebrow">ROUND STATUS</span>
-            <strong>{drawStateLabel(schedule)}</strong>
-            <div className="home-command-next">
-              <span className="eyebrow">
-                NEXT STEP{drawAction ? ` · ROUND ${drawAction.roundId.toString().padStart(2, "0")}` : ""}
-              </span>
-              {drawAction ? (
-                <strong>{drawAction.title}</strong>
-              ) : (
-                <span className="home-command-resolving">RESOLVING</span>
-              )}
+        <div className="home-spine-meta">
+          <div className="home-spine-next">
+            <span className="eyebrow">NEXT PROTOCOL STEP</span>
+            <strong>{drawAction?.title ?? "RESOLVING PUBLIC STATE"}</strong>
+            <small>
+              {keeperSettling
+                ? "Permissionless keeper maintenance is in progress. No saver wallet action is required."
+                : "Only public state is shown here; encrypted balances remain local."}
+            </small>
+          </div>
+          <dl>
+            <div>
+              <dt>ACTIVE SAVERS</dt>
+              <dd>{activeParticipants ?? "—"}</dd>
             </div>
-          </div>
-          <div className="home-command-metrics">
-            <span>
-              ELIGIBILITY <strong>{seatState}</strong>
-            </span>
-            <span>
-              CURRENT SEATS <strong>{data?.playerCount ?? unveil.publicProtocol?.playerCount ?? "—"} / 576</strong>
-            </span>
-            <span>
-              CLOSES <strong>{formatDate(schedule?.closesAt)}</strong>
-            </span>
-          </div>
+            <div>
+              <dt>PROTOCOL CAPACITY</dt>
+              <dd>{HOME_PROTOCOL_CAPACITY_LABEL}</dd>
+            </div>
+            <div>
+              <dt>CLOSES / SETTLES</dt>
+              <dd>{formatDate(schedule?.closesAt)}</dd>
+            </div>
+          </dl>
         </div>
       </section>
 
-      <section className="home-dashboard-grid">
-        <article className="private-panel" data-tour="private-position" data-cursor="sealed">
-          <div className="home-section-head">
-            <div>
-              <span className="eyebrow">MY PRIVATE BALANCES</span>
-              <h2>{privateState}</h2>
+      <section className={`home-dashboard-body${action.kind === "UNVEIL" ? " home-dashboard-body--private" : ""}`}>
+        <div className="home-private-column">
+          <DashboardPrivatePosition
+            vault={unveil.vault}
+            busy={unveil.busy === "reveal-vault"}
+            onReveal={unveil.revealVaultStats}
+            onHide={unveil.hideVault}
+          />
+          {signal && (
+            <div className={`home-personal-signal home-personal-signal--${signal.kind.toLowerCase()}`}>
+              <span className="eyebrow">PERSONAL SIGNAL</span>
+              <div>
+                <strong>{signal.label}</strong>
+                {signal.href && signal.actionLabel && (
+                  <RouteLink className="text-link" to={signal.href} dataCursor="enter">
+                    {signal.actionLabel}
+                  </RouteLink>
+                )}
+              </div>
             </div>
-            <RouteLink className="text-link" to="/app/save" dataCursor="enter">
-              OPEN SAVE →
-            </RouteLink>
-          </div>
-          <div className="private-stat-grid private-stat-grid--four">
-            <VeilReveal
-              compact
-              label="Available to save"
-              value={unveil.vault?.availablePrincipal}
-              revealed={Boolean(unveil.vault)}
-              busy={unveil.busy === "reveal-vault"}
-              unit=" TEST UNITS"
-            />
-            <VeilReveal
-              compact
-              label="Saved in UNVEIL"
-              value={unveil.vault?.activePrincipal}
-              revealed={Boolean(unveil.vault)}
-              busy={unveil.busy === "reveal-vault"}
-              unit=" TEST UNITS"
-            />
-            <VeilReveal
-              compact
-              label="Reserved withdrawal"
-              value={unveil.vault?.reservedPrincipal}
-              revealed={Boolean(unveil.vault)}
-              busy={unveil.busy === "reveal-vault"}
-              unit=" TEST UNITS"
-            />
-            <VeilReveal
-              compact
-              label="Prize balance"
-              value={unveil.vault?.strategySharePrizeBalance}
-              revealed={Boolean(unveil.vault)}
-              busy={unveil.busy === "reveal-vault"}
-              unit=" TEST SHARE UNITS"
-            />
-          </div>
-          <button
-            className="button-secondary"
-            type="button"
-            data-cursor="sealed"
-            data-tour="private-reveal"
-            disabled={Boolean(unveil.busy)}
-            onClick={unveil.vault ? unveil.hideVault : unveil.revealVaultStats}
+          )}
+        </div>
+        {action.kind !== "UNVEIL" && (
+          <aside
+            className={`home-action-rail home-action-rail--${action.passive ? "passive" : "actionable"}`}
+            aria-label="Next useful action"
           >
-            {unveil.busy === "reveal-vault" ? "UNVEILING…" : unveil.vault ? "VEIL MY BALANCES" : "UNVEIL MY BALANCES"}
-          </button>
-        </article>
-        <section className="home-result-card">
-          <div className="home-section-head">
-            <div>
-              <span className="eyebrow">LATEST RESULT</span>
-              <h2>{result ? `ROUND ${result.id.toString().padStart(2, "0")}` : "NO RESULT YET"}</h2>
+            <div className="home-action-block">
+              <span className="eyebrow">NEXT USEFUL ACTION</span>
+              {renderAction()}
+              <p>{action.description}</p>
             </div>
-          </div>
-          {!result ? (
-            <p>Verified V4 results will appear here after the first settled round.</p>
-          ) : result.status === "FINALIZED" ? (
-            <div className="home-result-details">
-              {result.prizes.map((prize) => (
-                <div key={`${result.id}-${prize.index}`}>
-                  <span>
-                    PRIZE {prize.index + 1} · SHARD {prize.shard}
-                  </span>
-                  <a href={explorerAddress(prize.winner)} target="_blank" rel="noreferrer">
-                    {shortAddress(prize.winner)} ↗
-                  </a>
-                </div>
-              ))}
-              <div>
-                <span>PROOF</span>
-                <strong>3 × TWO-STAGE KMS VERIFIED</strong>
-              </div>
-              <p>
-                Each prize slot independently selects an encrypted shard and then an encrypted saver. The same saver can
-                win more than one slot; delivered amounts remain confidential to each winner wallet.
-              </p>
-            </div>
-          ) : result.status === "CANCELLED" ? (
-            <div className="home-result-details">
-              <div>
-                <span>OUTCOME</span>
-                <strong>CANCELLED</strong>
-              </div>
-              <p>All three KMS-verified winner outputs were zero. No prize was delivered.</p>
-            </div>
-          ) : (
-            <div className="home-result-details">
-              <div>
-                <span>OUTCOME</span>
-                <strong>SKIPPED</strong>
-              </div>
-              <p>The 24-shard checkpoint found fewer than two mature seats, so no encrypted prize draw was executed.</p>
-            </div>
-          )}
-        </section>
+          </aside>
+        )}
       </section>
 
-      <section className="home-history">
-        <div className="home-section-head">
+      <section className="home-history" aria-labelledby="home-history-heading">
+        <div className="home-history-head">
           <div>
             <span className="eyebrow">VERIFIED HISTORY</span>
-            <h2>Recent draws.</h2>
+            <h2 id="home-history-heading">Recent draws.</h2>
           </div>
           <RouteLink className="text-link" to="/app/draw" dataCursor="enter">
             VIEW ALL →
           </RouteLink>
         </div>
-        <RoundHistory rounds={unveil.history} compact />
+        <HomeHistoryLedger rounds={unveil.history} />
       </section>
     </div>
   );

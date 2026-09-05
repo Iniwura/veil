@@ -114,8 +114,8 @@ export function useUnveilV4() {
       setPublicProtocol(await readPublicProtocolV4());
       setPublicError("");
     } catch (cause) {
-      console.error("[UNVEIL] public V4 protocol read", cause);
-      setPublicError("Public Sepolia V4 state is temporarily unavailable.");
+      console.error("[UNVEIL] public protocol read", cause);
+      setPublicError("Public Sepolia state is temporarily unavailable.");
     }
   }, []);
 
@@ -183,10 +183,7 @@ export function useUnveilV4() {
         setScopedNotice("global", "A Sepolia wallet is available. Reconnect to load its private account state.");
       } else {
         updateWalletState("wrong-network");
-        setScopedNotice(
-          "global",
-          "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.",
-        );
+        setScopedNotice("global", "Connected wallet is on the wrong network. Public Sepolia state remains available.");
       }
     });
     const unsubscribe = subscribeWalletLifecycle({
@@ -209,7 +206,7 @@ export function useUnveilV4() {
           updateWalletState("wrong-network");
           setScopedNotice(
             "global",
-            "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.",
+            "Connected wallet is on the wrong network. Public Sepolia state remains available.",
           );
         }
       },
@@ -255,10 +252,7 @@ export function useUnveilV4() {
       setWalletChainId(wallet?.chainId);
       if (wallet?.accounts.length && wallet.chainId !== UNVEIL_NETWORK.chainId) {
         updateWalletState("wrong-network");
-        setScopedNotice(
-          "global",
-          "Connected wallet is on the wrong network. Public Sepolia V4 state remains available.",
-        );
+        setScopedNotice("global", "Connected wallet is on the wrong network. Public Sepolia state remains available.");
       } else if (wallet?.accounts.length) {
         updateWalletState("reconnect-required");
         setScopedNotice("global", "Reconnect to load the current Sepolia account.");
@@ -318,14 +312,14 @@ export function useUnveilV4() {
     try {
       setScopedError("save", "");
       setBusy("fund");
-      setScopedNotice("save", "Checking confidential TEST principal before minting or wrapping…");
+      setScopedNotice("save", "Checking confidential cUSDC principal before minting or wrapping…");
       const result = await fundDemoWallet(wallet.signer, 100n);
       if (walletEpoch.current !== wallet.epoch) return;
       setScopedNotice(
         "save",
         result.alreadyFunded
-          ? "This wallet already has enough wrapped TEST principal."
-          : `${result.wrapped} TEST units wrapped into confidential principal.`,
+          ? "This wallet already has enough wrapped cUSDC principal."
+          : `${result.wrapped} cUSDC units wrapped into confidential principal.`,
       );
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
@@ -349,7 +343,7 @@ export function useUnveilV4() {
       if (walletEpoch.current === wallet.epoch) {
         setScopedNotice(
           "save",
-          "Encrypted V4 deposit confirmed. New savings become prize-eligible after one complete draw period.",
+          "Encrypted deposit confirmed. New savings become prize-eligible after one complete draw period.",
         );
       }
     } catch (cause) {
@@ -365,7 +359,7 @@ export function useUnveilV4() {
     try {
       setScopedError("save", "");
       setBusy("withdraw");
-      setScopedNotice("save", "Encrypting your withdrawal request for the V4 pool…");
+      setScopedNotice("save", "Encrypting your withdrawal request…");
       const result = await withdrawPrivate(wallet.signer, amount, (nextNotice) => {
         if (walletEpoch.current === wallet.epoch) setScopedNotice("save", nextNotice);
       });
@@ -453,7 +447,7 @@ export function useUnveilV4() {
       setPrizeRedemption(next);
       if (prizeRedemptionActionInvalidatesPrivateBalances(current.action.kind)) setVault(undefined);
       if (next.status === "COMPLETE") {
-        setScopedNotice("save", "Confidential TEST principal returned to the wallet. Unveil balances to refresh.");
+        setScopedNotice("save", "Confidential cUSDC principal returned to the wallet. Unveil balances to refresh.");
       }
       await refresh(wallet.signer, "save");
     } catch (cause) {
@@ -504,7 +498,7 @@ export function useUnveilV4() {
       if (walletEpoch.current !== wallet.epoch) return;
       await refresh(wallet.signer, "save");
       if (walletEpoch.current === wallet.epoch) {
-        setScopedNotice("save", "Withdrawal lifecycle advanced. The latest V4 state is now loaded.");
+        setScopedNotice("save", "Withdrawal lifecycle advanced. The latest state is now loaded.");
       }
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));

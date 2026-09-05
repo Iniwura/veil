@@ -32,7 +32,6 @@ export function DrawAdvancePanel({
     <section
       className={`draw-advance-panel draw-advance-panel--${action?.kind.toLowerCase() ?? "loading"}`}
       aria-live="polite"
-      data-tour="draw-advance"
     >
       <div className="draw-advance-heading">
         <span className="eyebrow">
@@ -43,7 +42,7 @@ export function DrawAdvancePanel({
       </div>
       <DrawLifecycleRail action={action} terminalState={terminalState} />
       <p className="draw-advance-description">
-        {action?.description ?? "Reading the public sharded lifecycle from the live V4 contracts."}
+        {action?.description ?? "Reading the public sharded lifecycle from the live contracts."}
       </p>
       {showConnectionButton && (
         <button
@@ -70,9 +69,7 @@ export function DrawAdvancePanel({
       {action?.kind === "BLOCKED" && (
         <p className="draw-advance-warning">PUBLIC STATE NEEDS REVIEW · NO RECOVERY TRANSACTION</p>
       )}
-      <p className="draw-advance-note">
-        Permissionless keeper flow · snapshot batches are greedily sized below both published HCU limits.
-      </p>
+      <p className="draw-advance-note">Keeper flow · snapshot batches stay within the protocol privacy limits.</p>
     </section>
   );
 }

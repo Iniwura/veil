@@ -30,17 +30,19 @@ export function RoundHistory({
   rounds,
   compact = false,
   showExplorerLink = !compact,
+  interactiveCursor = "verify",
 }: {
   rounds: VerifiedRoundV4[];
   compact?: boolean;
   showExplorerLink?: boolean;
+  interactiveCursor?: "enter" | "verify";
 }) {
   const [replay, setReplay] = useState<{ id: bigint; token: number }>();
   if (rounds.length === 0) {
     return (
       <div className="empty-state">
         <span>NO SETTLED ROUNDS LOADED</span>
-        <p>Verified V4 results will appear after a round is finalized, cancelled, or skipped.</p>
+        <p>Verified results will appear after a round is finalized, cancelled, or skipped.</p>
       </div>
     );
   }
@@ -79,7 +81,7 @@ export function RoundHistory({
             <button
               className="verification-replay-button"
               type="button"
-              data-cursor="verify"
+              data-cursor={interactiveCursor}
               onClick={() => setReplay({ id: round.id, token: (replay?.token ?? 0) + 1 })}
             >
               {round.status === "SKIPPED" ? "VIEW VERIFIED SKIP" : "REPLAY VERIFICATION"}
@@ -91,9 +93,9 @@ export function RoundHistory({
               key={`${round.id}-${replay.token}`}
             >
               <span>
-                {round.status === "SKIPPED" ? "VERIFIED V4 LIFECYCLE" : "VISUAL REPLAY OF VERIFIED V4 ONCHAIN RESULT"}
+                {round.status === "SKIPPED" ? "VERIFIED LIFECYCLE" : "VISUAL REPLAY OF VERIFIED ONCHAIN RESULT"}
               </span>
-              <div className="verification-steps" aria-label={`${round.status} V4 round verification path`}>
+              <div className="verification-steps" aria-label={`${round.status} round verification path`}>
                 {(round.status === "SKIPPED"
                   ? ["SHARDED SNAPSHOT", "<2 MATURE SEATS", "SKIPPED"]
                   : round.status === "CANCELLED"
@@ -119,7 +121,7 @@ export function RoundHistory({
                 ) : round.status === "CANCELLED" ? (
                   "THREE KMS-PROVEN ZERO WINNERS · ROUND CANCELLED"
                 ) : (
-                  <>THREE INDEPENDENT V4 PRIZE SLOTS · {finalizedWinnerLinks(round)}</>
+                  <>THREE INDEPENDENT PRIZE SLOTS · {finalizedWinnerLinks(round)}</>
                 )}
               </strong>
               <small>SNAPSHOT BLOCK {round.snapshotBlock.toString()}</small>
@@ -135,7 +137,7 @@ export function RoundHistory({
           rel="noreferrer"
           data-cursor="verify"
         >
-          VERIFY ALL V4 POOL STATE ON ETHERSCAN ↗
+          VERIFY ALL POOL STATE ON ETHERSCAN ↗
         </a>
       )}
     </div>

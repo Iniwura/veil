@@ -333,7 +333,7 @@ async function nextSnapshotAction(pool: Contract, roundId: bigint) {
         "SNAPSHOT_SHARD",
         roundId,
         `SNAPSHOT SHARD ${shardIndex + 1}/24`,
-        "Checkpoint the next greedy batch of historical shards under both published HCU limits.",
+        "Checkpoint the next batch of historical shards within the protocol privacy limits.",
         true,
         "SNAPSHOT",
         { shardIndex },

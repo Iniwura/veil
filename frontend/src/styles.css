@@ -3092,9 +3092,6 @@ html[data-motion-reduced="true"] .save-page .private-instrument-material {
 .save-layout--product {
   grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1.1fr);
 }
-.vault-surface[data-tour="private-position"] {
-  overflow: hidden;
-}
 .save-section-heading {
   align-items: center;
   padding: 26px 28px;
@@ -3255,10 +3252,13 @@ html[data-motion-reduced="true"] .save-page .private-instrument-material {
   .app-nav,
   .app-topbar-status,
   .app-topbar-tools .demo-badge,
-  .app-topbar-tools .help-button,
   .theme-chip,
   .network-chip {
     display: none;
+  }
+  /* Keep the restored product tour reachable on touch-sized app layouts. */
+  .app-topbar-tools .help-button {
+    display: inline-flex;
   }
   .app-topbar .theme-toggle {
     display: inline-flex;
@@ -9100,4 +9100,1511 @@ body {
   margin: 0;
   color: var(--ink, #f4f4f1);
   font-size: 0.82rem;
+}
+
+/* Final product landing: sealed objects, product-first storytelling, and a
+   quieter protocol surface. The application routes keep their existing
+   compositions; these rules are scoped to the landing page. */
+.landing-page--product {
+  --landing-product-bg: #080806;
+  --landing-product-surface: #0c0d0a;
+  --landing-product-line: rgba(242, 239, 230, 0.16);
+  --landing-product-quiet: rgba(242, 239, 230, 0.42);
+  --landing-product-orb: rgba(242, 239, 230, 0.12);
+  position: relative;
+  overflow: clip;
+  background: var(--landing-product-bg);
+}
+
+.landing-page--product::before,
+.landing-page--product::after,
+.landing-page--product .landing-hero::before,
+.landing-page--product .landing-hero::after {
+  display: none;
+}
+
+.landing-page--product .landing-nav {
+  min-height: 82px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: clamp(24px, 4vw, 64px);
+  padding-inline: max(24px, calc((100vw - var(--layout-frame)) / 2 + var(--gutter-xl)));
+  border-bottom-color: var(--landing-product-line);
+  background: rgba(8, 8, 6, 0.82);
+}
+
+.landing-page--product .landing-nav nav {
+  justify-content: center;
+}
+
+.landing-page--product .landing-nav-actions {
+  gap: 18px;
+}
+
+.landing-page--product .landing-nav-status {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.landing-page--product .landing-nav-status i {
+  box-shadow: 0 0 0 3px rgba(242, 213, 21, 0.1);
+}
+
+.landing-page--product .landing-nav .button-small {
+  min-height: 38px;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.landing-page--product .landing-nav .button-small:hover {
+  border-color: var(--signal);
+  color: var(--signal);
+  background: transparent;
+  box-shadow: inset 2px 0 var(--signal);
+}
+
+.landing-page--product .landing-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+  align-items: center;
+  min-height: min(760px, calc(100svh - 82px));
+  height: auto;
+  max-width: var(--layout-frame);
+  margin: 0 auto;
+  padding: clamp(88px, 12vh, 150px) var(--gutter-xl) clamp(92px, 12vh, 152px);
+  overflow: clip;
+}
+
+.landing-page--product .hero-copy {
+  position: relative;
+  z-index: 3;
+  max-width: 760px;
+  padding: 0;
+}
+
+.landing-page--product .hero-copy > .eyebrow {
+  margin-bottom: 28px;
+  color: var(--signal);
+  animation: landingProductIn 560ms var(--ease-reveal) 80ms both;
+}
+
+.landing-page--product .hero-title {
+  display: grid;
+  gap: 0;
+  max-width: 760px;
+  margin: 0 0 30px;
+  color: var(--text);
+  font-size: clamp(62px, 7.5vw, 126px);
+  line-height: 0.8;
+  letter-spacing: -0.075em;
+  text-transform: uppercase;
+  animation: landingProductIn 700ms var(--ease-reveal) 160ms both;
+}
+
+.landing-page--product .hero-title span,
+.landing-page--product .hero-title strong {
+  display: block;
+  font: inherit;
+  font-weight: 760;
+}
+
+.landing-page--product .hero-title strong {
+  margin-left: clamp(18px, 3vw, 56px);
+  color: var(--signal);
+}
+
+.landing-page--product .hero-lede {
+  max-width: 430px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  animation: landingProductIn 560ms var(--ease-reveal) 300ms both;
+}
+
+.landing-page--product .hero-actions {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 36px;
+  animation: landingProductIn 560ms var(--ease-reveal) 420ms both;
+}
+
+.landing-page--product .hero-actions .button-primary {
+  min-width: 184px;
+}
+
+.landing-page--product .hero-actions .button-text {
+  color: var(--text-muted);
+}
+
+.landing-page--product .hero-actions .button-text:hover {
+  color: var(--text);
+}
+
+.landing-page--product .campaign {
+  margin-top: 50px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  animation: landingProductIn 560ms var(--ease-reveal) 520ms both;
+}
+
+.landing-hero-visual {
+  position: absolute;
+  top: 50%;
+  right: -10%;
+  z-index: 1;
+  width: min(64vw, 820px);
+  height: min(720px, 86%);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.landing-vault-visual {
+  position: relative;
+  width: min(100%, 660px);
+  aspect-ratio: 1;
+  color: var(--text);
+  opacity: 0.62;
+}
+
+.landing-vault-visual--compact {
+  width: min(100%, 700px);
+  opacity: 0.35;
+  transform: rotate(-7deg);
+}
+
+.landing-vault-visual svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-vault-frame,
+.landing-vault-hinges,
+.landing-vault-dial,
+.landing-vault-ticks,
+.landing-vault-spokes,
+.landing-vault-seam {
+  stroke: currentColor;
+}
+
+.landing-vault-frame {
+  opacity: 0.34;
+}
+
+.landing-vault-hinges {
+  opacity: 0.56;
+}
+
+.landing-vault-dial {
+  opacity: 0.68;
+  transform-origin: 260px 260px;
+}
+
+.landing-vault-ticks {
+  opacity: 0.56;
+}
+
+.landing-vault-spokes {
+  opacity: 0.7;
+}
+
+.landing-vault-seam {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1.4;
+  opacity: 0.7;
+}
+
+.landing-hero-spec {
+  position: absolute;
+  right: 21%;
+  bottom: 15%;
+  display: grid;
+  gap: 8px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-align: right;
+}
+
+.landing-hero-spec strong {
+  color: var(--text-muted);
+}
+
+@keyframes landingProductIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.landing-page--product .protocol-ticker {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  min-height: 54px;
+  padding-block: 18px;
+  border-top: 1px solid var(--landing-product-line);
+  border-bottom: 1px solid var(--landing-product-line);
+  background: var(--landing-product-surface);
+  transform: none;
+  box-shadow: none;
+}
+
+.landing-page--product .protocol-ticker::before,
+.landing-page--product .protocol-ticker::after {
+  display: none;
+}
+
+.landing-page--product .protocol-ticker-track {
+  gap: 46px;
+  color: var(--text-muted);
+  font-size: 12px;
+  animation-duration: 42s;
+}
+
+.landing-page--product .protocol-ticker-track > *,
+.landing-page--product .protocol-ticker-track {
+  gap: 46px;
+}
+
+.landing-page--product .protocol-ticker-track b {
+  margin-left: 46px;
+  color: var(--signal);
+}
+
+.landing-story {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(360px, 1.15fr);
+  align-items: center;
+  min-height: 690px;
+  max-width: var(--layout-frame);
+  margin: 0 auto;
+  padding: clamp(84px, 11vw, 150px) var(--gutter-xl);
+  overflow: clip;
+  border-bottom: 1px solid var(--landing-product-line);
+}
+
+.landing-story-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 540px;
+}
+
+.landing-story-copy .eyebrow,
+.landing-section-intro .eyebrow {
+  color: var(--signal);
+}
+
+.landing-story-copy h2,
+.landing-section-intro h2 {
+  margin: 22px 0 24px;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(52px, 6.4vw, 104px);
+  font-variation-settings: "opsz" 76, "wdth" 88, "wght" 700;
+  line-height: 0.84;
+  letter-spacing: -0.08em;
+}
+
+.landing-story-copy > p:not(.eyebrow) {
+  max-width: 360px;
+  margin: 0 0 30px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.landing-story-copy .text-link {
+  color: var(--text);
+}
+
+.landing-story-copy .text-link:hover {
+  color: var(--signal);
+}
+
+.landing-story .landing-vault-visual,
+.landing-story .landing-rotor-visual,
+.landing-story .landing-present-visual {
+  justify-self: end;
+  z-index: 1;
+}
+
+.landing-story--save .landing-vault-visual {
+  width: min(50vw, 620px);
+  opacity: 0.46;
+}
+
+.landing-story--draw {
+  grid-template-columns: minmax(360px, 1.1fr) minmax(0, 0.9fr);
+  background: var(--landing-product-surface);
+}
+
+.landing-story--draw .landing-story-copy {
+  order: 2;
+  justify-self: end;
+}
+
+.landing-story--draw .landing-rotor-visual {
+  order: 1;
+  justify-self: start;
+  width: min(56vw, 620px);
+}
+
+.landing-rotor-visual {
+  position: relative;
+  width: min(52vw, 620px);
+  aspect-ratio: 1;
+  color: var(--text);
+  opacity: 0.5;
+}
+
+.landing-rotor-visual svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-rotor-visual circle,
+.landing-rotor-visual path {
+  fill: none;
+  stroke: currentColor;
+}
+
+.landing-rotor-outer { opacity: 0.32; stroke-width: 1; }
+.landing-rotor-inner { opacity: 0.2; stroke-width: 1; }
+.landing-rotor-sectors { opacity: 0.4; stroke-width: 1; }
+.landing-rotor-spokes { opacity: 0.56; stroke-width: 1.2; }
+.landing-rotor-hub { opacity: 0.68; stroke-width: 1.2; }
+.landing-rotor-core { opacity: 0.42; stroke-width: 1; }
+.landing-rotor-seam { stroke: var(--signal) !important; opacity: 0.72; stroke-width: 1.4; }
+
+.landing-story--win {
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+}
+
+.landing-present-visual {
+  position: relative;
+  width: min(50vw, 560px);
+  aspect-ratio: 1.16;
+  color: var(--text);
+  opacity: 0.62;
+}
+
+.landing-present-visual svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-present-box,
+.landing-present-lid,
+.landing-present-bow,
+.landing-present-seam {
+  fill: none;
+  stroke: currentColor;
+}
+
+.landing-present-shadow {
+  fill: #000;
+  opacity: 0.46;
+}
+
+.landing-present-box { stroke-width: 1.3; opacity: 0.72; }
+.landing-present-lid { stroke-width: 1.4; opacity: 0.84; }
+.landing-present-bow { stroke-width: 1.2; opacity: 0.66; }
+.landing-present-ribbon { fill: none; stroke: var(--signal); stroke-width: 2; opacity: 0.86; }
+.landing-present-seam { stroke: var(--signal); stroke-width: 1.2; opacity: 0.76; }
+
+.landing-story-annotation {
+  position: absolute;
+  right: var(--gutter-xl);
+  bottom: 46px;
+  display: grid;
+  gap: 8px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-align: right;
+}
+
+.landing-story-annotation strong {
+  color: var(--text-muted);
+}
+
+.landing-how {
+  max-width: var(--layout-frame);
+  margin: 0 auto;
+  padding: clamp(88px, 12vw, 160px) var(--gutter-xl);
+  border-bottom: 1px solid var(--landing-product-line);
+}
+
+.landing-section-intro {
+  max-width: 560px;
+}
+
+.landing-how-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 70px;
+  border-top: 1px solid var(--landing-product-line);
+}
+
+.landing-how-line::before {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--signal);
+  content: "";
+}
+
+.landing-how-line article {
+  display: grid;
+  gap: 14px;
+  min-height: 190px;
+  padding: 22px 28px 0 0;
+  border-right: 1px solid var(--landing-product-line);
+}
+
+.landing-how-line article + article {
+  padding-left: 28px;
+}
+
+.landing-how-line article:last-child {
+  border-right: 0;
+}
+
+.landing-how-line article > span {
+  color: var(--signal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.landing-how-line article strong {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.landing-how-line article p {
+  max-width: 250px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.landing-page--product .privacy-boundary {
+  min-height: auto;
+  padding: 0 var(--gutter-xl);
+  background: var(--bg);
+}
+
+.landing-page--product .privacy-story {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: clamp(36px, 8vw, 120px);
+  max-width: var(--layout-frame);
+  min-height: 0;
+  margin: 0 auto;
+  padding: clamp(96px, 13vw, 170px) 0;
+  overflow: visible;
+}
+
+.landing-page--product .privacy-boundary-heading {
+  max-width: 540px;
+}
+
+.landing-page--product .privacy-boundary-heading h2 {
+  margin: 22px 0 22px;
+  font-size: clamp(52px, 6vw, 96px);
+}
+
+.landing-page--product .privacy-ledger {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 34px;
+  margin: 0;
+}
+
+.landing-page--product .privacy-ledger-column {
+  min-height: 0;
+  padding: 0;
+  border-top: 1px solid var(--landing-product-line);
+}
+
+.landing-page--product .privacy-ledger-label {
+  margin: 18px 0 22px;
+  color: var(--signal);
+}
+
+.landing-page--product .privacy-ledger-column--private .privacy-ledger-label {
+  color: var(--text-muted);
+}
+
+.landing-page--product .privacy-ledger ul {
+  gap: 13px;
+}
+
+.landing-page--product .privacy-ledger li {
+  color: var(--text);
+  font-size: clamp(15px, 1.5vw, 21px);
+}
+
+.landing-page--product .privacy-ledger-column--private li {
+  color: var(--text-muted);
+}
+
+.landing-page--product .privacy-boundary-note {
+  grid-column: 2;
+  position: static;
+  max-width: 520px;
+  margin: 40px 0 0;
+  color: var(--text-quiet);
+  font-size: 11px;
+}
+
+.landing-page--product .live-proof-section {
+  padding: 0 var(--gutter-xl) 110px;
+  background: var(--landing-product-surface);
+}
+
+.landing-page--product .live-status-band {
+  max-width: var(--layout-frame);
+  margin: 0 auto;
+}
+
+.landing-page--product .live-proof-head,
+.landing-page--product .live-metrics,
+.landing-page--product .live-proof-section .round-history,
+.landing-page--product .live-proof-section > .text-link {
+  max-width: var(--layout-frame);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.landing-page--product .live-proof-head {
+  padding-top: clamp(80px, 11vw, 140px);
+}
+
+.landing-page--product .live-proof-intro h2 {
+  color: var(--text);
+}
+
+.landing-page--product .live-proof-section .round-history {
+  margin-top: 34px;
+}
+
+.landing-page--product .final-cta {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.75fr);
+  min-height: 560px;
+  max-width: var(--layout-frame);
+  margin: 0 auto;
+  padding: clamp(100px, 13vw, 180px) var(--gutter-xl);
+  overflow: clip;
+  background: var(--bg);
+}
+
+.landing-page--product .final-cta-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.landing-page--product .final-cta h2 {
+  margin: 22px 0 28px;
+  font-size: clamp(60px, 8vw, 126px);
+  line-height: 0.8;
+}
+
+.landing-page--product .final-cta h2 strong {
+  color: var(--signal);
+}
+
+.landing-page--product .final-cta-copy > p:not(.eyebrow) {
+  margin-bottom: 30px;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.landing-page--product .final-cta-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.landing-page--product .final-cta .landing-present-visual {
+  position: absolute;
+  right: -12%;
+  bottom: 5%;
+  width: min(52vw, 620px);
+  opacity: 0.34;
+}
+
+.landing-page--product .landing-footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 28px;
+  max-width: var(--layout-frame);
+  min-height: 110px;
+  margin: 0 auto;
+  padding: 26px var(--gutter-xl) 42px;
+  border-top: 1px solid var(--landing-product-line);
+}
+
+.landing-page--product .landing-footer p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.landing-page--product .landing-footer .demo-badge {
+  color: var(--text-quiet);
+  border-color: var(--border-soft);
+}
+
+.landing-page--product .landing-footer > div:last-child {
+  display: flex;
+  gap: 18px;
+}
+
+.landing-page--product .landing-footer > div:last-child a {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-demo-note {
+  max-width: 1500px;
+  margin: -46px auto 0;
+  padding: 0 4vw 32px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.app-topbar .wallet-button {
+  position: relative;
+  min-height: 40px;
+  color: var(--text) !important;
+  background: transparent !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--signal) 70%, transparent);
+}
+
+.app-topbar .wallet-button::after {
+  margin-left: 14px;
+  color: var(--signal);
+  content: "→";
+  transition: transform var(--motion-fast) var(--ease-surgical);
+}
+
+.app-topbar .wallet-button:hover,
+.app-topbar .wallet-button:focus-visible {
+  color: var(--ink) !important;
+  background: var(--text) !important;
+  border-color: var(--text) !important;
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+.app-topbar .wallet-button:hover::after,
+.app-topbar .wallet-button:focus-visible::after {
+  transform: translateX(3px);
+}
+
+.app-topbar .wallet-button:disabled {
+  color: var(--text-quiet) !important;
+  border-color: var(--border-soft) !important;
+  box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+  .landing-page--product .landing-hero,
+  .landing-page--product .landing-story,
+  .landing-page--product .landing-how,
+  .landing-page--product .privacy-boundary,
+  .landing-page--product .live-proof-section,
+  .landing-page--product .final-cta,
+  .landing-page--product .landing-footer {
+    padding-right: var(--gutter-md);
+    padding-left: var(--gutter-md);
+  }
+
+  .landing-page--product .landing-nav {
+    padding-right: var(--gutter-md);
+    padding-left: var(--gutter-md);
+  }
+
+  .landing-page--product .landing-nav-status {
+    display: none;
+  }
+
+  .landing-page--product .landing-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.78fr);
+  }
+
+  .landing-hero-visual {
+    right: -22%;
+    width: 70vw;
+    opacity: 0.84;
+  }
+}
+
+@media (max-width: 780px) {
+  .landing-page--product .landing-nav {
+    min-height: 72px;
+    grid-template-columns: auto 1fr;
+    padding-inline: 20px;
+  }
+
+  .landing-page--product .landing-nav nav,
+  .landing-page--product .landing-nav-status {
+    display: none;
+  }
+
+  .landing-page--product .landing-nav-actions {
+    justify-self: end;
+  }
+
+  .landing-page--product .landing-nav .button-small {
+    min-height: 36px;
+    padding-inline: 12px;
+    font-size: 9px;
+  }
+
+  .landing-page--product .landing-hero {
+    display: block;
+    min-height: 700px;
+    padding: 72px 20px 84px;
+  }
+
+  .landing-page--product .hero-title {
+    max-width: 330px;
+    margin-bottom: 26px;
+    font-size: clamp(56px, 16vw, 82px);
+  }
+
+  .landing-page--product .hero-title strong {
+    margin-left: 12px;
+  }
+
+  .landing-page--product .hero-lede {
+    max-width: 300px;
+    font-size: 13px;
+  }
+
+  .landing-page--product .hero-actions,
+  .landing-page--product .final-cta-actions {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .landing-page--product .campaign {
+    margin-top: 30px;
+  }
+
+  .landing-hero-visual {
+    top: 66%;
+    right: -52%;
+    width: 122vw;
+    height: 420px;
+    opacity: 0.7;
+  }
+
+  .landing-page--product .protocol-ticker-track {
+    gap: 30px;
+    font-size: 10px;
+    animation-duration: 48s;
+  }
+
+  .landing-page--product .protocol-ticker-track > *,
+  .landing-page--product .protocol-ticker-track {
+    gap: 30px;
+  }
+
+  .landing-page--product .protocol-ticker-track b {
+    margin-left: 30px;
+  }
+
+  .landing-story,
+  .landing-story--draw,
+  .landing-story--win,
+  .landing-page--product .privacy-story,
+  .landing-page--product .final-cta {
+    display: block;
+    min-height: 0;
+    padding: 88px 20px 104px;
+  }
+
+  .landing-story-copy h2,
+  .landing-section-intro h2,
+  .landing-page--product .privacy-boundary-heading h2,
+  .landing-page--product .final-cta h2 {
+    font-size: 56px;
+  }
+
+  .landing-story .landing-vault-visual,
+  .landing-story--draw .landing-rotor-visual,
+  .landing-story .landing-present-visual {
+    width: 118vw;
+    max-width: none;
+    margin: 50px -42vw -20px auto;
+    opacity: 0.35;
+  }
+
+  .landing-story--draw .landing-rotor-visual {
+    margin: 42px auto -8px -42vw;
+  }
+
+  .landing-story-annotation {
+    right: 20px;
+    bottom: 30px;
+  }
+
+  .landing-how-line {
+    grid-template-columns: 1fr;
+    margin-top: 48px;
+  }
+
+  .landing-how-line article,
+  .landing-how-line article + article {
+    min-height: 0;
+    padding: 20px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--landing-product-line);
+  }
+
+  .landing-how-line article:last-child {
+    border-bottom: 0;
+  }
+
+  .landing-page--product .privacy-story {
+    display: block;
+  }
+
+  .landing-page--product .privacy-ledger {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 48px;
+  }
+
+  .landing-page--product .privacy-boundary-note {
+    margin-top: 32px;
+  }
+
+  .landing-page--product .live-proof-section {
+    padding-bottom: 84px;
+  }
+
+  .landing-page--product .landing-footer {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding-top: 28px;
+    padding-bottom: 48px;
+  }
+
+  .landing-page--product .landing-footer > div:last-child {
+    gap: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-vault-dial,
+  .landing-page--product .hero-copy > .eyebrow,
+  .landing-page--product .hero-title,
+  .landing-page--product .hero-lede,
+  .landing-page--product .hero-actions,
+  .landing-page--product .campaign,
+  .landing-page--product .protocol-ticker-track {
+    animation: none !important;
+  }
+}
+
+html[data-motion-reduced="true"] .landing-vault-dial,
+html[data-motion-reduced="true"] .landing-page--product .hero-copy > .eyebrow,
+html[data-motion-reduced="true"] .landing-page--product .hero-title,
+html[data-motion-reduced="true"] .landing-page--product .hero-lede,
+html[data-motion-reduced="true"] .landing-page--product .hero-actions,
+html[data-motion-reduced="true"] .landing-page--product .campaign,
+html[data-motion-reduced="true"] .landing-page--product .protocol-ticker-track {
+  animation: none !important;
+}
+
+.landing-page--product .landing-hero-visual {
+  pointer-events: auto;
+}
+
+/* The vault's lock position is immutable; only its internal rotor turns. */
+.safe-lock-position {
+  transform: translate(260px, 260px);
+  transform-box: view-box;
+}
+
+.safe-lock-rotor {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: rotate(0deg);
+  animation: none !important;
+  transition: transform 460ms var(--ease-surgical);
+}
+
+.landing-vault-frame > *,
+.landing-vault-inner-panel,
+.landing-vault-hinges > *,
+.safe-lock-rotor > circle,
+.landing-vault-ticks > *,
+.landing-vault-spokes > *,
+.landing-vault-latch,
+.landing-vault-seam {
+  stroke-dasharray: 2400;
+  stroke-dashoffset: 2400;
+  animation: protocolVaultDraw 720ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+.landing-vault-frame > * { animation-delay: 40ms; }
+.landing-vault-inner-panel { animation-delay: 120ms; }
+.landing-vault-hinges > * { animation-delay: 200ms; }
+.safe-lock-rotor > circle { animation-delay: 280ms; }
+.landing-vault-ticks > * { animation-delay: 380ms; }
+.landing-vault-spokes > * { animation-delay: 460ms; }
+.landing-vault-latch { animation-delay: 540ms; }
+.landing-vault-seam { animation-delay: 620ms; }
+
+@keyframes protocolVaultDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+.landing-page--product .landing-vault-dial {
+  transform: rotate(0deg);
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: none !important;
+  transition: transform 460ms var(--ease-surgical);
+}
+
+.landing-page--product .landing-hero.is-engaged .landing-hero-visual {
+  transform: translateY(-50%);
+}
+
+.landing-page--product .landing-vault-inner-panel,
+.landing-page--product .landing-vault-latch,
+.landing-page--product .landing-vault-indicator,
+.landing-page--product .landing-vault-seam {
+  transition: transform 420ms var(--ease-surgical), opacity 260ms var(--ease-snap), stroke-width 260ms var(--ease-snap);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-page--product .landing-vault-visual:hover .landing-vault-dial,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-dial,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-dial {
+    transform: rotate(24deg);
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-spokes,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-spokes,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-spokes {
+    transform: rotate(12deg);
+    transform-origin: center;
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-inner-panel,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-inner-panel,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-inner-panel {
+    transform: translateX(4px);
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-latch,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-latch,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-latch {
+    transform: translateX(3px);
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-seam,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-seam,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-seam {
+    opacity: 1;
+    stroke-width: 2;
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-indicator,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-indicator,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-indicator {
+    fill: var(--signal);
+    opacity: 1;
+  }
+
+  .landing-page--product .landing-present-visual:hover .landing-present-lid,
+  .landing-page--product .landing-present-visual:hover .landing-present-bow,
+  .landing-page--product .landing-story--win:has(.landing-story-copy .text-link:hover) .landing-present-lid,
+  .landing-page--product .landing-story--win:has(.landing-story-copy .text-link:hover) .landing-present-bow {
+    transform: translateY(-6px);
+  }
+
+  .landing-page--product .landing-present-visual:hover .landing-present-seam,
+  .landing-page--product .landing-present-visual:hover .landing-present-interior,
+  .landing-page--product .landing-story--win:has(.landing-story-copy .text-link:hover) .landing-present-seam,
+  .landing-page--product .landing-story--win:has(.landing-story-copy .text-link:hover) .landing-present-interior {
+    opacity: 1;
+  }
+
+  .landing-page--product .privacy-ledger--editorial .privacy-ledger-value--public:hover,
+  .landing-page--product .privacy-ledger--editorial .privacy-ledger-head strong:nth-child(2):hover {
+    color: var(--signal);
+  }
+
+  .landing-page--product .privacy-ledger--editorial .privacy-ledger-value--private:hover,
+  .landing-page--product .privacy-ledger--editorial .privacy-ledger-head strong:nth-child(3):hover {
+    color: var(--signal);
+  }
+
+  .landing-page--product .privacy-ledger--editorial:has(.privacy-ledger-value--public:hover) .privacy-ledger-value--private,
+  .landing-page--product .privacy-ledger--editorial:has(.privacy-ledger-head strong:nth-child(2):hover) .privacy-ledger-value--private {
+    opacity: 0.46;
+  }
+
+  .landing-page--product .privacy-ledger--editorial:has(.privacy-ledger-value--private:hover) .privacy-ledger-value--public,
+  .landing-page--product .privacy-ledger--editorial:has(.privacy-ledger-head strong:nth-child(3):hover) .privacy-ledger-value--public {
+    opacity: 0.46;
+  }
+}
+
+/* Yellow public copy stays solid and readable; hover uses a seam, never a hollow glyph. */
+.landing-page--product .hero-title strong {
+  position: relative;
+  color: var(--signal);
+  -webkit-text-fill-color: currentColor;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  transition: color 200ms var(--ease-snap);
+}
+
+.landing-page--product .hero-title strong::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.08em;
+  left: 0;
+  height: 2px;
+  background: var(--signal);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: opacity 200ms var(--ease-surgical), transform 320ms var(--ease-surgical);
+}
+
+.landing-page--product .hero-title strong:hover {
+  color: var(--text);
+  -webkit-text-fill-color: currentColor;
+  -webkit-text-stroke: 0;
+}
+
+.landing-page--product .hero-title strong:hover::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Private phrase uses weight and tone for hierarchy, never text-stroke. */
+.landing-page--product .privacy-boundary-heading h2 span,
+.landing-page--product .privacy-boundary-heading h2 em {
+  display: block;
+  font: inherit;
+  font-style: normal;
+  -webkit-text-stroke: 0;
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
+  filter: none;
+  clip-path: none;
+  transform: none;
+  transition: opacity 420ms var(--ease-unveil), filter 420ms var(--ease-unveil);
+}
+
+.landing-page--product .privacy-boundary-heading h2 span {
+  color: var(--text);
+}
+
+.landing-page--product .privacy-boundary-heading h2 em {
+  color: color-mix(in srgb, var(--text) 68%, var(--bg));
+  font-weight: 640;
+  letter-spacing: -0.055em;
+}
+
+.landing-page--product .privacy-boundary.is-revealed .privacy-boundary-heading h2 em {
+  filter: none;
+  opacity: 1;
+}
+
+/* Three grouped rows keep the comparison editorial and factual. */
+.landing-page--product .privacy-ledger--editorial {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--landing-product-line);
+}
+
+.landing-page--product .privacy-ledger-head,
+.landing-page--product .privacy-ledger-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.52fr) minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(14px, 2.6vw, 32px);
+  min-width: 0;
+}
+
+.landing-page--product .privacy-ledger-head {
+  align-items: end;
+  min-height: 58px;
+  padding: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.landing-page--product .privacy-ledger-head strong {
+  font-weight: 800;
+}
+
+.landing-page--product .privacy-ledger-head strong:nth-child(2) {
+  color: var(--signal);
+}
+
+.landing-page--product .privacy-ledger-row {
+  align-items: baseline;
+  min-height: 112px;
+  padding: 22px 0 24px;
+  border-top: 1px solid var(--landing-product-line);
+}
+
+.landing-page--product .privacy-ledger-topic {
+  color: var(--text-quiet);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.landing-page--product .privacy-ledger-value {
+  color: var(--text);
+  font-size: clamp(15px, 1.45vw, 20px);
+  line-height: 1.15;
+  transition: opacity 200ms var(--ease-snap), color 200ms var(--ease-snap);
+}
+
+.landing-page--product .privacy-ledger-value--private {
+  color: color-mix(in srgb, var(--text) 68%, var(--bg));
+}
+
+.landing-page--product .privacy-boundary-note {
+  margin-top: 30px;
+  color: var(--text-quiet);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.route-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 8, 6, 0.72);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 140ms var(--ease-snap), visibility 140ms var(--ease-snap);
+}
+
+.route-transition.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.route-transition-spinner {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 24px;
+  animation: routeSpinnerRotate 980ms linear infinite;
+}
+
+.route-transition-spinner i {
+  position: absolute;
+  top: 1px;
+  left: 11px;
+  width: 2px;
+  height: 6px;
+  background: var(--border);
+  transform: rotate(calc(var(--spinner-index) * 30deg)) translateY(1px);
+  transform-origin: 1px 11px;
+}
+
+.route-transition-spinner i:first-child {
+  background: var(--signal);
+}
+
+@keyframes routeSpinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 780px) {
+  .landing-page--product .privacy-ledger-head,
+  .landing-page--product .privacy-ledger-row {
+    grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 14px;
+  }
+
+  .landing-page--product .privacy-ledger-row {
+    min-height: 96px;
+    padding-block: 18px 20px;
+  }
+
+  .landing-page--product .privacy-ledger-value {
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition-spinner,
+  .safe-lock-rotor,
+  .landing-page--product .landing-vault-frame > *,
+  .landing-page--product .landing-vault-inner-panel,
+  .landing-page--product .landing-vault-hinges > *,
+  .landing-page--product .safe-lock-rotor > circle,
+  .landing-page--product .landing-vault-ticks > *,
+  .landing-page--product .landing-vault-spokes > *,
+  .landing-page--product .landing-vault-latch,
+  .landing-page--product .landing-vault-seam {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .landing-page--product .landing-vault-frame > *,
+  .landing-page--product .landing-vault-inner-panel,
+  .landing-page--product .landing-vault-hinges > *,
+  .landing-page--product .safe-lock-rotor > circle,
+  .landing-page--product .landing-vault-ticks > *,
+  .landing-page--product .landing-vault-spokes > *,
+  .landing-page--product .landing-vault-latch,
+  .landing-page--product .landing-vault-seam {
+    stroke-dashoffset: 0;
+  }
+
+  .landing-page--product .landing-vault-dial,
+  .landing-page--product .landing-vault-spokes,
+  .landing-page--product .landing-vault-inner-panel,
+  .landing-page--product .landing-vault-latch {
+    transform: none !important;
+  }
+
+  .landing-page--product .privacy-boundary-heading h2 em {
+    filter: none;
+    transition: none;
+  }
+
+  .landing-page--product .hero-title strong::after {
+    transition: none;
+  }
+}
+
+html[data-motion-reduced="true"] .route-transition-spinner,
+html[data-motion-reduced="true"] .safe-lock-rotor,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-frame > *,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-inner-panel,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-hinges > *,
+html[data-motion-reduced="true"] .landing-page--product .safe-lock-rotor > circle,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-ticks > *,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-spokes > *,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-latch,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-seam {
+  animation: none !important;
+  transition: none !important;
+}
+
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-frame > *,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-inner-panel,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-hinges > *,
+html[data-motion-reduced="true"] .landing-page--product .safe-lock-rotor > circle,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-ticks > *,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-spokes > *,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-latch,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-seam {
+  stroke-dashoffset: 0;
+}
+
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-dial,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-spokes,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-inner-panel,
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-latch {
+  transform: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-dial,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-dial {
+    transform: rotate(24deg);
+  }
+}
+
+/* Vault × draw mark: a compact architectural door and dial that carries the
+   same private/public vocabulary in both the landing header and app shell. */
+.unveil-mark-frame,
+.unveil-mark-door,
+.unveil-mark-rotor circle,
+.unveil-mark-spoke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.unveil-mark-door {
+  opacity: 0.62;
+}
+
+.unveil-mark-rotor {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 260ms var(--ease-surgical);
+}
+
+.unveil-mark-seam {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.unveil-mark--compact {
+  width: 28px;
+  height: 28px;
+}
+
+.wordmark:hover .unveil-mark-rotor,
+.wordmark:focus-visible .unveil-mark-rotor {
+  transform: rotate(9deg);
+}
+
+/* The hero vault is a fixed environmental object; only its lock wheel answers
+   to hover/focus. The door and hero composition never translate or scale. */
+.landing-page--product .landing-hero.is-engaged .landing-hero-visual {
+  transform: translateY(-50%);
+}
+
+.landing-page--product .landing-vault-dial,
+.landing-page--product .landing-vault-inner-panel,
+.landing-page--product .landing-vault-latch {
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-page--product .landing-vault-visual:hover .landing-vault-dial,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-dial,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-dial {
+    transform: none;
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-spokes,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-spokes,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-spokes {
+    transform: rotate(10deg);
+    transform-origin: center;
+  }
+
+  .landing-page--product .landing-vault-visual:hover .landing-vault-inner-panel,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-inner-panel,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-inner-panel,
+  .landing-page--product .landing-vault-visual:hover .landing-vault-latch,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-latch,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-latch {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unveil-mark-rotor {
+    transition: none;
+  }
+
+  .wordmark:hover .unveil-mark-rotor,
+  .wordmark:focus-visible .unveil-mark-rotor {
+    transform: none;
+  }
+}
+
+/* The landing vault is a single mechanical lock wheel: only the rotor group
+   turns around its local fill-box centre (translated to SVG 260/260). */
+.landing-page--product .landing-vault-dial {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(0deg) !important;
+  transition: transform 240ms var(--ease-surgical);
+}
+
+.landing-page--product .landing-vault-spokes,
+.landing-page--product .landing-vault-ticks {
+  transform: none !important;
+  transition: none !important;
+}
+
+.landing-page--product .landing-vault-inner-panel,
+.landing-page--product .landing-vault-latch,
+.landing-page--product .landing-vault-indicator {
+  transform: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-page--product .landing-vault-visual:hover .landing-vault-dial,
+  .landing-page--product .landing-hero.is-engaged .landing-vault-dial,
+  .landing-page--product .landing-story--save:has(.landing-story-copy .text-link:hover) .landing-vault-dial {
+    transform: rotate(9deg) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page--product .landing-vault-dial {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+html[data-motion-reduced="true"] .landing-page--product .landing-vault-dial {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* Keep HELP available on touch-sized app layouts so the guided tour remains
+   reachable even when the desktop navigation/status controls collapse. */
+@media (max-width: 780px) {
+  .app-topbar-tools .help-button {
+    display: inline-flex;
+  }
 }

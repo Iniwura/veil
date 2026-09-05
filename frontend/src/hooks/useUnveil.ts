@@ -273,14 +273,14 @@ export function useUnveil() {
     try {
       setScopedError("save", "");
       setBusy("fund");
-      setScopedNotice("save", "Checking confidential TEST principal before minting or wrapping…");
+      setScopedNotice("save", "Checking confidential cUSDC principal before minting or wrapping…");
       const result = await fundDemoWallet(wallet.signer, 100n);
       if (walletEpoch.current !== wallet.epoch) return;
       setScopedNotice(
         "save",
         result.alreadyFunded
-          ? "This wallet already has enough wrapped TEST principal."
-          : `${result.wrapped} TEST units wrapped into confidential principal.`,
+          ? "This wallet already has enough wrapped cUSDC principal."
+          : `${result.wrapped} cUSDC units wrapped into confidential principal.`,
       );
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setScopedError("save", productError(cause));
@@ -454,7 +454,7 @@ export function useUnveil() {
       const value = await revealPrize(wallet.signer, roundId);
       if (walletEpoch.current !== wallet.epoch) return;
       setPrize({ roundId, value });
-      setScopedNotice("draw", `Round ${roundId} TEST strategy shares are unveiled locally for this wallet.`);
+      setScopedNotice("draw", `Round ${roundId} vault share units are unveiled locally for this wallet.`);
     } catch (cause) {
       if (walletEpoch.current === wallet.epoch) setScopedError("draw", productError(cause));
     } finally {

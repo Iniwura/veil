@@ -1,5 +1,20 @@
+import type { ButtonHTMLAttributes } from "react";
 import type { WithdrawalView } from "../veilClient";
 import type { WithdrawalLifecycleAction } from "../../../shared/withdrawalLifecycle";
+
+function WithdrawalSplitAction({
+  label,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+  return (
+    <button {...props} className={`save-split-action withdrawal-lifecycle-action ${props.className ?? ""}`.trim()} data-cursor="enter">
+      <span className="save-split-label">{label.replace(/\s*→\s*$/, "")}</span>
+      <span className="save-split-arrow" aria-hidden="true">
+        →
+      </span>
+    </button>
+  );
+}
 
 type WithdrawalStatusProps = {
   request?: WithdrawalView;
@@ -79,24 +94,21 @@ export function WithdrawalStatus({
         </ol>
         <p className="withdrawal-lifecycle-description">{request.action.description}</p>
         {canAdvance && onAdvance && (
-          <button
-            className="button-primary button-full withdrawal-lifecycle-action"
+          <WithdrawalSplitAction
             type="button"
             disabled={Boolean(busy)}
             onClick={() => void onAdvance(request.action)}
-          >
-            {busy === "withdrawal-lifecycle" ? "ADVANCING WITHDRAWAL…" : request.action.title}
-          </button>
+            label={busy === "withdrawal-lifecycle" ? "ADVANCING WITHDRAWAL…" : request.action.title}
+          />
         )}
         {canCancel && onCancel && (
-          <button
-            className="button-quiet withdrawal-cancel-action"
+          <WithdrawalSplitAction
+            className="withdrawal-cancel-action"
             type="button"
             disabled={Boolean(busy)}
             onClick={() => onCancel(request.requestId)}
-          >
-            CANCEL REQUEST
-          </button>
+            label="CANCEL REQUEST"
+          />
         )}
       </section>
     </div>

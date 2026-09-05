@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { ProductTour } from "./components/ProductTour";
+import { RouteTransition } from "./components/RouteTransition";
 import { UnveilCursor } from "./components/UnveilCursor";
 import { useRoute } from "./hooks/useRoute";
 import { useDocumentMotion } from "./hooks/useMotion";
@@ -12,7 +13,7 @@ import { SavePage } from "./pages/SavePage";
 
 export default function App() {
   useDocumentMotion();
-  const route = useRoute();
+  const { route, transitioning } = useRoute();
   const unveil = useUnveilV4();
   const [replayToken, setReplayToken] = useState(0);
   const page =
@@ -35,6 +36,7 @@ export default function App() {
         </AppShell>
       )}
       <ProductTour route={route} replayToken={replayToken} />
+      <RouteTransition visible={transitioning} />
     </>
   );
 }

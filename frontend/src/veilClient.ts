@@ -479,7 +479,7 @@ async function decryptOne(signer: JsonRpcSigner, handle: string, contractAddress
 }
 
 export async function fundDemoWallet(signer: JsonRpcSigner, targetAmount = 100n) {
-  if (targetAmount <= 0n || targetAmount > MAX_UINT64) throw new Error("Invalid TEST funding amount.");
+  if (targetAmount <= 0n || targetAmount > MAX_UINT64) throw new Error("Invalid demo cUSDC funding amount.");
   const address = await signer.getAddress();
   const { underlying, principal } = contracts(signer);
   try {

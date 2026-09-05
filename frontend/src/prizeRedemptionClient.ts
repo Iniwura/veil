@@ -365,7 +365,7 @@ export async function advancePrizeRedemption(
     }
 
     if (live.action.kind === "CLAIM") {
-      onStep?.("Waiting for wallet confirmation to receive confidential TEST principal…");
+      onStep?.("Waiting for wallet confirmation to receive confidential cUSDC principal…");
       const tx = await batcher.claim(batchId, account);
       await waitForSubmittedTransaction(tx, (hash) => onStep?.(`SUBMITTED/PENDING · Principal claim ${hash}`));
       return readPrizeRedemptionState(batchId, account, "CLAIMED_COMPLETE");

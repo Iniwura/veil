@@ -18,9 +18,9 @@ export const UNVEIL_CONTRACTS = {
 
 export const UNVEIL_DEMO = {
   enabled: true,
-  label: "SEPOLIA TESTNET · DEMO ASSET",
+  label: "SEPOLIA · DEMO cUSDC",
   assetLabel: "cUSDC",
   technicalAssetSymbol: "t-cUSDC",
-  strategy: "SIMULATED ERC4626",
+  strategy: "SIMULATED YIELD",
   productionMarketYield: false,
 } as const;

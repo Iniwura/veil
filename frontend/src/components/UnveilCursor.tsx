@@ -12,9 +12,19 @@ const CURSOR_LABELS: Record<CursorIntent, string> = {
 function isNativeCursorTarget(target: Element | null) {
   return Boolean(
     target?.closest(
-      "input, textarea, select, [contenteditable=\"true\"], [data-native-cursor], [role=\"textbox\"], [role=\"dialog\"]",
+      "input, textarea, select, [contenteditable=\"true\"], [data-native-cursor], [role=\"textbox\"]",
     ),
   );
+}
+
+function cursorIntentForTarget(target: Element | null): CursorIntent {
+  const action = target?.closest<HTMLElement>("button, a[href], summary, [role=\"button\"]");
+  if (action?.matches(":disabled, [aria-disabled=\"true\"]")) return "default";
+
+  const explicit = target?.closest<HTMLElement>("[data-cursor]");
+  const next = explicit?.dataset.cursor;
+  if (next === "enter" || next === "sealed" || next === "verify") return next;
+  return action ? "enter" : "default";
 }
 
 /** Product-wide pointer language for fine pointers; touch and forms keep native behavior. */
@@ -27,23 +37,16 @@ export function UnveilCursor() {
 
   useEffect(() => {
     const finePointer = window.matchMedia("(pointer: fine)");
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const queryReducedMotion = () => new URLSearchParams(window.location.search).get("motionReduce") === "1";
 
-    const updateEnabled = () => setEnabled(finePointer.matches && !reducedMotion.matches && !queryReducedMotion());
+    const updateEnabled = () => setEnabled(finePointer.matches);
     updateEnabled();
     finePointer.addEventListener("change", updateEnabled);
-    reducedMotion.addEventListener("change", updateEnabled);
-    return () => {
-      finePointer.removeEventListener("change", updateEnabled);
-      reducedMotion.removeEventListener("change", updateEnabled);
-    };
+    return () => finePointer.removeEventListener("change", updateEnabled);
   }, []);
 
   useEffect(() => {
     if (!enabled) return;
     let frame = 0;
-    let dialogOpen = Boolean(document.querySelector('[role="dialog"]'));
 
     const resetMagnetic = () => {
       magneticRef.current?.style.removeProperty("--magnet-x");
@@ -58,7 +61,7 @@ export function UnveilCursor() {
     };
 
     const move = (event: PointerEvent) => {
-      if (dialogOpen || isNativeCursorTarget(event.target as Element | null)) {
+      if (isNativeCursorTarget(event.target as Element | null)) {
         setNextIntent("default");
         resetMagnetic();
       } else {
@@ -68,9 +71,7 @@ export function UnveilCursor() {
             ref.current?.style.setProperty("transform", `translate3d(${event.clientX}px, ${event.clientY}px, 0)`);
           });
         }
-        const target = (event.target as Element | null)?.closest<HTMLElement>("[data-cursor]");
-        const next = target?.dataset.cursor;
-        setNextIntent(next === "enter" || next === "sealed" || next === "verify" ? next : "default");
+        setNextIntent(cursorIntentForTarget(event.target as Element | null));
 
         const magnetic = (event.target as Element | null)?.closest<HTMLElement>(".button-primary");
         if (magnetic) {
@@ -89,29 +90,15 @@ export function UnveilCursor() {
       setNextIntent("default");
       resetMagnetic();
     };
-    const observeDialog = () => {
-      const next = Boolean(document.querySelector('[role="dialog"]'));
-      if (next === dialogOpen) return;
-      dialogOpen = next;
-      document.documentElement.dataset.unveilCursor = dialogOpen ? "paused" : "active";
-      if (dialogOpen) {
-        setNextIntent("default");
-        resetMagnetic();
-      }
-    };
 
-    document.documentElement.dataset.unveilCursor = dialogOpen ? "paused" : "active";
+    document.documentElement.dataset.unveilCursor = "active";
     document.addEventListener("pointermove", move, { passive: true });
     window.addEventListener("blur", onWindowBlur);
-    const observer = new MutationObserver(observeDialog);
-    observer.observe(document.body, { childList: true, subtree: true });
-    observeDialog();
 
     return () => {
       window.cancelAnimationFrame(frame);
       document.removeEventListener("pointermove", move);
       window.removeEventListener("blur", onWindowBlur);
-      observer.disconnect();
       resetMagnetic();
       delete document.documentElement.dataset.unveilCursor;
     };
