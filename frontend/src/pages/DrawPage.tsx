@@ -404,7 +404,6 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
           {(personalWinSignal || (unveil.connected && myDeliveredPrizeSlots.length > 0)) && (
             <div
               className={`draw-machine-reward ${personalWinSignal ? "has-win" : "vault-only"}`}
-              data-tour="draw-prize"
             >
               {personalWinSignal && (
                 <div className="draw-personal-win" role="status">
@@ -428,6 +427,7 @@ export function DrawPage({ unveil }: { unveil: UnveilV4Controller }) {
                   aria-haspopup="dialog"
                   aria-controls="draw-prize-vault-dialog"
                   data-cursor="enter"
+                  data-tour="prize-vault"
                 >
                   <span className="draw-prize-vault__present" aria-hidden="true">
                     <svg viewBox="0 0 64 72" focusable="false">

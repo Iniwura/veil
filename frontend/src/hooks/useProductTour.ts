@@ -67,7 +67,7 @@ export const PRODUCT_TOUR_STEPS = [
     copy: "The finalized winner is public and verifiable. The participants' financial positions remain private.",
   },
   {
-    target: "draw-prize",
+    target: "prize-vault",
     route: "/app/draw",
     title: "AUTOMATIC PRIVATE PRIZE",
     copy: "A finalized winner receives confidential strategy shares automatically. There is no separate claim or authorize transaction.",
@@ -98,7 +98,7 @@ const TARGET_SELECTORS: Record<string, string> = {
   "draw-current": '[data-tour="draw-current"], .draw-current-composition',
   "draw-advance": '[data-tour="draw-advance"], .draw-advance-panel',
   "draw-result": '[data-tour="draw-result"], .draw-latest-result',
-  "draw-prize": '[data-tour="draw-prize"], .draw-machine-reward, .draw-latest-result',
+  "prize-vault": '[data-tour="prize-vault"]',
 };
 
 function completed() {
