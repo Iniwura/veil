@@ -47,12 +47,15 @@ jobs:
           attempts=3
           for attempt in $(seq 1 "$attempts"); do
             echo "Keeper attempt $attempt/$attempts"
-            if timeout --signal=TERM 4m npm run keeper:v4:sepolia; then
-              exit 0
-            fi
 
+            set +e
+            timeout --signal=TERM 4m npm run keeper:v4:sepolia
             status=$?
-            if [ "$status" -eq 124 ]; then
+            set -e
+
+            if [ "$status" -eq 0 ]; then
+              exit 0
+            elif [ "$status" -eq 124 ] || [ "$status" -eq 143 ]; then
               echo "Keeper attempt $attempt timed out after 4 minutes."
             else
               echo "Keeper attempt $attempt exited with status $status."
