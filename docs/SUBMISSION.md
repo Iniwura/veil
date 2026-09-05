@@ -1,20 +1,20 @@
-# VEIL — Season 4 Submission Kit
+# UNVEIL — Release candidate submission kit
 
 ## One-line pitch
 
-VEIL is a private prize-savings protocol on Ethereum that uses Zama FHE to keep balances, draw weights, and prize values encrypted while still producing a publicly verifiable winner.
+UNVEIL is a private prize-savings testnet build on Ethereum that uses Zama FHE to keep balances, draw weights, and prize values encrypted while still producing a publicly verifiable winner.
 
 ## Short description
 
-VEIL turns prize savings into a confidential onchain primitive. Users deposit encrypted amounts into a shared pool. Their balances and winning weights never need to become plaintext onchain. At draw time, VEIL freezes an encrypted snapshot, runs a BlindDraw over ciphertext weights, publicly verifies the selected winner through Zama's decryption proof flow, routes confidential asset-backed yield into an encrypted prize, and authorizes only that winner to decrypt and claim it.
+UNVEIL turns prize savings into a confidential onchain primitive. Users deposit encrypted amounts into a shared pool. Their balances and winning weights never need to become plaintext onchain. At draw time, UNVEIL freezes an encrypted snapshot, runs a BlindDraw over ciphertext weights, publicly verifies the selected winner through Zama's decryption proof flow, routes simulated ERC-4626 strategy surplus into an encrypted prize, and delivers it automatically to the finalized winner.
 
-The protocol is deployed on Sepolia and has passed a full end-to-end live smoke test covering deposit, private balance decryption, snapshot, BlindDraw, KMS-backed winner finalization, confidential yield allocation, winner-only prize decryption, and claim.
+The V2 protocol is deployed on Sepolia TEST/DEMO and has passed a full end-to-end live smoke test covering confidential deposits, strategy investment, KMS-backed winner finalization, simulated appreciation, automatic confidential prize delivery, and withdrawal rounding recovery. See [`UNVEIL_V2_LIVE_RESULT.md`](UNVEIL_V2_LIVE_RESULT.md).
 
 ## Why FHE is necessary
 
 Without FHE, a weighted onchain prize system usually exposes the values that determine a participant's odds. That leaks balances, deposit sizes, and financial behavior.
 
-VEIL uses FHE because the protocol must be able to:
+UNVEIL uses FHE because the protocol must be able to:
 
 - add and update balances while encrypted;
 - freeze encrypted round weights;
@@ -26,103 +26,53 @@ This is not cosmetic encryption around a public computation. The sensitive value
 
 ## What judges should verify
 
-1. `VeilPool.sol` stores confidential user balances and encrypted draw weights.
+1. `VeilPoolV2.sol` stores confidential user balances and encrypted draw weights.
 2. Round snapshots freeze encrypted participant state before selection.
 3. BlindDraw operates over ciphertexts rather than plaintext balances.
 4. Winner finalization requires the public FHE decryption proof.
 5. Yield and prize accounting remain confidential.
-6. `VeilPrizeVault` grants prize decryption rights only to the finalized winner.
+6. `VeilPrizeVaultV2` grants prize decryption rights only to the finalized winner.
 7. The frontend encrypts inputs client-side using the Zama Relayer SDK.
 8. The repository includes a successful live Sepolia end-to-end smoke record.
 
 ## Live evidence
 
-Sepolia deployment:
+The canonical V2 address table is in [`README.md`](../README.md). The pinned
+contract source SHA is `1b959b756c8bec732b4613eb8433322e0062a861` and the
+offchain smoke/test SHA is `24018fda961400a1f5ea344373d90bec2ba83c2a`.
 
-- Demo confidential asset: `0x2a267e64bb8B460EEFF9bA25e51b8D9431A00125`
-- VeilPool: `0x523b515A6e3fCB19737dF45243616c36564fD62f`
-- VeilYieldSource: `0x752c132D7E6d45F7dA71D7Fe00F4afde22eAc7b3`
-- VeilPrizeVault: `0x217a64703DfBfC92A52a81cBfF0d86078dc84aF8`
+The full preserved result is [`UNVEIL_V2_LIVE_RESULT.md`](UNVEIL_V2_LIVE_RESULT.md):
+Round 1 finalized with Alice as the verified winner, 37 confidential strategy
+shares were delivered automatically, and the withdrawal rounding recovery
+completed with Alice at 0/0 and Bob at 100/0.
 
-Observed smoke result on 21 August 2026:
+## Three-minute demo script
 
-- Round: `1`
-- Winner: `0xcC427b61573EEE146fc735159292f06E13bc8B80`
-- Confidential prize: `15 encrypted token units`
-- End-to-end result: `PASS`
-
-See `docs/SEPOLIA_SMOKE_RESULT.md` for the recorded execution evidence.
-
-## 90-second demo script
-
-### 0:00–0:12 — Problem
-
-"Prize savings are naturally weighted by how much users save, but putting those weights onchain exposes balances and financial behavior. VEIL keeps the values private without giving up verifiability."
-
-### 0:12–0:28 — Product
-
-Show the landing page and enter the dashboard.
-
-"VEIL is a confidential prize-savings pool built with Zama FHE. Balances, weights, withdrawals, and prizes stay encrypted."
-
-### 0:28–0:48 — Private user position
-
-Connect a Sepolia wallet. Show deposit and private balance reveal.
-
-"The amount is encrypted in the browser before submission. The chain receives ciphertext. My balance can be decrypted only for my wallet session."
-
-### 0:48–1:05 — Blind draw
-
-Show the round lifecycle and encrypted pool visualization.
-
-"At draw time, VEIL freezes encrypted weights and performs BlindDraw over ciphertexts. No plaintext odds are published."
-
-### 1:05–1:20 — Verifiable outcome
-
-Scroll to the Live Sepolia Proof section.
-
-"Privacy does not make the result unverifiable. The selected winner is finalized using Zama's public decryption proof flow. This is the real Round 1 Sepolia result."
-
-### 1:20–1:30 — Prize privacy
-
-Show winner/prize proof card.
-
-"Yield is allocated as an encrypted prize, and only the finalized winner receives permission to decrypt and claim it. Private values, public proof. That's VEIL."
-
-## Longer demo flow
-
-For a 2–3 minute recording:
-
-1. Landing page and thesis.
-2. Connect MetaMask/Rabby on Sepolia.
-3. Explain automatic network switching.
-4. Deposit a small demo amount.
-5. Reveal private balance and explain user decryption signature.
-6. Show that the public dashboard displays participant count, not balances.
-7. Explain snapshot and BlindDraw lifecycle.
-8. Show Live Sepolia Proof for Round 1.
-9. Open the pool/winner in Etherscan from the UI.
-10. End on the privacy model: values private, lifecycle and winner verifiable.
+Use [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). It covers the landing pitch, privacy
+model, private save flow, BlindDraw and public proof, My Vault signature reveal,
+automatic prize delivery, simulated strategy disclosure, live contract
+evidence, and the required shot list. It is designed around the existing
+finalized Round 1 result and does not require creating a new live round.
 
 ## Submission form copy
 
 ### Project name
 
-VEIL
+UNVEIL
 
 ### Tagline
 
-Private prize savings. Blind selection. Verifiable winners.
+Save privately. Win verifiably.
 
 ### Description
 
-VEIL is a confidential prize-savings protocol on Ethereum built with Zama FHE. Users deposit encrypted amounts into a shared pool while balances and winning weights remain private. VEIL freezes encrypted round snapshots, performs weighted BlindDraw over ciphertexts, verifies the final winner using Zama's public decryption proof flow, routes confidential asset-backed yield into an encrypted prize, and lets only the finalized winner decrypt and claim it.
+UNVEIL is a confidential prize-savings testnet build on Ethereum built with Zama FHE. Users deposit encrypted amounts into a shared pool while balances and winning weights remain private. UNVEIL freezes encrypted round snapshots, performs weighted BlindDraw over ciphertexts, verifies the final winner using Zama's public decryption proof flow, and delivers simulated strategy surplus as an encrypted prize to the winner automatically.
 
-The full protocol is deployed on Sepolia and has passed a live end-to-end smoke test from encrypted deposit through confidential prize claim. The React frontend uses the Zama Relayer SDK for client-side encryption and private user decryption.
+The V2 stack is deployed on Sepolia TEST/DEMO and has passed a live smoke test from confidential deposits through automatic prize delivery and withdrawal recovery. The React frontend uses the Zama Relayer SDK for client-side encryption and private user decryption.
 
 ### Key innovation
 
-VEIL demonstrates a full privacy-preserving financial loop rather than a single encrypted variable: confidential principal, encrypted draw weights, snapshot-based selection, publicly proven winner finalization, confidential yield, winner-specific ACLs, and encrypted prize claims all compose in one application.
+UNVEIL demonstrates a full privacy-preserving financial loop rather than a single encrypted variable: confidential principal, encrypted draw weights, snapshot-based selection, publicly proven winner finalization, simulated ERC-4626 strategy accounting, winner-specific ACLs, and automatic encrypted prize delivery all compose in one application.
 
 ### Technology
 
@@ -161,8 +111,8 @@ During recording:
 - [x] Confidential yield source
 - [x] Encrypted prize vault
 - [x] Winner-only prize decryption
-- [x] Sepolia deployment
-- [x] Live end-to-end smoke test
+- [x] V2 Sepolia TEST/DEMO deployment
+- [x] V2 live end-to-end smoke test
 - [x] React frontend
 - [x] Relayer SDK integration
 - [x] Responsive demo UI
@@ -176,8 +126,8 @@ During recording:
 
 ## Claims to avoid
 
-Do not describe VEIL as fully anonymous or fully private. The current implementation intentionally leaves participant addresses, transaction timing, membership, round state, final winner, and claim occurrence public.
+Do not describe UNVEIL as anonymous or fully private. The current implementation intentionally leaves participant addresses, transaction timing, membership, round state, final winner, and prize-processing occurrence public.
 
-Do not describe the deployed yield source as a production yield protocol. It is the confidential accounting layer used for the competition testnet build and demonstrates the intended architecture.
+Do not describe the deployed strategy as real market yield. It is a simulated ERC-4626 accounting route used for the competition testnet build and demonstrates the intended architecture.
 
-Do not claim a professional security audit. Automated tests and CI are extensive, but the contracts have not received an independent production audit.
+Do not claim an independent professional security audit. Automated tests and CI are extensive, but the contracts have not received that review.

@@ -1,11 +1,27 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
+const DEFAULT_DRAW_PERIOD_SECONDS = 24 * 60 * 60;
+const SEPOLIA_DRAW_PERIOD_SECONDS = 15 * 60;
+
+export function drawPeriodForDeployment(isSepolia: boolean): number {
+  const configured = process.env.VEIL_DRAW_PERIOD_SECONDS?.trim();
+  if (!configured) return isSepolia ? SEPOLIA_DRAW_PERIOD_SECONDS : DEFAULT_DRAW_PERIOD_SECONDS;
+
+  const parsed = Number(configured);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error("VEIL_DRAW_PERIOD_SECONDS must be a positive integer number of seconds");
+  }
+
+  return parsed;
+}
+
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
   const { deploy, execute, get } = hre.deployments;
 
   const isSepolia = hre.network.config.chainId === 11155111;
+  const drawPeriod = drawPeriodForDeployment(isSepolia);
   const configuredAsset = process.env.VEIL_ASSET_ADDRESS?.trim();
   const deployDemoAsset = process.env.VEIL_DEPLOY_DEMO_ASSET === "true";
 
@@ -27,7 +43,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const pool = await deploy("VeilPool", {
     from: deployer,
-    args: [assetAddress],
+    args: [assetAddress, drawPeriod],
     log: true,
   });
 
@@ -56,6 +72,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log("VEIL deployment");
   console.log(`  asset:       ${assetAddress}`);
   console.log(`  pool:        ${pool.address}`);
+  console.log(`  draw period: ${drawPeriod} seconds`);
   console.log(`  yieldSource: ${yieldSource.address}`);
   console.log(`  prizeVault:  ${prizeVault.address}`);
   if (!configuredAsset) {

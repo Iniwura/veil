@@ -126,6 +126,16 @@ async function main() {
 
   console.log("4/10 Snapshotting the encrypted pool...");
   const roundId = await pool.nextRoundId();
+  const schedule = await pool.getDrawSchedule();
+  if (!schedule.ready) {
+    if (schedule.insufficientParticipants) {
+      throw new Error(
+        `Draw ${roundId} closed with fewer than two eligible participants; call cancelInsufficientRound() to mark it SKIPPED. Skipped rounds have no encrypted winner handle.`,
+      );
+    }
+    throw new Error(`Draw ${roundId} is not ready. Its window closes at Unix timestamp ${schedule.closesAt}.`);
+  }
+  console.log(`  unsettled rounds before snapshot: ${schedule.unsettledRounds}`);
   await (await pool.snapshotRound()).wait();
 
   console.log(`5/10 Running BlindDraw for round ${roundId}...`);

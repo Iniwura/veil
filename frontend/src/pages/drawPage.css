@@ -1,0 +1,2022 @@
+/* Draw route: one operational public surface, with personal prize data kept
+   in a separate compact ledger. */
+.draw-page--simplified {
+  gap: clamp(16px, 2vw, 24px);
+}
+
+.draw-page--simplified .draw-simple-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 4px 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.draw-page--simplified .draw-simple-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.draw-page--simplified .draw-simple-meta span:first-child {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-simple-header p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.draw-page--simplified .draw-simple-notice {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 10px 0;
+  border-width: 1px 0;
+  background: transparent;
+}
+
+.draw-page--simplified .draw-current-composition {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 462px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-deep);
+}
+
+.draw-page--simplified .draw-current-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(340px, 1.08fr);
+  align-items: end;
+  gap: 0 36px;
+  padding: 25px 0 15px;
+}
+
+.draw-page--simplified .draw-round-lockup {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  min-height: 112px;
+  width: max-content;
+  max-width: 100%;
+  padding-right: 36px;
+  border-right: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-round-lockup::after {
+  position: absolute;
+  right: -178px;
+  bottom: 8px;
+  width: 178px;
+  height: 1px;
+  background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  content: "";
+  opacity: 0.52;
+}
+
+.draw-page--simplified .draw-round-lockup > span {
+  padding-bottom: 11px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+.draw-page--simplified .draw-round-lockup strong {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(78px, 9.8vw, 142px);
+  font-variation-settings: "opsz" 80, "wdth" 82, "wght" 720;
+  letter-spacing: -0.09em;
+  line-height: 0.66;
+}
+
+.draw-page--simplified .draw-state-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 12px;
+}
+
+.draw-page--simplified .draw-public-stage {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.draw-page--simplified .draw-public-stage--keeper-settling,
+.draw-page--simplified .draw-public-stage--ready,
+.draw-page--simplified .draw-public-stage--closed {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-state-line small {
+  color: var(--text-quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-public-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 20px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-public-facts > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.draw-page--simplified .draw-public-facts span,
+.draw-page--simplified .draw-next-step > span,
+.draw-page--simplified .draw-section-heading > span,
+.draw-page--simplified .draw-prize-row span,
+.draw-page--simplified .draw-result-status {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.draw-page--simplified .draw-public-facts strong {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-next-step {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 5px;
+  align-self: stretch;
+  max-width: 410px;
+  margin-top: 12px;
+  padding: 12px 0 0 14px;
+  border-top: 1px solid var(--border-soft);
+  border-left: 1px solid color-mix(in srgb, var(--signal) 60%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-deep) 78%, transparent);
+}
+
+.draw-page--simplified .draw-next-step strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.draw-page--simplified .draw-next-step p {
+  max-width: 560px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-page--simplified .draw-prize-lanes {
+  position: relative;
+  z-index: 3;
+  grid-column: 2;
+  display: grid;
+  align-self: end;
+  gap: 0;
+  width: calc(100% + 120px);
+  margin: 16px 0 0 -120px;
+  padding-left: 120px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-prize-lane {
+  display: grid;
+  grid-template-columns: 92px minmax(50px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-prize-lane__label {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.draw-page--simplified .draw-prize-lane__label span,
+.draw-page--simplified .draw-prize-lane__label small,
+.draw-page--simplified .draw-prize-lane > strong {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-prize-lane__label small {
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.draw-page--simplified .draw-prize-lane__rule {
+  position: relative;
+  height: 1px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+
+.draw-page--simplified .draw-prize-lane__rule i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 22%;
+  background: var(--text-muted);
+  content: "";
+  opacity: 0.25;
+}
+
+.draw-page--simplified .draw-prize-lane.is-active {
+  border-bottom-color: color-mix(in srgb, var(--signal) 65%, var(--border-soft));
+}
+
+.draw-page--simplified .draw-prize-lane.is-active .draw-prize-lane__label span,
+.draw-page--simplified .draw-prize-lane.is-active > strong {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-prize-lane.is-active .draw-prize-lane__rule {
+  background: color-mix(in srgb, var(--signal) 25%, var(--border-soft));
+}
+
+.draw-page--simplified .draw-prize-lane.is-active .draw-prize-lane__rule i {
+  width: 45%;
+  background: var(--signal);
+  opacity: 0.72;
+  animation: draw-lane-signal 2.8s ease-in-out infinite;
+}
+
+.draw-page--simplified .draw-advance-panel {
+  position: relative;
+  z-index: 3;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 24px;
+  margin-top: 14px;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  opacity: 0.82;
+}
+
+.draw-page--simplified .draw-advance-heading,
+.draw-page--simplified .draw-advance-description,
+.draw-page--simplified .draw-advance-note {
+  display: none;
+}
+
+.draw-page--simplified .draw-advance-panel .draw-lifecycle-rail {
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding: 0;
+  border-top: 0;
+}
+
+.draw-page--simplified .draw-lifecycle-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+}
+
+.draw-page--simplified .draw-lifecycle-step,
+.draw-page--simplified .draw-lifecycle-step--active {
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 0;
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
+}
+
+.draw-page--simplified .draw-lifecycle-step + .draw-lifecycle-step {
+  padding-left: 12px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-lifecycle-step strong {
+  color: var(--text-quiet);
+  font-size: 8px;
+  letter-spacing: 0.09em;
+}
+
+.draw-page--simplified .draw-lifecycle-step small {
+  display: none;
+}
+
+.draw-page--simplified .draw-lifecycle-mark {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--text-quiet);
+  background: transparent;
+}
+
+.draw-page--simplified .draw-lifecycle-step--complete strong,
+.draw-page--simplified .draw-lifecycle-step--complete .draw-lifecycle-mark {
+  color: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+.draw-page--simplified .draw-lifecycle-step--active {
+  border-top-color: var(--signal);
+}
+
+.draw-page--simplified .draw-lifecycle-step--active strong {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-lifecycle-step--active .draw-lifecycle-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
+.draw-page--simplified .draw-lifecycle-branch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-top: 8px;
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.draw-page--simplified .draw-lifecycle-branch strong {
+  color: var(--signal);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.draw-page--simplified .draw-advance-keeper-state,
+.draw-page--simplified .draw-advance-warning {
+  grid-column: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-advance-button {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 14px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  font-size: 9px;
+  letter-spacing: 0.09em;
+}
+
+.draw-page--simplified .draw-advance-button:hover:not(:disabled) {
+  color: var(--bg);
+  border-color: var(--text);
+  background: var(--text);
+}
+
+.draw-page--simplified .draw-advance-button:focus-visible,
+.draw-page--simplified .draw-prize-action:focus-visible,
+.draw-page--simplified .draw-verify-action:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: 4px;
+}
+
+.draw-page--simplified .draw-shard-rotor {
+  position: absolute;
+  z-index: 0;
+  top: -40px;
+  right: -64px;
+  width: min(46vw, 600px);
+  color: var(--text-muted);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.draw-page--simplified .draw-shard-rotor svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.draw-page--simplified .draw-shard-rotor__assembly {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: draw-rotor-turn 48s linear infinite;
+}
+
+.draw-page--simplified .draw-shard-rotor__inner {
+  opacity: 0.34;
+}
+
+.draw-page--simplified .draw-shard-rotor__outer {
+  opacity: 0.98;
+  stroke-width: 1.45;
+}
+
+.draw-page--simplified .draw-shard-rotor__middle {
+  opacity: 0.42;
+}
+
+.draw-page--simplified .draw-shard-rotor__hub {
+  opacity: 0.82;
+  stroke-width: 1.35;
+}
+
+.draw-page--simplified .draw-shard-rotor__hub-core {
+  color: var(--text);
+  opacity: 0.5;
+}
+
+.draw-page--simplified .draw-shard-rotor__spokes {
+  opacity: 0.64;
+}
+
+.draw-page--simplified .draw-shard-rotor__sector--selected {
+  color: var(--signal);
+  opacity: 0.92;
+  stroke-width: 1.8;
+}
+
+.draw-page--simplified .draw-shard-rotor__pointer {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.draw-page--simplified .draw-shard-rotor__seam {
+  color: var(--signal);
+  opacity: 0.18;
+}
+
+.draw-page--simplified .draw-shard-rotor__exit {
+  color: var(--signal);
+  opacity: 0.08;
+}
+
+.draw-page--simplified .draw-shard-rotor--wait .draw-shard-rotor__assembly {
+  animation-duration: 72s;
+}
+
+.draw-page--simplified .draw-shard-rotor--verify .draw-shard-rotor__assembly {
+  animation-duration: 90s;
+}
+
+.draw-page--simplified .draw-shard-rotor--snapshot .draw-shard-rotor__inner {
+  animation: draw-rotor-tighten 4.2s ease-in-out infinite;
+}
+
+.draw-page--simplified .draw-shard-rotor--blind_draw .draw-shard-rotor__assembly {
+  animation: draw-rotor-blind 18s ease-in-out infinite alternate;
+}
+
+.draw-page--simplified .draw-shard-rotor--verify .draw-shard-rotor__pointer {
+  color: var(--signal);
+  opacity: 0.9;
+}
+
+.draw-page--simplified .draw-shard-rotor--verify .draw-shard-rotor__seam {
+  opacity: 0.88;
+  animation: draw-proof-sweep 3.6s ease-in-out infinite;
+}
+
+.draw-page--simplified .draw-shard-rotor--deliver .draw-shard-rotor__assembly {
+  animation-play-state: paused;
+}
+
+.draw-page--simplified .draw-shard-rotor--deliver .draw-shard-rotor__exit {
+  opacity: 0.76;
+  animation: draw-deliver-exit 3.8s ease-in-out infinite;
+}
+
+.draw-page--simplified .draw-rotor-operation {
+  position: absolute;
+  z-index: 4;
+  top: 82px;
+  right: clamp(180px, 19vw, 290px);
+  display: grid;
+  gap: 4px;
+  width: 142px;
+  padding: 8px 0 8px 12px;
+  border-left: 1px solid color-mix(in srgb, var(--signal) 68%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-deep) 84%, transparent);
+}
+
+.draw-page--simplified .draw-rotor-operation span,
+.draw-page--simplified .draw-rotor-operation small {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-rotor-operation strong {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.draw-page--simplified .draw-rotor-operation small {
+  color: var(--signal);
+}
+
+@keyframes draw-rotor-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes draw-rotor-blind {
+  0% {
+    transform: rotate(-4deg);
+  }
+
+  100% {
+    transform: rotate(356deg);
+  }
+}
+
+@keyframes draw-proof-sweep {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: rotate(-18deg);
+    transform-origin: 300px 300px;
+  }
+
+  45%,
+  70% {
+    opacity: 0.92;
+    transform: rotate(22deg);
+    transform-origin: 300px 300px;
+  }
+}
+
+@keyframes draw-deliver-exit {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: translateX(-14px);
+  }
+
+  55% {
+    opacity: 0.8;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes draw-win-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes draw-shard-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 transparent;
+  }
+
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--signal) 45%, transparent);
+  }
+}
+
+@keyframes draw-prize-seam {
+  from {
+    transform: translateX(-140%);
+  }
+
+  to {
+    transform: translateX(720%);
+  }
+}
+
+@keyframes draw-lane-signal {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.48;
+  }
+
+  50% {
+    transform: translateX(80%);
+    opacity: 0.9;
+  }
+}
+
+@keyframes draw-vault-latch {
+  0% {
+    opacity: 0.32;
+    transform: translateX(0);
+  }
+
+  40% {
+    opacity: 0.9;
+    transform: translateX(3px);
+  }
+
+  100% {
+    opacity: 0.44;
+    transform: translateX(0);
+  }
+}
+
+@keyframes draw-vault-seam {
+  0% {
+    opacity: 0.22;
+    transform: scaleX(0.25);
+  }
+
+  45% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0.45;
+    transform: scaleX(0.6);
+  }
+}
+
+@keyframes draw-rotor-tighten {
+  0%,
+  100% {
+    opacity: 0.56;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.draw-page--simplified .draw-personal-win {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px 18px;
+  min-height: 56px;
+  padding: 0 16px 0 14px;
+  border-left: 1px solid color-mix(in srgb, var(--signal) 65%, var(--border));
+  border-bottom: 1px solid var(--border-soft);
+  animation: draw-win-enter 560ms cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+
+.draw-page--simplified .draw-personal-win > div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.draw-page--simplified .draw-personal-win strong {
+  color: var(--signal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-personal-win > div span,
+.draw-page--simplified .draw-personal-win > small,
+.draw-page--simplified .draw-verify-action {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+}
+
+.draw-page--simplified .draw-personal-win > small {
+  color: var(--text-quiet);
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-personal-win > i {
+  color: var(--signal);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-verify-action:hover {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-prize-vault {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 6px 16px;
+  width: min(100%, 236px);
+  min-height: 142px;
+  margin-left: auto;
+  padding: 15px 16px 13px 22px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface-deep);
+  text-align: left;
+  overflow: hidden;
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+
+.draw-page--simplified .draw-prize-vault::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--signal);
+  content: "";
+  opacity: 0.5;
+}
+
+.draw-page--simplified .draw-prize-vault > i {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--signal);
+  background: transparent;
+  content: "";
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+
+.draw-page--simplified .draw-prize-vault:hover,
+.draw-page--simplified .draw-prize-vault:focus-visible {
+  color: var(--text);
+  border-color: var(--text-muted);
+  background: color-mix(in srgb, var(--text) 4%, var(--surface-deep));
+}
+
+.draw-page--simplified .draw-prize-vault:hover::before,
+.draw-page--simplified .draw-prize-vault:focus-visible::before {
+  opacity: 0.95;
+}
+
+.draw-page--simplified .draw-prize-vault:hover > i,
+.draw-page--simplified .draw-prize-vault:focus-visible > i {
+  opacity: 0.9;
+  transform: translate(2px, -50%);
+}
+
+.draw-page--simplified .draw-prize-vault:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: 4px;
+}
+
+.draw-page--simplified .draw-prize-vault__label,
+.draw-page--simplified .draw-prize-vault small {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.draw-page--simplified .draw-prize-vault__label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.draw-page--simplified .draw-prize-vault strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 58px;
+  font-variation-settings: "opsz" 52, "wdth" 82, "wght" 680;
+  letter-spacing: -0.08em;
+  line-height: 0.8;
+}
+
+.draw-page--simplified .draw-prize-vault small {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.draw-page--simplified .draw-prize-vault__open {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  justify-self: start;
+  padding-top: 8px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-soft);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-prize-vault:hover .draw-prize-vault__open {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-prize-vault.is-pulsing::before {
+  animation: draw-vault-latch 900ms cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+
+.draw-page--simplified .draw-machine-reward {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 236px;
+  align-items: stretch;
+  gap: 18px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-machine-reward.vault-only {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.draw-page--simplified .draw-prize-vault.is-pulsing > i {
+  animation: draw-vault-seam 900ms cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+
+.draw-prize-vault-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 82%);
+}
+
+.draw-prize-vault-dialog {
+  width: min(760px, 100%);
+  max-height: min(82vh, 720px);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--bg);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 42%);
+  overflow: auto;
+}
+
+.draw-prize-vault-dialog__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px 19px;
+  border-bottom: 1px solid var(--border);
+}
+
+.draw-prize-vault-dialog__heading h2 {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(28px, 4vw, 46px);
+  font-variation-settings: "opsz" 60, "wdth" 84, "wght" 680;
+  letter-spacing: -0.06em;
+  line-height: 0.88;
+}
+
+.draw-prize-vault-dialog__count {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.draw-prize-vault-dialog__count strong {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 46px;
+  font-variation-settings: "opsz" 56, "wdth" 82, "wght" 680;
+  letter-spacing: -0.08em;
+  line-height: 0.78;
+}
+
+.draw-prize-vault-dialog__count span {
+  color: var(--signal);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.draw-prize-vault-dialog__heading p {
+  max-width: 470px;
+  margin: 11px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-prize-vault-dialog__close {
+  flex: 0 0 auto;
+  padding: 6px 0;
+  color: var(--text-muted);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-prize-vault-dialog__close:hover:not(:disabled) {
+  color: var(--text);
+  border-bottom-color: var(--signal);
+}
+
+.draw-prize-vault-dialog__close:focus-visible,
+.draw-prize-vault-dialog .draw-prize-action:focus-visible,
+.draw-prize-vault-dialog .action-notice-dismiss:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: 4px;
+}
+
+.draw-prize-vault-dialog .draw-prize-list {
+  padding: 0 24px 16px;
+}
+
+.draw-prize-vault-dialog .draw-prize-row {
+  min-height: 74px;
+}
+
+.draw-page--simplified .draw-personal-prizes,
+.draw-page--simplified .draw-latest-result,
+.draw-page--simplified .draw-past-draws {
+  border-top: 1px solid var(--border);
+}
+
+.draw-page--simplified .draw-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 0 12px;
+}
+
+.draw-page--simplified .draw-section-heading h2 {
+  margin: 7px 0 0;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(24px, 3vw, 40px);
+  font-variation-settings: "opsz" 56, "wdth" 88, "wght" 680;
+  letter-spacing: -0.05em;
+  line-height: 0.86;
+}
+
+.draw-page--simplified .draw-section-note {
+  max-width: 560px;
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-page--simplified .draw-prize-list {
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-prize-row {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.55fr) minmax(170px, 1.3fr) minmax(190px, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 68px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.draw-page--simplified .draw-prize-row:hover {
+  border-bottom-color: var(--border);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
+
+.draw-page--simplified .draw-prize-row > div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.draw-page--simplified .draw-prize-row strong {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-prize-slot {
+  position: relative;
+  padding-left: 14px;
+}
+
+.draw-page--simplified .draw-prize-slot::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--text-quiet);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.draw-page--simplified .draw-prize-row:hover .draw-prize-slot::before {
+  border-color: var(--signal);
+  animation: draw-shard-pulse 900ms ease-in-out infinite;
+}
+
+.draw-page--simplified .draw-prize-round strong {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+}
+
+.draw-page--simplified .draw-prize-private > span {
+  color: var(--text-muted);
+}
+
+.draw-page--simplified .draw-prize-row.revealed .draw-prize-private > span {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-prize-value-sealed {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 112px;
+  min-height: 16px;
+  overflow: hidden;
+}
+
+.draw-page--simplified .draw-prize-value-sealed::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 18px;
+  background: var(--signal);
+  content: "";
+  opacity: 0;
+  transform: translateX(-140%);
+}
+
+.draw-page--simplified .draw-prize-value-sealed i {
+  display: block;
+  width: var(--segment-width);
+  height: 2px;
+  background: color-mix(in srgb, var(--text-muted) 55%, var(--signal));
+  opacity: 0.52;
+}
+
+.draw-page--simplified .draw-prize-value-sealed.is-busy i {
+  background: var(--signal);
+  opacity: 0.72;
+}
+
+.draw-page--simplified .draw-prize-value-sealed.is-busy::after {
+  opacity: 0.42;
+  animation: draw-prize-seam 760ms cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+
+.draw-page--simplified .draw-prize-value-revealed {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 112px;
+  min-height: 16px;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 24px;
+  letter-spacing: -0.03em;
+}
+
+.draw-page--simplified .draw-prize-value-revealed small {
+  color: var(--text-quiet);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.draw-page--simplified .draw-prize-action {
+  min-width: 94px;
+  padding: 8px 0;
+  color: var(--text-muted);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-align: right;
+}
+
+.draw-page--simplified .draw-prize-action:hover:not(:disabled) {
+  color: var(--text);
+  border-bottom-color: var(--signal);
+}
+
+.draw-page--simplified .draw-prize-action:disabled {
+  color: var(--text-quiet);
+  cursor: not-allowed;
+}
+
+.draw-page--simplified .draw-empty-state {
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-empty-state span {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-page--simplified .draw-empty-state p {
+  max-width: 520px;
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-page--simplified .draw-prize-notice {
+  margin-bottom: 12px;
+  border-width: 1px 0;
+}
+
+.draw-page--simplified .draw-result-status--finalized {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-latest-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.7fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 0 0 17px;
+}
+
+.draw-page--simplified .draw-latest-body p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.draw-page--simplified .draw-winner-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.draw-page--simplified .draw-winner-list span {
+  padding: 7px 14px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-winner-list span:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.draw-page--simplified .draw-verify-action {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-past-draws > .draw-section-heading {
+  padding-bottom: 16px;
+}
+
+.draw-page--simplified .draw-past-draws .round-history {
+  display: grid;
+}
+
+.draw-page--simplified .draw-past-draws .round-row {
+  display: grid;
+  grid-template-columns: minmax(74px, 0.65fr) minmax(100px, 0.8fr) minmax(190px, 1.35fr) minmax(100px, 0.7fr) minmax(120px, 0.85fr) minmax(170px, 1.25fr);
+  align-items: center;
+  gap: 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
+}
+
+.draw-page--simplified .draw-past-draws .round-row:last-of-type {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-past-draws .round-row > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 0;
+}
+
+.draw-page--simplified .draw-past-draws .round-row span {
+  color: var(--text-quiet);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.draw-page--simplified .draw-past-draws .round-row strong,
+.draw-page--simplified .draw-past-draws .round-row a {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-past-draws .round-row-number {
+  display: flex;
+  align-items: baseline;
+  justify-content: start;
+  gap: 8px;
+}
+
+.draw-page--simplified .draw-past-draws .round-row-number strong {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 30px;
+  letter-spacing: -0.05em;
+  line-height: 0.8;
+}
+
+.draw-page--simplified .draw-past-draws .verification-replay-button {
+  justify-self: start;
+  margin-top: 3px;
+  padding: 0;
+  color: var(--text-muted);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.draw-page--simplified .draw-past-draws .verification-replay-button:hover {
+  color: var(--text);
+  border-bottom-color: var(--signal);
+}
+
+.draw-page--simplified .draw-past-draws .verification-replay {
+  grid-column: 1 / -1;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--border-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-page--simplified .draw-prize-vault:hover > i,
+  .draw-page--simplified .draw-prize-vault:focus-visible > i {
+    transform: translateY(-50%);
+  }
+}
+
+/* Matching draw explainer: a quiet public protocol ledger, never a card stack. */
+.draw-works {
+  display: grid;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.draw-works-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.draw-works-heading h2 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.draw-works-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-works-grid article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 108px;
+  padding: 13px 18px 12px 0;
+  border-right: 1px solid var(--border-soft);
+}
+
+.draw-works-grid article + article {
+  padding-left: 18px;
+}
+
+.draw-works-grid article:last-child {
+  border-right: 0;
+}
+
+.draw-works-grid article > span {
+  color: var(--signal);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.draw-works-grid article strong {
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.draw-works-grid article p {
+  max-width: 260px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .draw-works-grid article:hover strong {
+    color: var(--signal);
+  }
+}
+
+@media (max-width: 760px) {
+  .draw-works-heading {
+    display: grid;
+    gap: 7px;
+  }
+
+  .draw-works-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-works-grid article,
+  .draw-works-grid article + article {
+    min-height: 0;
+    padding: 12px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .draw-works-grid article:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-works-grid article {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-page--simplified .draw-shard-rotor__assembly,
+  .draw-page--simplified .draw-shard-rotor--snapshot .draw-shard-rotor__inner,
+  .draw-page--simplified .draw-shard-rotor--verify .draw-shard-rotor__seam,
+  .draw-page--simplified .draw-shard-rotor--deliver .draw-shard-rotor__exit,
+  .draw-page--simplified .draw-prize-lane.is-active .draw-prize-lane__rule i,
+  .draw-page--simplified .draw-prize-row:hover .draw-prize-slot::before,
+  .draw-page--simplified .draw-prize-value-sealed.is-busy::after,
+  .draw-page--simplified .draw-prize-vault.is-pulsing::before,
+  .draw-page--simplified .draw-prize-vault.is-pulsing > i,
+  .draw-page--simplified .draw-personal-win {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .draw-page--simplified .draw-simple-header {
+    align-items: start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .draw-page--simplified .draw-simple-header p {
+    max-width: 520px;
+    text-align: left;
+  }
+
+  .draw-page--simplified .draw-current-content {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .draw-page--simplified .draw-current-composition {
+    min-height: 0;
+  }
+
+  .draw-page--simplified .draw-public-facts,
+  .draw-page--simplified .draw-next-step,
+  .draw-page--simplified .draw-prize-lanes,
+  .draw-page--simplified .draw-advance-panel {
+    grid-column: 1;
+  }
+
+  .draw-page--simplified .draw-shard-rotor {
+    right: -340px;
+    width: 660px;
+    opacity: 0.055;
+  }
+
+  .draw-page--simplified .draw-rotor-operation {
+    top: 66px;
+    right: 22px;
+  }
+
+  .draw-page--simplified .draw-round-lockup::after {
+    right: -88px;
+    width: 88px;
+  }
+
+  .draw-page--simplified .draw-prize-lanes {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+  }
+
+  .draw-page--simplified .draw-prize-vault {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .draw-page--simplified .draw-machine-reward,
+  .draw-page--simplified .draw-machine-reward.has-win {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-page--simplified .draw-machine-reward .draw-prize-vault {
+    width: min(100%, 236px);
+    margin-left: auto;
+  }
+
+  .draw-page--simplified .draw-latest-body {
+    grid-template-columns: 1fr auto;
+  }
+
+  .draw-page--simplified .draw-latest-body p {
+    grid-column: 1 / -1;
+  }
+
+  .draw-page--simplified .draw-past-draws .round-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .draw-page--simplified .draw-past-draws .round-row-number {
+    justify-content: start;
+  }
+}
+
+@media (max-width: 620px) {
+  .draw-prize-vault-backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .draw-prize-vault-dialog {
+    max-height: 88vh;
+  }
+
+  .draw-prize-vault-dialog__heading {
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px 16px 16px;
+  }
+
+  .draw-prize-vault-dialog__close {
+    align-self: start;
+  }
+
+  .draw-prize-vault-dialog .draw-prize-list {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .draw-page--simplified .draw-round-lockup {
+    min-height: 90px;
+  }
+
+  .draw-page--simplified .draw-round-lockup strong {
+    font-size: clamp(70px, 22vw, 108px);
+  }
+
+  .draw-page--simplified .draw-public-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .draw-page--simplified .draw-lifecycle-track {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-page--simplified .draw-lifecycle-step,
+  .draw-page--simplified .draw-lifecycle-step--active,
+  .draw-page--simplified .draw-lifecycle-step + .draw-lifecycle-step {
+    min-height: 30px;
+    padding: 0 0 0 8px;
+    border-top: 0;
+    border-left: 1px solid var(--border-soft);
+  }
+
+  .draw-page--simplified .draw-lifecycle-step--active {
+    border-left-color: var(--signal);
+  }
+
+  .draw-page--simplified .draw-prize-row {
+    grid-template-columns: minmax(70px, 0.6fr) minmax(0, 1fr);
+    gap: 9px 14px;
+  }
+
+  .draw-page--simplified .draw-prize-private,
+  .draw-page--simplified .draw-prize-action {
+    grid-column: 2;
+  }
+
+  .draw-page--simplified .draw-prize-action {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .draw-page--simplified .draw-past-draws .round-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Final live-machine composition: keep the existing protocol data, but let
+   time, the machine, and the present read as one restrained instrument. */
+.draw-page--simplified .draw-current-composition {
+  min-height: 430px;
+}
+
+.draw-page--simplified .draw-current-content {
+  grid-template-columns: minmax(320px, 0.84fr) minmax(360px, 1.16fr);
+  grid-template-rows: auto auto auto auto;
+  align-items: end;
+  padding: 26px 0 15px;
+}
+
+.draw-page--simplified .draw-round-lockup {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.draw-page--simplified .draw-state-line {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: 9px;
+}
+
+.draw-page--simplified .draw-round-progress {
+  position: relative;
+  z-index: 3;
+  grid-column: 1;
+  grid-row: 3;
+  width: min(100%, 520px);
+  margin-top: 21px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-round-progress__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.draw-page--simplified .draw-round-progress__meta strong,
+.draw-page--simplified .draw-round-progress__meta span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.draw-page--simplified .draw-round-progress__meta strong {
+  color: var(--signal);
+}
+
+.draw-page--simplified .draw-round-progress__meta span {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-round-progress__track {
+  height: 2px;
+  margin-top: 9px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.draw-page--simplified .draw-round-progress__track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--signal);
+  transition: width 260ms ease;
+}
+
+.draw-page--simplified .draw-advance-panel {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  align-self: end;
+  margin-top: 18px;
+  padding-top: 8px;
+  opacity: 0.7;
+}
+
+.draw-page--simplified .draw-advance-panel .draw-lifecycle-rail {
+  display: grid;
+  gap: 5px;
+}
+
+.draw-page--simplified .draw-lifecycle-track {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-lifecycle-step,
+.draw-page--simplified .draw-lifecycle-step--active {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 6px;
+  min-height: 23px;
+  padding: 0 10px 0 0;
+  border-top: 0;
+  background: transparent;
+}
+
+.draw-page--simplified .draw-lifecycle-step + .draw-lifecycle-step {
+  padding-left: 10px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-lifecycle-step strong {
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+
+.draw-page--simplified .draw-lifecycle-mark {
+  width: 5px;
+  height: 5px;
+}
+
+.draw-page--simplified .draw-lifecycle-branch {
+  gap: 8px;
+  padding-top: 1px;
+  font-size: 8px;
+}
+
+.draw-page--simplified .draw-machine-reward {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 9px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border-top: 0;
+}
+
+.draw-page--simplified .draw-machine-reward.vault-only {
+  display: flex;
+}
+
+.draw-page--simplified .draw-machine-reward .draw-personal-win {
+  flex: 1 1 auto;
+  align-self: end;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 10px 7px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  border-left: 1px solid color-mix(in srgb, var(--signal) 65%, var(--border));
+  animation: draw-win-enter 560ms cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+
+.draw-page--simplified .draw-machine-reward .draw-personal-win > div {
+  display: grid;
+  gap: 5px;
+}
+
+.draw-page--simplified .draw-machine-reward .draw-personal-win > div span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draw-page--simplified .draw-machine-reward .draw-personal-win > small {
+  display: none;
+}
+
+.draw-page--simplified .draw-machine-reward .draw-personal-win > i {
+  align-self: end;
+}
+
+.draw-page--simplified .draw-prize-vault {
+  flex: 0 0 236px;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 5px 12px;
+  width: 236px;
+  min-height: 148px;
+  margin: 0;
+  padding: 14px 14px 12px 14px;
+  border: 1px solid var(--border);
+  border-left-color: color-mix(in srgb, var(--signal) 70%, var(--border));
+  background: color-mix(in srgb, var(--surface-deep) 88%, transparent);
+}
+
+.draw-page--simplified .draw-prize-vault::before {
+  inset: 0 auto 0 0;
+  width: 2px;
+  opacity: 0.65;
+}
+
+.draw-page--simplified .draw-prize-vault::after {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--border-soft);
+  content: "";
+  pointer-events: none;
+}
+
+.draw-page--simplified .draw-prize-vault__present {
+  position: relative;
+  z-index: 1;
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  display: grid;
+  place-items: center;
+  width: 70px;
+  min-height: 105px;
+  color: var(--text-muted);
+}
+
+.draw-page--simplified .draw-prize-vault__present svg {
+  display: block;
+  width: 64px;
+  height: 72px;
+  overflow: visible;
+}
+
+.draw-page--simplified .draw-prize-vault__present-box,
+.draw-page--simplified .draw-prize-vault__present-lid,
+.draw-page--simplified .draw-prize-vault__present-bow {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.draw-page--simplified .draw-prize-vault__present-ribbon {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1.2;
+  opacity: 0.72;
+}
+
+.draw-page--simplified .draw-prize-vault__present-lid,
+.draw-page--simplified .draw-prize-vault__present-bow {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: transform 220ms cubic-bezier(0.22, 0.8, 0.32, 1), color 180ms ease;
+}
+
+.draw-page--simplified .draw-prize-vault:hover .draw-prize-vault__present-lid,
+.draw-page--simplified .draw-prize-vault:focus-visible .draw-prize-vault__present-lid {
+  transform: translateY(-3px);
+}
+
+.draw-page--simplified .draw-prize-vault:hover .draw-prize-vault__present-bow,
+.draw-page--simplified .draw-prize-vault:focus-visible .draw-prize-vault__present-bow {
+  color: var(--signal);
+  transform: translateY(-2px);
+}
+
+.draw-page--simplified .draw-prize-vault__label,
+.draw-page--simplified .draw-prize-vault small,
+.draw-page--simplified .draw-prize-vault__open {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+}
+
+.draw-page--simplified .draw-prize-vault__label {
+  grid-row: 1;
+}
+
+.draw-page--simplified .draw-prize-vault strong {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 54px;
+}
+
+.draw-page--simplified .draw-prize-vault small {
+  grid-row: 2;
+}
+
+.draw-page--simplified .draw-prize-vault__open {
+  grid-row: 3;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.draw-page--simplified .draw-prize-vault > i {
+  z-index: 2;
+  top: 50%;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  border-color: var(--signal);
+}
+
+.draw-page--simplified .draw-prize-vault:hover > i,
+.draw-page--simplified .draw-prize-vault:focus-visible > i {
+  transform: translate(2px, -50%);
+}
+
+.draw-page--simplified .draw-rotor-operation {
+  top: 80px;
+  right: clamp(154px, 18vw, 270px);
+}
+
+.draw-page--simplified .draw-shard-rotor {
+  top: -40px;
+  right: -64px;
+  width: min(46vw, 600px);
+  opacity: 0.22;
+}
+
+.draw-page--simplified .draw-shard-rotor__outer {
+  opacity: 1;
+  stroke-width: 1.5;
+}
+
+.draw-page--simplified .draw-shard-rotor__middle {
+  opacity: 0.36;
+}
+
+.draw-page--simplified .draw-shard-rotor__inner {
+  opacity: 0.3;
+}
+
+.draw-page--simplified .draw-shard-rotor__spokes {
+  opacity: 0.68;
+}
+
+.draw-page--simplified .draw-shard-rotor__hub {
+  opacity: 0.9;
+}
+
+.draw-page--simplified .draw-shard-rotor__hub-core {
+  opacity: 0.62;
+}
+
+@media (max-width: 900px) {
+  .draw-page--simplified .draw-current-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .draw-page--simplified .draw-round-lockup,
+  .draw-page--simplified .draw-state-line,
+  .draw-page--simplified .draw-round-progress,
+  .draw-page--simplified .draw-advance-panel,
+  .draw-page--simplified .draw-machine-reward {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .draw-page--simplified .draw-machine-reward,
+  .draw-page--simplified .draw-machine-reward.has-win {
+    align-items: stretch;
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .draw-page--simplified .draw-shard-rotor {
+    top: -12px;
+    right: -250px;
+    width: 570px;
+  }
+
+  .draw-page--simplified .draw-rotor-operation {
+    top: 62px;
+    right: 18px;
+  }
+}
+
+@media (max-width: 620px) {
+  .draw-page--simplified .draw-machine-reward {
+    flex-direction: column;
+  }
+
+  .draw-page--simplified .draw-machine-reward .draw-personal-win {
+    flex: 0 0 auto;
+    min-height: 42px;
+  }
+
+  .draw-page--simplified .draw-prize-vault,
+  .draw-page--simplified .draw-machine-reward .draw-prize-vault {
+    width: 100%;
+    min-height: 136px;
+  }
+
+  .draw-page--simplified .draw-lifecycle-track {
+    flex-wrap: wrap;
+    min-height: 0;
+    padding: 6px 0;
+  }
+
+  .draw-page--simplified .draw-lifecycle-step,
+  .draw-page--simplified .draw-lifecycle-step--active {
+    flex: 1 1 33%;
+    min-height: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-page--simplified .draw-round-progress__track i,
+  .draw-page--simplified .draw-prize-vault__present-lid,
+  .draw-page--simplified .draw-prize-vault__present-bow,
+  .draw-page--simplified .draw-machine-reward .draw-personal-win {
+    transition: none;
+    animation: none;
+  }
+
+  .draw-page--simplified .draw-prize-vault:hover .draw-prize-vault__present-lid,
+  .draw-page--simplified .draw-prize-vault:focus-visible .draw-prize-vault__present-lid,
+  .draw-page--simplified .draw-prize-vault:hover .draw-prize-vault__present-bow,
+  .draw-page--simplified .draw-prize-vault:focus-visible .draw-prize-vault__present-bow {
+    transform: none;
+  }
+
+  .draw-page--simplified .draw-prize-vault:hover > i,
+  .draw-page--simplified .draw-prize-vault:focus-visible > i {
+    transform: translateY(-50%);
+  }
+}

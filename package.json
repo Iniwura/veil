@@ -25,6 +25,9 @@
   "dependencies": {
     "@fhevm/mock-utils": "^0.4.2",
     "@fhevm/solidity": "^0.11.1",
+    "@openzeppelin/confidential-contracts": "0.5.2",
+    "@openzeppelin/contracts": "5.6.1",
+    "@openzeppelin/contracts-upgradeable": "5.6.1",
     "encrypted-types": "^0.0.4"
   },
   "devDependencies": {
@@ -82,6 +85,16 @@
     "chain": "hardhat node --network hardhat --no-deploy",
     "deploy:localhost": "hardhat deploy --network localhost",
     "deploy:sepolia": "hardhat deploy --network sepolia",
+    "deploy:v2:localhost": "hardhat deploy --network localhost --tags UNVEIL_V2 --reset",
+    "deploy:v2:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V2",
+    "deploy:v3:localhost": "hardhat deploy --network localhost --tags UNVEIL_V3 --reset",
+    "deploy:v3:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V3",
+    "deploy:v4:localhost": "hardhat deploy --network localhost --tags UNVEIL_V4 --reset",
+    "deploy:v4:sepolia": "hardhat deploy --network sepolia --tags UNVEIL_V4",
+    "smoke:v2:sepolia": "hardhat run scripts/sepolia-v2-smoke.ts --network sepolia",
+    "smoke:v4:sepolia": "hardhat run scripts/sepolia-v4-smoke.ts --network sepolia",
+    "keeper:v4:sepolia": "hardhat run scripts/v4-keeper.ts --network sepolia",
+    "keeper:v4:watch": "cross-env UNVEIL_V4_KEEPER_WATCH=true hardhat run scripts/v4-keeper.ts --network sepolia",
     "verify:sepolia": "hardhat verify --network sepolia"
   },
   "overrides": {

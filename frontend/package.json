@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "verify:dist": "node ../scripts/verify-frontend-dist.mjs dist"
   },
   "dependencies": {
     "@zama-fhe/relayer-sdk": "^0.4.1",

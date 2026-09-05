@@ -6,6 +6,7 @@ import { ethers, fhevm } from "hardhat";
 import { MockConfidentialToken, VeilPool } from "../types";
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const TEST_DRAW_PERIOD = 60 * 60;
 
 async function encrypted64(contractAddress: string, signer: HardhatEthersSigner, amount: bigint | number) {
   return fhevm.createEncryptedInput(contractAddress, signer.address).add64(amount).encrypt();
@@ -29,7 +30,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     token = (await tokenFactory.deploy()) as MockConfidentialToken;
 
     const poolFactory = await ethers.getContractFactory("VeilPool");
-    pool = (await poolFactory.deploy(await token.getAddress())) as VeilPool;
+    pool = (await poolFactory.deploy(await token.getAddress(), TEST_DRAW_PERIOD)) as VeilPool;
     poolAddress = await pool.getAddress();
 
     for (const signer of [alice, bob]) {
@@ -53,6 +54,15 @@ describe("VeilPool draw-seat lifecycle", function () {
     return fhevm.userDecryptEuint(FhevmType.euint64, handle, poolAddress, signer);
   }
 
+  async function advanceToDrawClose() {
+    const closesAt = Number(await pool.nextDrawClosesAt());
+    const latest = await ethers.provider.getBlock("latest");
+    if (!latest) throw new Error("Latest block unavailable");
+    const delta = closesAt - latest.timestamp;
+    if (delta > 0) await ethers.provider.send("evm_increaseTime", [delta]);
+    await ethers.provider.send("evm_mine", []);
+  }
+
   it("expires draw seats without trapping confidential principal", async function () {
     await deposit(alice, 10);
     await deposit(bob, 20);
@@ -60,8 +70,11 @@ describe("VeilPool draw-seat lifecycle", function () {
     expect(await pool.playerCount()).to.equal(2);
     expect(await pool.seated(alice.address)).to.equal(true);
     expect(await decryptPosition(alice)).to.equal(10);
+    const latest = await ethers.provider.getBlock("latest");
+    if (!latest) throw new Error("Latest block unavailable");
+    expect((await pool.seatExpiresAt(alice.address)) - BigInt(latest.timestamp)).to.be.greaterThan(24n * 60n * 60n);
 
-    await ethers.provider.send("evm_increaseTime", [86_401]);
+    await ethers.provider.send("evm_increaseTime", [31 * 24 * 60 * 60]);
     await ethers.provider.send("evm_mine", []);
     await (await pool.pruneExpiredSeats()).wait();
 
@@ -99,6 +112,7 @@ describe("VeilPool draw-seat lifecycle", function () {
     expect(await decryptPosition(alice)).to.equal(0);
     expect(await decryptPosition(bob)).to.equal(0);
 
+    await advanceToDrawClose();
     await (await pool.snapshotRound()).wait();
     await (await pool.blindDraw(1)).wait();
 
@@ -108,6 +122,9 @@ describe("VeilPool draw-seat lifecycle", function () {
 
     const draw = await pool.getDrawInfo(1);
     expect(draw.state).to.equal(4);
+    expect(await pool.getEncryptedWinner(1)).to.equal(encryptedWinner);
+    expect(await pool.unsettledRoundCount()).to.equal(0);
+    expect(await pool.nextDrawClosesAt()).to.be.greaterThan(0);
     await expect(pool.getWinner(1)).to.be.revertedWith("Winner not finalized");
   });
 });

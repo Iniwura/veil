@@ -1,14 +1,26 @@
-export const VEIL_NETWORK = {
+export const UNVEIL_NETWORK = {
   chainId: 11155111,
   name: "Sepolia",
   explorer: "https://sepolia.etherscan.io",
 } as const;
 
-export const VEIL_CONTRACTS = {
-  asset: "0x79836eCae72C3EB5423fd5D1d200CbaEA0cCEE6e",
-  pool: "0xd5395972b0Cd747fAD531389E449958a343adA1b",
-  yieldSource: "0xdDB2b7fe447c55576F882138d59DE00a7d8EbE3D",
-  prizeVault: "0xb580c50192f5d7C613Db4e9427a2fA0C9701Af84",
+export const UNVEIL_CONTRACTS = {
+  underlying: "0x50c5b93aDc4c10a392b53125C545e760f12E9466",
+  principal: "0x9Ff6F110cb3162033A25A597D4528bABbEe2cA41",
+  vault: "0x2FcBa2fFc62010717272B3F2223F12730C4BF4b9",
+  shares: "0xF0810ef8b962ac787df0fe5FEF492A75A054F55d",
+  depositBatcher: "0x391cB3D0F60F443C3018bAC600C6EA90ee6497Fe",
+  withdrawalBatcher: "0xe88B1B97ceE0349954e664aF9f1168327588a390",
+  pool: "0xCC7d4642557FfE810a77D2CEce0206211d15aE57",
+  prizeVault: "0x0f84CE3060aB79de3eCE59C5c9f4a64d642D101C",
+  manager: "0x2bA25db644515af6Bb731025e71EE493B9D5d4Db",
 } as const;
 
-export const DEMO_ONLY = true;
+export const UNVEIL_DEMO = {
+  enabled: true,
+  label: "SEPOLIA · DEMO cUSDC",
+  assetLabel: "cUSDC",
+  technicalAssetSymbol: "t-cUSDC",
+  strategy: "SIMULATED YIELD",
+  productionMarketYield: false,
+} as const;

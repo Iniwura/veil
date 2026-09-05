@@ -22,6 +22,7 @@ type Signers = {
 };
 
 const MAX_OPERATOR_UNTIL = 281_474_976_710_655n;
+const TEST_DRAW_PERIOD = 60 * 60;
 
 async function deployFixture() {
   const tokenFactory = (await ethers.getContractFactory("MockConfidentialToken")) as MockConfidentialToken__factory;
@@ -29,7 +30,7 @@ async function deployFixture() {
   const tokenAddress = await token.getAddress();
 
   const poolFactory = (await ethers.getContractFactory("VeilPool")) as VeilPool__factory;
-  const pool = (await poolFactory.deploy(tokenAddress)) as VeilPool;
+  const pool = (await poolFactory.deploy(tokenAddress, TEST_DRAW_PERIOD)) as VeilPool;
   const poolAddress = await pool.getAddress();
 
   const yieldFactory = (await ethers.getContractFactory("VeilYieldSource")) as VeilYieldSource__factory;
@@ -84,6 +85,7 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
 
     await deposit(signers.alice, 10);
     await deposit(signers.bob, 30);
+    await advanceToDrawClose();
     await (await pool.snapshotRound()).wait();
     await (await pool.blindDraw(1)).wait();
   });
@@ -95,6 +97,15 @@ describe("VeilPrizeVault + VeilYieldSource", function () {
   async function deposit(signer: HardhatEthersSigner, amount: bigint | number) {
     const encrypted = await encryptFor(poolAddress, signer, amount);
     await (await pool.connect(signer).deposit(encrypted.handles[0], encrypted.inputProof)).wait();
+  }
+
+  async function advanceToDrawClose() {
+    const closesAt = Number(await pool.nextDrawClosesAt());
+    const latest = await ethers.provider.getBlock("latest");
+    if (!latest) throw new Error("Latest block unavailable");
+    const delta = closesAt - latest.timestamp;
+    if (delta > 0) await ethers.provider.send("evm_increaseTime", [delta]);
+    await ethers.provider.send("evm_mine", []);
   }
 
   async function accrueYield(amount: bigint | number) {
