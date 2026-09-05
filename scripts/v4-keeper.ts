@@ -144,10 +144,14 @@ function clearBoolean(value: unknown): boolean {
 
 async function publicDecrypt(handle: string): Promise<{ value: unknown; proof: string }> {
   if (!fheCliInitialized) {
+    console.log("[keeper] public decrypt: initialize CLI start");
     await fhevm.initializeCLIApi();
     fheCliInitialized = true;
+    console.log("[keeper] public decrypt: initialize CLI complete");
   }
+  console.log("[keeper] public decrypt: request start");
   const result = await fhevm.publicDecrypt([handle]);
+  console.log("[keeper] public decrypt: request complete");
   const values = result.clearValues as Record<string, unknown>;
   const value = Object.values(values)[0];
   return { value, proof: result.decryptionProof };
@@ -173,6 +177,7 @@ export async function discoverAccounts(
     1,
     DEFAULT_LOG_CHUNK_SIZE,
   );
+  console.log(`[keeper] discover accounts: scan ${fromBlock}-${latest}`);
   const accounts = new Set<string>();
   const requested = await queryFilterInChunks(
     (chunkFrom, chunkTo) =>
@@ -181,6 +186,7 @@ export async function discoverAccounts(
     latest,
     logChunkSize,
   );
+  console.log(`[keeper] discover accounts: attestation logs ${requested.length}`);
   for (const event of requested) {
     const args = (event as { args?: { account?: string } }).args;
     if (args?.account) accounts.add(args.account);
@@ -191,10 +197,12 @@ export async function discoverAccounts(
     latest,
     logChunkSize,
   );
+  console.log(`[keeper] discover accounts: renewed logs ${renewed.length}`);
   for (const event of renewed) {
     const args = (event as { args?: { player?: string } }).args;
     if (args?.player) accounts.add(args.player);
   }
+  console.log(`[keeper] discover accounts: complete (${accounts.size} accounts)`);
   return [...accounts];
 }
 
@@ -204,16 +212,20 @@ async function settleSeatAttestations(
   refreshWindow: number,
   actions: string[],
 ): Promise<number> {
+  console.log("[keeper] seat attestations: discover start");
   const accounts = await discoverAccounts(contracts, fromBlock);
+  console.log(`[keeper] seat attestations: processing ${accounts.length} accounts`);
   let transactions = 0;
   const now = BigInt((await hardhatEthers.provider.getBlock("latest"))?.timestamp ?? 0);
 
   for (const account of accounts) {
+    console.log(`[keeper] seat attestations: inspect ${account}`);
     const requestId = BigInt(await contracts.seatKeeper.pendingSeatAttestationRequestId(account));
     if (requestId !== 0n) {
       const currentRequestId = BigInt(await contracts.seatKeeper.pendingSeatAttestationRequestId(account));
       if (currentRequestId !== requestId) continue;
       const handle = String(await contracts.seatKeeper.encryptedSeatAttestationOf(account));
+      console.log(`[keeper] seat attestations: decrypt pending request ${requestId}`);
       const decrypted = await publicDecrypt(handle);
       const latestRequestId = BigInt(await contracts.seatKeeper.pendingSeatAttestationRequestId(account));
       if (latestRequestId !== requestId) continue;
@@ -240,6 +252,7 @@ async function settleSeatAttestations(
     transactions++;
     actions.push(`refresh seat attestation ${account}`);
   }
+  console.log(`[keeper] seat attestations: complete (${transactions} tx)`);
   return transactions;
 }
 
@@ -269,6 +282,7 @@ async function historicalWidths(pool: Contract, roundId: bigint): Promise<Histor
 }
 
 async function beginSnapshot(contracts: KeeperContracts, roundId: bigint, actions: string[]): Promise<number> {
+  console.log(`[keeper] snapshot: begin round ${roundId}`);
   const widths = await historicalWidths(contracts.pool, roundId);
   const plan = planShardedSnapshotBatches(widths);
   const liveRound = BigInt(await contracts.pool.nextRoundId());
@@ -296,6 +310,7 @@ async function beginSnapshot(contracts: KeeperContracts, roundId: bigint, action
 }
 
 async function advanceSnapshot(contracts: KeeperContracts, roundId: bigint, actions: string[]): Promise<number> {
+  console.log(`[keeper] snapshot: advance round ${roundId}`);
   const snapshot = await contracts.pool.getShardedSnapshotRound(roundId);
   if (snapshot[5]) return 0;
   const pending: HistoricalShardWidth[] = [];
@@ -327,7 +342,9 @@ async function advanceSnapshot(contracts: KeeperContracts, roundId: bigint, acti
 }
 
 async function advancePrize(contracts: KeeperContracts, roundId: bigint, actions: string[]): Promise<number> {
+  console.log(`[keeper] prize: advance round ${roundId}`);
   for (let prizeIndex = 0; prizeIndex < PRIZE_SLOTS; prizeIndex++) {
+    console.log(`[keeper] prize: inspect slot ${prizeIndex + 1}`);
     let status = await contracts.pool.getShardedPrizeStatus(roundId, prizeIndex);
     if (!status[0]) {
       const reread = await contracts.pool.getShardedPrizeStatus(roundId, prizeIndex);
@@ -338,6 +355,7 @@ async function advancePrize(contracts: KeeperContracts, roundId: bigint, actions
     }
     if (!status[1]) {
       const handle = String(await contracts.pool.getEncryptedPrizeShard(roundId, prizeIndex));
+      console.log(`[keeper] prize: decrypt shard slot ${prizeIndex + 1}`);
       const decrypted = await publicDecrypt(handle);
       const shard = Number(decrypted.value);
       status = await contracts.pool.getShardedPrizeStatus(roundId, prizeIndex);
@@ -355,6 +373,7 @@ async function advancePrize(contracts: KeeperContracts, roundId: bigint, actions
     }
     if (!status[4]) {
       const handle = String(await contracts.pool.getEncryptedPrizeWinner(roundId, prizeIndex));
+      console.log(`[keeper] prize: decrypt winner slot ${prizeIndex + 1}`);
       const decrypted = await publicDecrypt(handle);
       const winner = ethers.getAddress(String(decrypted.value));
       const encodedWinner = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [winner]);
@@ -371,6 +390,7 @@ async function advancePrize(contracts: KeeperContracts, roundId: bigint, actions
 }
 
 async function deliverPrize(contracts: KeeperContracts, actions: string[]): Promise<number> {
+  console.log("[keeper] delivery: scan start");
   const nextPrizeRoundId = BigInt(await contracts.manager.nextPrizeRoundId());
   const first = nextPrizeRoundId > HISTORY_LOOKBACK ? nextPrizeRoundId - HISTORY_LOOKBACK : 1n;
   for (let roundId = first; roundId < nextPrizeRoundId; roundId++) {
@@ -383,16 +403,20 @@ async function deliverPrize(contracts: KeeperContracts, actions: string[]): Prom
     actions.push(`deliver prize ${prizeIndex + 1} for round ${roundId}`);
     return 1;
   }
+  console.log("[keeper] delivery: nothing pending");
   return 0;
 }
 
 async function advanceRound(contracts: KeeperContracts, actions: string[]): Promise<number> {
+  console.log("[keeper] round: read schedule");
   const schedule = await contracts.seatKeeper.getDrawSchedule();
   const currentRoundId = BigInt(schedule[0]);
   const nextPrizeRoundId = BigInt(await contracts.manager.nextPrizeRoundId());
+  console.log(`[keeper] round: current=${currentRoundId} nextPrize=${nextPrizeRoundId} timeReady=${String(schedule[4])}`);
 
   if (nextPrizeRoundId < currentRoundId) {
     const state = Number(await contracts.pool.getDrawState(nextPrizeRoundId));
+    console.log(`[keeper] round: unsettled state=${state}`);
     if (state === 1) {
       const snapshot = await contracts.pool.getShardedSnapshotRound(nextPrizeRoundId);
       return snapshot[5]
@@ -419,32 +443,43 @@ async function advanceRound(contracts: KeeperContracts, actions: string[]): Prom
 
 /** Executes a bounded, idempotent keeper pass. Every write is preceded by a fresh state read. */
 export async function runKeeperCycle(): Promise<KeeperCycleResult> {
+  console.log(`[keeper] cycle start network=${network.name}`);
   if (network.name !== "sepolia" && process.env.UNVEIL_V4_KEEPER_ALLOW_LOCAL !== "true") {
     throw new Error("Run the V4 keeper on Sepolia (set UNVEIL_V4_KEEPER_ALLOW_LOCAL=true only for a local demo).");
   }
+  console.log("[keeper] signer: load start");
   const [keeper] = (await hardhatEthers.getSigners()) as HardhatEthersSigner[];
   if (!keeper) throw new Error("No configured Hardhat network signer is available for the V4 keeper.");
+  console.log(`[keeper] signer: ready ${await keeper.getAddress()}`);
+  console.log("[keeper] contracts: load start");
   const contracts = await loadContracts(keeper);
+  console.log("[keeper] contracts: load complete");
   const actions: string[] = [];
   const fromBlock = await queryFromBlock();
+  console.log(`[keeper] from block ${fromBlock}`);
   const refreshWindow = configuredInteger(
     "UNVEIL_V4_KEEPER_REFRESH_WINDOW_SECONDS",
     DEFAULT_REFRESH_WINDOW_SECONDS,
     0,
     30 * 24 * 60 * 60,
   );
+  console.log("[keeper] seat attestations: stage start");
   let transactions = await settleSeatAttestations(contracts, fromBlock, refreshWindow, actions);
+  console.log(`[keeper] seat attestations: stage complete (${transactions} tx)`);
   const maxSteps = configuredInteger("UNVEIL_V4_KEEPER_MAX_STEPS", DEFAULT_MAX_STEPS, 1, 256);
   for (let step = 0; step < maxSteps; step++) {
+    console.log(`[keeper] step ${step + 1}/${maxSteps}: delivery`);
     const progressed = await deliverPrize(contracts, actions);
     if (progressed > 0) {
       transactions += progressed;
       continue;
     }
+    console.log(`[keeper] step ${step + 1}/${maxSteps}: round`);
     const roundProgress = await advanceRound(contracts, actions);
     if (roundProgress === 0) break;
     transactions += roundProgress;
   }
+  console.log(`[keeper] cycle complete transactions=${transactions}`);
   return { transactions, actions, idle: transactions === 0 };
 }
 
