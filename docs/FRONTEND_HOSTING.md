@@ -1,76 +1,62 @@
-# UNVEIL frontend hosting contract
+# UNVEIL frontend hosting
 
-This document is provider-neutral. No Vercel, Netlify, Cloudflare, or other hosting provider is selected or configured
-in this release candidate.
+UNVEIL is deployed on Vercel from the public GitHub repository.
 
-## Required origin behavior
+- Production URL: https://veil-green.vercel.app
+- Repository: https://github.com/Iniwura/veil
+- Frontend: `frontend/`
+- Build output: `frontend/dist`
 
-The frontend must be served over HTTPS. The host must return the built `frontend/dist/index.html` document for these
-application routes, including direct navigation and browser refresh:
+## Production configuration
 
-- `/app`
-- `/app/save`
-- `/app/draws`
-- `/app/vault`
-- `/app/prizes`
-- `/app/history`
-- `/app/more`
+The repository root contains the active `vercel.json` configuration. It installs both the root and frontend dependency sets, builds the Vite frontend, publishes `frontend/dist`, and rewrites application routes to `index.html` for SPA navigation.
 
-This is an SPA fallback, not a rewrite of static assets. Requests for hashed Vite assets and root-level WASM files must
-continue to resolve to their actual files. Unknown static asset requests must not silently return `index.html`.
+Equivalent configuration:
 
-## Required response headers
-
-Every frontend document that can initialize the FHE client must be served with:
-
-```text
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm install && npm --prefix frontend install",
+  "buildCommand": "npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
 ```
 
-These headers are currently configured for Vite development and preview in `frontend/vite.config.ts`; a production
-static host must configure them at the origin or edge as well. Vite configuration does not automatically configure a
-separate production host.
+The separate Frontend GitHub Actions workflow also installs both dependency sets before building because frontend TypeScript imports shared repository modules.
 
-The application also loads the Zama Relayer SDK browser bundle from the existing external URL in `frontend/index.html`:
+## Local production build
 
-```text
-https://cdn.zama.org/relayer-sdk-js/0.4.1/relayer-sdk-js.umd.cjs
+From the repository root:
+
+```bash
+npm install
+npm --prefix frontend install
+npm --prefix frontend run build
 ```
 
-Do not change that version, vendor a second copy, or remove cross-origin isolation to work around a hosting issue. The
-selected host must be tested with the current CDN resource under the COOP/COEP policy.
-
-## WASM assets
-
-The following root paths must remain reachable and must be served with the `application/wasm` content type:
-
-- `/tfhe_bg.wasm`
-- `/kms_lib_bg.wasm`
-
-Both files are emitted into `frontend/dist` by the existing Vite plugin and must remain non-empty. They must not be
-renamed, placed behind an SPA fallback, or blocked by an asset policy.
-
-## Caching
-
-- Do not cache `index.html` indefinitely. Use a short TTL or revalidation so a new release can update the application
-  shell.
-- Hashed Vite assets such as `/assets/index-<hash>.js` and `/assets/index-<hash>.css` may use long-lived immutable
-  caching.
-- The root WASM files may be cached when the deployment invalidates them with the release, but they must remain
-  reachable at the exact root paths above.
-
-## Release verification
-
-From the repository root, build and verify the static release before selecting a host:
+The frontend package also exposes its distribution verifier:
 
 ```bash
 cd frontend
-npm ci
-npm run build
 npm run verify:dist
 ```
 
-`verify:dist` checks the required files, metadata, local asset references, WASM presence, and removal of the
-development-only motion harness from the production JavaScript. Hosting-route fallback and response-header checks must
-be repeated against the selected provider in the next slice.
+## Application routes
+
+The current application uses the public landing page plus the app routes under `/app`, including the active Save and Draw experiences. Vercel's SPA rewrite allows direct navigation and browser refresh without requiring separate server routes.
+
+## Release state
+
+The production deployment uses the final V4 Sepolia addresses documented in the root README and `docs/DEPLOYMENT.md`.
+
+Vercel deployments are created from GitHub updates to the repository. A successful Vercel status on the submission commit verifies that the hosted production build completed for that revision.
+
+## Demo boundary
+
+The hosted application is a Sepolia competition/demo build. Its cUSDC label refers to the deployed demo asset route, and its ERC-4626 strategy appreciation is simulated rather than production market yield.
