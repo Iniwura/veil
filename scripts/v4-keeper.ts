@@ -412,7 +412,9 @@ async function advanceRound(contracts: KeeperContracts, actions: string[]): Prom
   const schedule = await contracts.seatKeeper.getDrawSchedule();
   const currentRoundId = BigInt(schedule[0]);
   const nextPrizeRoundId = BigInt(await contracts.manager.nextPrizeRoundId());
-  console.log(`[keeper] round: current=${currentRoundId} nextPrize=${nextPrizeRoundId} timeReady=${String(schedule[4])}`);
+  console.log(
+    `[keeper] round: current=${currentRoundId} nextPrize=${nextPrizeRoundId} timeReady=${String(schedule[4])}`,
+  );
 
   if (nextPrizeRoundId < currentRoundId) {
     const state = Number(await contracts.pool.getDrawState(nextPrizeRoundId));
