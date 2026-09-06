@@ -195,7 +195,7 @@ Run the full test suite:
 npm test
 ```
 
-The final audited branch passed **304 tests** before release.
+The current release line passes the full automated regression suite (**305 tests**).
 
 ---
 
