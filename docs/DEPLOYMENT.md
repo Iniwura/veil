@@ -1,204 +1,98 @@
-# VEIL and UNVEIL Sepolia deployments
+# UNVEIL Sepolia deployment
 
-> The owner-funded VEIL V1 workflow in sections 1–4 is retained as legacy documentation. The active frontend uses the
-> verified UNVEIL V2 TEST/DEMO deployment documented below.
+This document describes the **current V4 submission deployment** used by the live frontend and hosted keeper.
 
-VEIL uses Hardhat Deploy and Zama's fhEVM Hardhat integration. The deployment script creates and wires the pool, yield
-source, and prize vault in one reviewable flow.
+Older V1, V2, and V3 deployment records remain in their explicitly versioned historical documents for development history only. They are not the addresses used by the live application.
 
-## 1. Configure Hardhat secrets
+## Live deployment
 
-Store secrets with Hardhat vars instead of committing them:
+- Network: Ethereum Sepolia
+- Chain ID: `11155111`
+- Draw model: 24 shards × 24 seats = 576 active savers
+- Prize slots: 3 per round
+- Draw period: 900 seconds
+- Savings maturity: one complete draw period
+- Batch age: 120 seconds
+- Buffer reserve: 2000 BPS
+- Asset mode: demo cUSDC
+- Strategy mode: simulated ERC-4626 appreciation
 
-```bash
-npx hardhat vars set MNEMONIC
-npx hardhat vars set SEPOLIA_RPC_URL
-npx hardhat vars set ETHERSCAN_API_KEY
+## Canonical addresses
+
+| Component | Address |
+| --- | --- |
+| Demo underlying asset | `0x50c5b93aDc4c10a392b53125C545e760f12E9466` |
+| Confidential principal wrapper | `0x9Ff6F110cb3162033A25A597D4528bABbEe2cA41` |
+| Demo ERC-4626 vault | `0x2FcBa2fFc62010717272B3F2223F12730C4BF4b9` |
+| Confidential strategy-share wrapper | `0xF0810ef8b962ac787df0fe5FEF492A75A054F55d` |
+| Deposit batcher | `0x391cB3D0F60F443C3018bAC600C6EA90ee6497Fe` |
+| Withdrawal batcher | `0xe88B1B97ceE0349954e664aF9f1168327588a390` |
+| VeilPoolV4 | `0xCC7d4642557FfE810a77D2CEce0206211d15aE57` |
+| Snapshot batcher | `0xA46DCDE4C37C107d9B9333cBE2b0F117597D228b` |
+| Draw batcher | `0xb0Da69Bb79746b2f7f568D612F38B4fa77d6Ca04` |
+| VeilPrizeVaultV3 | `0x0f84CE3060aB79de3eCE59C5c9f4a64d642D101C` |
+| VeilStrategyManagerV3 | `0x2bA25db644515af6Bb731025e71EE493B9D5d4Db` |
+
+These addresses are also pinned in the live frontend and keeper configuration. Do not substitute addresses from older versioned deployment records when evaluating the current submission.
+
+## Deployment implementation
+
+The V4 deployment script is:
+
+```text
+deploy/deploy-v4.ts
 ```
 
-`SEPOLIA_RPC_URL` is preferred. `INFURA_API_KEY` remains supported as a fallback for the template's Infura URL.
-
-The deployer must have Sepolia ETH before deployment.
-
-## 2. Configure the autonomous draw cadence
-
-`VeilPool` receives its draw period as an immutable constructor argument. The deployment script uses a 15-minute default
-on Sepolia for demos and a 1-day default on other networks, but the cadence can be explicitly overridden in any
-environment:
+The repository exposes the corresponding Hardhat commands:
 
 ```bash
-export VEIL_DRAW_PERIOD_SECONDS=259200 # three days, for example
+npm run deploy:v4:localhost
+npm run deploy:v4:sepolia
 ```
 
-The value must be a positive integer number of seconds. The selected cadence is printed in the deployment output and is
-available onchain through `drawPeriod`, `firstDrawOpensAt`, `nextDrawOpensAt`, `nextDrawClosesAt`, and
-`getDrawSchedule()`. All future windows derive from `firstDrawOpensAt + (roundId - 1) * drawPeriod`; delayed settlement
-never shifts the schedule. `getDrawSchedule()` reports the actionable timer/readiness state, insufficient close-time
-participation, whether the round can advance, overdue settlement, and the number of unsettled rounds. A closed round
-with fewer than two eligible seats can be permissionlessly advanced with `cancelInsufficientRound()`; post-close
-entrants cannot backfill it. A late keeper cannot rewrite a closed round: the pool seals encrypted balances, seat
-addresses, and expiry metadata into one bounded state epoch for the newly closed range before accepting later deposits,
-withdrawals, seat releases, or pruning. Unchanged periods do not create per-round storage or FHE ACL work. Multiple
-rounds may therefore be snapshotted while older rounds await KMS finalization.
+A fresh network deployment requires the normal Hardhat signer/RPC configuration and sufficient native gas. The competition submission is already deployed; judges do not need to redeploy it to use the live app.
 
-The round states are intentionally distinct: `CANCELLED` is used only after BlindDraw and a valid KMS proof establish an
-encrypted zero-address winner, so `getEncryptedWinner()` remains valid for that round. `SKIPPED` is used when the
-close-time eligible count is below two and no BlindDraw ran; `getEncryptedWinner()` reverts for a skipped round. State
-changes crossing closed windows cost `O(MAX_PLAYERS)`, epoch lookup is `O(log stateEpochCount)`, and materializing one
-round costs `O(MAX_PLAYERS + log stateEpochCount)`.
+## Architecture deployed
 
-The bounded prototype roster uses a 30-day minimum inactivity lease. Principal remains withdrawable after expiry, users
-can renew their own seats through normal interaction, and abandoned seats can still be pruned by anyone.
+The live route contains:
 
-## 3. Choose the confidential asset
+1. A demo ERC-20 underlying asset.
+2. A confidential principal wrapper.
+3. A demo ERC-4626 strategy vault.
+4. A confidential strategy-share wrapper.
+5. Confidential deposit and withdrawal batchers.
+6. `VeilPoolV4` for principal, maturity, sharded saver state, snapshots, and draw integration.
+7. A snapshot batcher for bounded encrypted snapshot progression.
+8. A draw batcher for bounded proof/finalization progression.
+9. `VeilStrategyManagerV3` for strategy routing, liability accounting, and safe prize funding.
+10. `VeilPrizeVaultV3` for confidential automatic prize delivery.
 
-For a real deployment, provide an existing compatible confidential asset address:
+The strategy appreciation used by the competition deployment is simulated. It is not production USDC yield or a claim of live market yield.
 
-```bash
-export VEIL_ASSET_ADDRESS=0x...
-npm run deploy:sepolia
-```
+## Draw and keeper operation
 
-`VeilPool`, `VeilYieldSource`, and `VeilPrizeVault` will all use that same asset.
+The draw closes on a fixed onchain schedule. New savings become prize-eligible only after one complete draw period.
 
-### Test-only Sepolia asset
+At close, mature encrypted weights are frozen across the 24 shards. Each of the three prize slots selects a weighted shard and then a weighted member inside that shard using encrypted weights and onchain FHE randomness.
 
-`MockConfidentialToken` has unrestricted minting and exists only for protocol integration tests and controlled demos. It
-must never be presented as a production asset.
+The hosted keeper in `.github/workflows/keeper.yml` advances eligible protocol stages. The contracts remain permissionless for those transitions; the keeper does not choose the winner.
 
-A Sepolia deployment will refuse to deploy it unless the choice is explicit:
+## Validation
 
-```bash
-VEIL_DEPLOY_DEMO_ASSET=true npm run deploy:sepolia
-```
+The canonical V4 stack has live Sepolia smoke evidence covering confidential deposits, maturity, encrypted sharded snapshots, all-zero cancellation, positive weighted draws, three prize slots, automatic confidential prize delivery, principal withdrawal, and prize-share redemption.
 
-## 4. Deployment wiring
+See:
 
-The deployment script performs these steps in order:
+- [`UNVEIL_V4_LIVE_RESULT.md`](UNVEIL_V4_LIVE_RESULT.md)
+- [`SUBMISSION.md`](SUBMISSION.md)
+- [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md)
 
-1. Uses `VEIL_ASSET_ADDRESS`, or deploys the explicitly requested test-only asset.
-2. Deploys `VeilPool(asset, drawPeriod)`.
-3. Deploys `VeilYieldSource(asset)`.
-4. Deploys `VeilPrizeVault(pool, asset, yieldSource)`.
-5. Configures `VeilYieldSource` to point to the deployed prize vault.
-6. Refuses to overwrite a previously configured prize-vault address.
+## Historical records
 
-The final console output prints the four addresses needed by the demo frontend.
+The following files are retained as versioned historical evidence and must not be treated as the active deployment:
 
-## UNVEIL V2 — verified Sepolia TEST/DEMO deployment
+- `UNVEIL_V2_LIVE_RESULT.md`
+- `UNVEIL_V3_LIVE_RESULT.md`
+- `SEPOLIA_SMOKE_RESULT.md`
 
-The V2 deployment path is versioned separately from the legacy V1 `deploy/deploy.ts` and `scripts/sepolia-smoke.ts`
-paths. It uses the hardhat-deploy tag `UNVEIL_V2` and deployment records prefixed with `UNVEIL_V2_`; it does not read or
-overwrite V1 records or canonical addresses.
-
-The live V2 stack is explicitly a TEST/DEMO simulated strategy deployment. `MockYieldVault4626.donate()` simulates
-ERC-4626 appreciation only. It is not Steakhouse yield, Morpho yield, or production yield. The route is intended to
-exercise real Zama/FHE execution, public decryption/KMS callbacks, ERC-7984 wrappers, V2 custody/accounting, autonomous
-draws, withdrawal settlement, and direct confidential prize delivery.
-
-Verified live addresses on Sepolia (`chainId 11155111`):
-
-| V2 component                        | Address                                      |
-| ----------------------------------- | -------------------------------------------- |
-| Underlying `MockUSDC` TEST token    | `0x54350EE95601Ed535039993a5eE05FdA1Bd0Ae0C` |
-| Principal confidential wrapper      | `0xc948EDA1EA4c29d09965d1A15C3AC5B38cBdBB13` |
-| Simulated `MockYieldVault4626`      | `0xa39F57644e77FDb6E4F705F67BC08710d366d289` |
-| Strategy-share confidential wrapper | `0x48129B9c003b69987143d2622dC632Bc651E1F61` |
-| Deposit batcher                     | `0xb7BFbb875DCF3bd7c0B30536eBf60c284f0De2f1` |
-| Withdrawal batcher                  | `0xa5f1B091ac896C01f73d47100666d80961FC4620` |
-| `VeilPoolV2`                        | `0xFC5E4b552f16975d9d0B28Ab8cd14eE4a3d3Dc76` |
-| `VeilPrizeVaultV2`                  | `0x0Dc3d8978ee509EFb71183377E5EAf2f28420525` |
-| `VeilStrategyManagerV2`             | `0xFF4106998079309500Ad07d41382436f3fC681E7` |
-
-- Contract source SHA: `1b959b756c8bec732b4613eb8433322e0062a861`
-- Live Sepolia smoke: **PASS**
-- Offchain smoke/test SHA: `24018fda961400a1f5ea344373d90bec2ba83c2a`
-
-The names `MockUSDC` and `MockYieldVault4626` are implementation identifiers only. This is not real USDC/cUSDC, not
-official csteakcUSDC, and not production market yield.
-
-The exact V2 deployment order is:
-
-1. `MockUSDC`
-2. `MockUSDCConfidentialWrapper`
-3. `MockYieldVault4626`
-4. `MockYieldVaultShareConfidentialWrapper`
-5. `VeilDepositBatcher`
-6. `VeilWithdrawalBatcher`
-7. `VeilPoolV2`
-8. `VeilPrizeVaultV2`
-9. `VeilStrategyManagerV2`
-10. one-time `pool.configureStrategyManager(manager)`
-
-The V2 parameters are strict decimal-integer environment settings:
-
-```bash
-UNVEIL_V2_DRAW_PERIOD_SECONDS=900
-UNVEIL_V2_BATCH_AGE_SECONDS=120
-UNVEIL_V2_BUFFER_RESERVE_BPS=2000
-UNVEIL_V2_VALUATION_HAIRCUT_BPS=0
-```
-
-Sepolia defaults are a 900-second draw period and 120-second batch age. Local/default values are 86,400 seconds and
-3,600 seconds. Reserve BPS must be 0–10,000; valuation haircut BPS must be 0–9,999. Invalid timing or BPS values fail
-before deployment.
-
-Use the new commands only after reviewing the printed addresses and wiring checks:
-
-```bash
-npm run deploy:v2:localhost
-npm run deploy:v2:sepolia
-npm run smoke:v2:sepolia
-```
-
-Do not run the Sepolia command as part of ordinary tests. This repository contains no official Sepolia csteakcUSDC or
-Steakhouse confidential-yield route, so the verified V2 stack must not be described as a production strategy deployment.
-
-The V2 smoke script accepts explicit `UNVEIL_V2_*_ADDRESS` variables or the new hardhat-deploy records only; it never
-falls back to V1 addresses. It checks bytecode and all immutable wiring, uses `fhevm.initializeCLIApi()`, and resumes
-the fixed smoke identifiers (draw round `1` and withdrawal request `1`) through their existing state machines. It never
-uses `evm_increaseTime` on Sepolia. When a real-time draw or batch age is not ready, it prints the exact timestamp and
-exits cleanly unless `UNVEIL_V2_SMOKE_WAIT=true` is set to poll until ready. The smoke flow's simulated appreciation
-phase prints `TEST/DEMO ONLY: simulating ERC4626 appreciation` and its startup summary reports only public state. The
-deposit phase reports the current batch separately from the recognized manager batch it must resume, and scans the small
-V2 demo batch range for an unresolved Pending, Dispatched, Finalized, or Canceled manager batch before investing.
-Withdrawal claims inherit `BatcherConfidential`'s fixed six-decimal exchange-rate rounding and may restore slightly less
-principal than the pre-batch target. The smoke preserves all-or-zero settlement and, after a proven incomplete payout,
-uses bounded permissionless funding cycles to recompute encrypted residual liquidity and resume the same request.
-
-V2 deployment records are reused only when their constructor arguments and prior deployment transaction can be verified
-against the current artifact. A missing transaction or any artifact/argument mismatch fails clearly; the script does not
-silently repair or redeploy a mismatched Sepolia stack. After reuse or deployment, the immutable draw period, both batch
-ages, reserve BPS, haircut BPS, and complete route wiring are checked onchain before parameters are printed as valid.
-
-## 5. Verification
-
-Compile and test locally before any network deployment:
-
-```bash
-npm run compile
-npm run build:ts
-npm test
-npm run lint
-```
-
-This frontend branch does not deploy or modify Sepolia contracts. It pins the already verified V2 stack above. Any
-future replacement stack must be versioned and verified with the exact constructor arguments before its addresses are
-used.
-
-## Legacy VEIL V1 Sepolia addresses
-
-These addresses remain historical evidence only and are not used by the active V2 frontend:
-
-| Legacy V1 component     | Address                                      |
-| ----------------------- | -------------------------------------------- |
-| Demo confidential asset | `0x79836eCae72C3EB5423fd5D1d200CbaEA0cCEE6e` |
-| `VeilPool`              | `0xd5395972b0Cd747fAD531389E449958a343adA1b` |
-| `VeilYieldSource`       | `0xdDB2b7fe447c55576F882138d59DE00a7d8EbE3D` |
-| `VeilPrizeVault`        | `0xb580c50192f5d7C613Db4e9427a2fA0C9701Af84` |
-
-## Privacy boundary
-
-Deployment does not change VEIL's FHE access policy. Individual principal, snapshot weights, withdrawals, unallocated
-yield, and prize amounts remain encrypted. The finalized winner address is public because settlement requires it. The
-prize ciphertext is authorized only to the finalized winner.
+The source of truth for the current submission is the canonical V4 address table above, the root [`README.md`](../README.md), and the addresses configured in the live frontend and keeper.
