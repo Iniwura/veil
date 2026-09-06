@@ -14,6 +14,20 @@ Users save demo cUSDC into a confidential position. Savings balances, mature dra
 
 ---
 
+## Judge quick start
+
+1. Open the live app and connect a MetaMask wallet on Ethereum Sepolia.
+2. Open **Save** and choose **Save More**.
+3. For a first-time demo wallet, use the in-app **FIRST SAVE** faucet guidance to obtain demo cUSDC.
+4. Enter an amount and submit the private save flow. The browser encrypts the amount before the wallet sends the transaction.
+5. Use **Unveil** on the private position to authorize wallet-scoped decryption of the connected wallet's balances.
+6. Open **Draw** to inspect the current round, encrypted weighted-draw lifecycle, verified results, and Prize Vault.
+7. Principal remains withdrawable through the confidential withdrawal flow. Delivered prize shares can be revealed and redeemed separately.
+
+The scheduled GitHub Actions keeper advances eligible draw, settlement, and prize-delivery stages on Sepolia. It does not choose winners; the draw uses onchain FHE randomness and encrypted weights.
+
+---
+
 ## Why UNVEIL
 
 Prize savings normally force a tradeoff: either balances and odds are public, or the draw becomes difficult to verify.
@@ -61,7 +75,7 @@ Saved principal and prize shares follow separate confidential withdrawal paths. 
 
 ## Final Sepolia deployment
 
-These are the addresses used by the live frontend on Sepolia.
+These are the addresses used by the live frontend and hosted keeper on Sepolia.
 
 | Component | Address |
 | --- | --- |
@@ -72,6 +86,8 @@ These are the addresses used by the live frontend on Sepolia.
 | Deposit batcher | `0x391cB3D0F60F443C3018bAC600C6EA90ee6497Fe` |
 | Withdrawal batcher | `0xe88B1B97ceE0349954e664aF9f1168327588a390` |
 | VeilPoolV4 | `0xCC7d4642557FfE810a77D2CEce0206211d15aE57` |
+| Snapshot batcher | `0xA46DCDE4C37C107d9B9333cBE2b0F117597D228b` |
+| Draw batcher | `0xb0Da69Bb79746b2f7f568D612F38B4fa77d6Ca04` |
 | VeilPrizeVaultV3 | `0x0f84CE3060aB79de3eCE59C5c9f4a64d642D101C` |
 | VeilStrategyManagerV3 | `0x2bA25db644515af6Bb731025e71EE493B9D5d4Db` |
 
