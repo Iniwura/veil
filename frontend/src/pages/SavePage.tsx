@@ -349,6 +349,8 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
         : unveil.vault?.activePrincipal;
   const sourceSummary = saveSourceSummary(sourceKind, revealed, sourceValue);
   const sourceUnit = saveSourceUnit(sourceKind);
+  const showFirstSaveNotice =
+    mode === "deposit" && unveil.connected && !unveil.wrongNetwork && Boolean(unveil.dashboard) && unveil.dashboard?.joined === false;
   const retryableSaveError = isRetryableSaveError(saveError, saveNotice);
   const saveActions = deriveSaveActions({
     connected: unveil.connected,
@@ -650,6 +652,25 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
               </div>
             )}
 
+            {showFirstSaveNotice && (
+              <aside className="save-first-save-notice" aria-label="First save guidance">
+                <div className="save-first-save-notice-copy">
+                  <span className="save-first-save-notice-eyebrow">FIRST SAVE</span>
+                  <strong>CLAIM DEMO cUSDC IF NEEDED</strong>
+                  <p>
+                    This Sepolia demo uses faucet-funded cUSDC. Claim test funds first if this wallet has none, then choose the amount you want to save.
+                  </p>
+                </div>
+                <SplitActionButton
+                  className="save-faucet-action"
+                  disabled={Boolean(unveil.busy)}
+                  type="button"
+                  onClick={unveil.fundTestToken}
+                  label={unveil.busy === "fund" ? "CLAIMING + WRAPPING…" : "CLAIM DEMO cUSDC →"}
+                />
+              </aside>
+            )}
+
             <div className="save-action-fields">
               <div className="save-source-line">
                 <span>{sourceLabel}</span>
@@ -745,7 +766,7 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
                 onRecover={() => void unveil.recoverPrizeRedemption()}
               />
             )}
-            {mode === "deposit" && (
+            {mode === "deposit" && !showFirstSaveNotice && (
               <div className="save-demo-faucet">
                 <span>DEMO PRINCIPAL</span>
                 <SplitActionButton
