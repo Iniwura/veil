@@ -13,6 +13,7 @@ import {
 import { VeilReveal } from "../components/VeilReveal";
 import { WithdrawalStatus } from "../components/WithdrawalStatus";
 import type { UnveilV4Controller } from "../hooks/useUnveilV4";
+import { PRODUCT_TOUR_SAVE_MODAL_EVENT } from "../hooks/useProductTour";
 import {
   deriveSaveActions,
   deriveSaveStage,
@@ -380,6 +381,21 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
     if (selectedRoundId !== roundId) setRoundId(selectedRoundId);
   }, [roundId, selectedRoundId]);
 
+  useEffect(() => {
+    const onTourSaveModalRequest = (event: Event) => {
+      const { open } = (event as CustomEvent<{ open?: boolean }>).detail ?? {};
+      if (open) {
+        setMode("deposit");
+        setWithdrawSource("saved");
+        setModalOpen(true);
+      } else {
+        setModalOpen(false);
+      }
+    };
+    window.addEventListener(PRODUCT_TOUR_SAVE_MODAL_EVENT, onTourSaveModalRequest);
+    return () => window.removeEventListener(PRODUCT_TOUR_SAVE_MODAL_EVENT, onTourSaveModalRequest);
+  }, []);
+
   async function submit() {
     let value: bigint;
     try {
@@ -653,7 +669,11 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
             )}
 
             {showFirstSaveNotice && (
-              <aside className="save-first-save-notice" aria-label="First save guidance">
+              <aside
+                className="save-first-save-notice"
+                aria-label="First save guidance"
+                data-tour="save-first"
+              >
                 <div className="save-first-save-notice-copy">
                   <span className="save-first-save-notice-eyebrow">FIRST SAVE</span>
                   <strong>CLAIM DEMO cUSDC IF NEEDED</strong>
@@ -671,7 +691,7 @@ export function SavePage({ unveil }: { unveil: UnveilV4Controller }) {
               </aside>
             )}
 
-            <div className="save-action-fields">
+            <div className="save-action-fields" data-tour="save-submit">
               <div className="save-source-line">
                 <span>{sourceLabel}</span>
                 <strong>{sourceSummary}</strong>

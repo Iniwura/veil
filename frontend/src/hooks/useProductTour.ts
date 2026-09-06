@@ -4,6 +4,7 @@ import { usePrefersReducedMotion } from "./useMotion";
 
 export const PRODUCT_TOUR_STORAGE_KEY = "unveil.guide.completed.v1";
 export const PRODUCT_TOUR_SESSION_DISMISSED_KEY = "unveil.guide.dismissed.session.v1";
+export const PRODUCT_TOUR_SAVE_MODAL_EVENT = "unveil.product-tour.save-modal";
 
 export const PRODUCT_TOUR_STEPS = [
   {
@@ -91,8 +92,8 @@ const TARGET_SELECTORS: Record<string, string> = {
   wallet: '[data-tour="wallet"], .wallet-button',
   "nav-save": '[data-tour="nav-save"], .app-nav a[href="/app/save"], .mobile-nav a[href="/app/save"]',
   "save-amount": '[data-tour="save-amount"], .save-amount-input input, .save-main-actions',
-  "save-first": '[data-tour="save-first"], .save-main-action--save_privately, .save-main-actions, .save-clean-header',
-  "save-submit": '[data-tour="save-submit"], .save-primary-action, .save-main-actions, .save-clean-header',
+  "save-first": '[data-tour="save-first"], .save-modal .save-demo-faucet',
+  "save-submit": '[data-tour="save-submit"], .save-modal .save-action-fields',
   "private-position": '[data-tour="private-position"], .save-private-position, .home-private-position',
   "private-reveal": '[data-tour="private-reveal"], .save-reveal-action',
   "nav-draw": '[data-tour="nav-draw"], .app-nav a[href="/app/draw"], .mobile-nav a[href="/app/draw"]',
@@ -182,6 +183,13 @@ export function useProductTour({ route, replayToken }: { route: AppRoute; replay
     }
     if (mode === "invite") setMode(null);
   }, [mode, replayToken, route]);
+
+  useEffect(() => {
+    const shouldOpenSaveModal = mode === "tour" && route === "/app/save" && (stepIndex === 2 || stepIndex === 3);
+    window.dispatchEvent(
+      new CustomEvent(PRODUCT_TOUR_SAVE_MODAL_EVENT, { detail: { open: shouldOpenSaveModal } }),
+    );
+  }, [mode, route, stepIndex]);
 
   useEffect(() => {
     if (mode !== "tour") {
