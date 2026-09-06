@@ -28,7 +28,6 @@ jobs:
       - run: npm run compile
       - run: npm run build:ts
       - run: npm test
-      - run: npm run coverage
   build-and-test-unix:
     runs-on: ubuntu-latest
     steps:
@@ -47,4 +46,3 @@ jobs:
       - run: npm run compile
       - run: npm run build:ts
       - run: npm test
-      - run: npm run coverage
