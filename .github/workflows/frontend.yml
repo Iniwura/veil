@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "frontend/**"
+      - "shared/**"
       - "scripts/verify-frontend-dist.mjs"
       - ".github/workflows/frontend.yml"
   push:
@@ -11,21 +12,24 @@ on:
       - main
     paths:
       - "frontend/**"
+      - "shared/**"
       - "scripts/verify-frontend-dist.mjs"
       - ".github/workflows/frontend.yml"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
       - run: npm ci
+      - run: npm ci
+        working-directory: frontend
       - run: npm run build
+        working-directory: frontend
       - run: npm run verify:dist
+        working-directory: frontend
       - run: npm audit --omit=dev
+        working-directory: frontend
