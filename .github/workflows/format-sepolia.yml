@@ -1,9 +1,9 @@
-name: Format final submission files
+name: Format Sepolia files
 
 on:
   push:
     branches:
-      - main
+      - feat/sepolia-deployment
 
 permissions:
   contents: write
@@ -15,12 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: feat/sepolia-deployment
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
       - run: npm ci
-      - run: npx prettier docs/DEMO_SCRIPT.md docs/UNVEIL_V4_LIVE_RESULT.md scripts/v4-keeper.ts --write
+      - run: npx prettier deploy/deploy.ts docs/DEPLOYMENT.md hardhat.config.ts --write
       - name: Commit formatting
         run: |
           if git diff --quiet; then
@@ -28,6 +28,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/DEMO_SCRIPT.md docs/UNVEIL_V4_LIVE_RESULT.md scripts/v4-keeper.ts
-          git commit -m "Format final submission files"
-          git push origin HEAD:main
+          git add deploy/deploy.ts docs/DEPLOYMENT.md hardhat.config.ts
+          git commit -m "Format Sepolia deployment files"
+          git push origin HEAD:feat/sepolia-deployment
